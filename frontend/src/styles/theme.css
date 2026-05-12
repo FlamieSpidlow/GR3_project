@@ -1,0 +1,125 @@
+:root {
+  --tw-bg: #f8fafc;
+  --tw-surface: #ffffff;
+  --tw-text: #0f172a;
+  --tw-muted: #64748b;
+  --tw-border: #e2e8f0;
+
+  --tw-primary: #6366f1;
+  --tw-primary-600: #4f46e5;
+  --tw-primary-700: #4338ca;
+
+  --tw-danger: #ef4444;
+  --tw-danger-700: #b91c1c;
+
+  --tw-radius-sm: 10px;
+  --tw-radius-md: 14px;
+  --tw-radius-lg: 18px;
+
+  --tw-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.08);
+  --tw-shadow-md: 0 12px 32px rgba(15, 23, 42, 0.12);
+  --tw-shadow-lg: 0 20px 60px rgba(15, 23, 42, 0.14);
+
+  --tw-container: 1200px;
+  --tw-container-wide: 1400px;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, 'Noto Sans', 'Liberation Sans', sans-serif;
+  background: var(--tw-bg);
+  color: var(--tw-text);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+a {
+  color: inherit;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Layout helpers */
+.tw-container {
+  width: 100%;
+  max-width: var(--tw-container);
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.tw-container-wide {
+  width: 100%;
+  max-width: var(--tw-container-wide);
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.tw-surface {
+  background: var(--tw-surface);
+  border: 1px solid var(--tw-border);
+  border-radius: var(--tw-radius-lg);
+  box-shadow: var(--tw-shadow-sm);
+}
+
+.tw-section-title {
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0 0 12px 0;
+}
+
+.tw-muted {
+  color: var(--tw-muted);
+}
+
+/* Button helpers (intentionally simple) */
+.tw-btn {
+  border: 1px solid transparent;
+  border-radius: 12px;
+  padding: 12px 18px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease,
+    transform 0.12s ease;
+  line-height: 1;
+}
+
+.tw-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.tw-btn-primary {
+  background: var(--tw-primary);
+  color: #ffffff;
+}
+
+.tw-btn-primary:hover:not(:disabled) {
+  background: var(--tw-primary-600);
+  transform: translateY(-1px);
+}
+
+.tw-btn-outline {
+  background: transparent;
+  border-color: var(--tw-border);
+  color: var(--tw-text);
+}
+
+.tw-btn-outline:hover:not(:disabled) {
+  border-color: rgba(99, 102, 241, 0.35);
+  background: rgba(99, 102, 241, 0.06);
+}
