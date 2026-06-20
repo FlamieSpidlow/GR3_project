@@ -84,7 +84,7 @@ export default {
       this.address = u.address || ''
       this.email = u.email || ''
     } else {
-      // Fallback to localStorage
+      // Fallback to current session data
       const user = getAuthUserRaw()
       if (user) {
         const u = JSON.parse(user)
@@ -94,7 +94,7 @@ export default {
         this.address = u.address || ''
         this.email = u.email || ''
       } else {
-        // If no user in localStorage, redirect to login
+        // If no user in session, redirect to login
         this.$router.push('/login')
       }
     }
@@ -120,11 +120,11 @@ export default {
         if (this.avatar) payload.avatar = this.avatar
         const res = await updateProfile(payload)
         if (res.success) {
-          // update localStorage user
+          // update current session user
           // ensure local user data keeps avatar
           const updatedUser = res.user || {}
           if (!updatedUser.avatar && this.avatarPreview) updatedUser.avatar = this.avatarPreview
-          localStorage.setItem('user', JSON.stringify(updatedUser))
+          sessionStorage.setItem('user', JSON.stringify(updatedUser))
           this.$notify({ title: 'Thành công', message: res.message || 'Cập nhật thông tin thành công', type: 'success' })
           this.$router.push('/')
         } else {

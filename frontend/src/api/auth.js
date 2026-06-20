@@ -101,6 +101,19 @@ export async function updateLocation(data) {
   return parseJsonSafe(res)
 }
 
+export async function updateFavorite(placeId, favorited) {
+  const token = getAuthToken()
+  const res = await fetch(`${API_URL}/favorites/${encodeURIComponent(placeId)}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': token ? `Bearer ${token}` : ''
+    },
+    body: JSON.stringify({ favorited })
+  })
+  return parseJsonSafe(res)
+}
+
 export async function saveSearchHistory(query) {
   const token = getAuthToken()
   const res = await fetch(`${API_URL}/search-history`, {

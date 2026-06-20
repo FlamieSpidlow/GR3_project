@@ -571,7 +571,7 @@
 <script>
 import { getPlaceById, getAllPlaces } from '../api/places'
 import { getReviews, createReview, updateReview, deleteReview, getMyReviewImageSubmissions, reactToReview } from '../api/reviews'
-import { getProfile, updateLocation } from '../api/auth'
+import { getProfile, updateLocation, updateFavorite } from '../api/auth'
 import { createTicketOrder, getTicketPaymentOrigin, getTicketPaymentStatus } from '../api/tickets'
 import QRCode from 'qrcode'
 import { formatPrice, parsePriceValue } from '../utils/priceFormatter'
@@ -921,29 +921,56 @@ export default {
     },
     checkFavorite() {
       try {
-        const favorites = JSON.parse(localStorage.getItem('favorites') || '[]')
+        const raw = getAuthUserRaw()
+        const user = raw ? JSON.parse(raw) : null
+        const favorites = user && Array.isArray(user.favorites)
+          ? user.favorites
+          : []
         const placeId = this.$route.params.id
         this.isFavorited = favorites.includes(placeId)
       } catch (e) {
         this.isFavorited = false
       }
     },
-    toggleFavorite() {
+    async toggleFavorite() {
       try {
-        let favorites = JSON.parse(localStorage.getItem('favorites') || '[]')
+        if (!getAuthToken()) {
+          this.$router.push('/login')
+          return
+        }
+
+        const raw = getAuthUserRaw()
+        const user = raw ? JSON.parse(raw) : null
+        let favorites = user && Array.isArray(user.favorites)
+          ? [...user.favorites]
+          : []
         const placeId = this.$route.params.id
+        const nextFavorited = !this.isFavorited
         
-        if (this.isFavorited) {
+        if (!nextFavorited) {
           favorites = favorites.filter(id => id !== placeId)
-          this.isFavorited = false
         } else {
-          favorites.push(placeId)
-          this.isFavorited = true
+          if (!favorites.includes(placeId)) favorites.push(placeId)
         }
         
-        localStorage.setItem('favorites', JSON.stringify(favorites))
+        this.isFavorited = nextFavorited
+        if (user) {
+          const nextUser = { ...user, favorites }
+          if (sessionStorage.getItem('user')) sessionStorage.setItem('user', JSON.stringify(nextUser))
+        }
+
+        if (getAuthToken()) {
+          const res = await updateFavorite(placeId, nextFavorited)
+          if (!res.success) throw new Error(res.error || 'Update favorite failed')
+          const serverFavorites = Array.isArray(res.favorites) ? res.favorites : favorites
+          if (user) {
+            const nextUser = { ...user, favorites: serverFavorites }
+            if (sessionStorage.getItem('user')) sessionStorage.setItem('user', JSON.stringify(nextUser))
+          }
+        }
       } catch (e) {
         console.error('Error toggling favorite:', e)
+        this.checkFavorite()
       }
     },
     coerceNumber(value) {
@@ -951,26 +978,17 @@ export default {
       const n = typeof value === 'number' ? value : parseFloat(value)
       return Number.isFinite(n) ? n : null
     },
-    setUserLocation(lat, lng, { persist = true } = {}) {
+    setUserLocation(lat, lng) {
       const latNum = this.coerceNumber(lat)
       const lngNum = this.coerceNumber(lng)
       if (latNum === null || lngNum === null) return false
       this.userLocation = { lat: latNum, lng: lngNum }
-      if (persist) {
-        localStorage.setItem('userLocation', JSON.stringify(this.userLocation))
-      }
       this.calculateUserDistance()
       if (this.place) this.loadNearbyPlaces()
       return true
     },
     loadUserLocationFromStorage() {
       try {
-        const cached = localStorage.getItem('userLocation')
-        if (cached) {
-          const parsed = JSON.parse(cached)
-          if (this.setUserLocation(parsed?.lat, parsed?.lng, { persist: false })) return
-        }
-
         const userData = getAuthUserRaw()
         if (userData) {
           const parsed = JSON.parse(userData)

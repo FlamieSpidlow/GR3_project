@@ -15,9 +15,9 @@ const buildUserResponse = (user) => ({
   address: user.address,
   lat: user.lat,
   lng: user.lng,
-  numberOfKids: user.numberOfKids,
   role: user.role,
-  searchHistory: user.searchHistory || []
+  searchHistory: user.searchHistory || [],
+  favorites: user.favorites || []
 })
 
 const signToken = (user) => jwt.sign(
@@ -243,6 +243,29 @@ router.delete('/search-history', authenticate, async (req, res) => {
   } catch (err) {
     console.error('Clear search history error:', err)
     res.status(500).json({ success: false, error: 'Loi khi xoa lich su', details: err.message })
+  }
+})
+
+router.put('/favorites/:placeId', authenticate, async (req, res) => {
+  try {
+    const { placeId } = req.params
+    const { favorited } = req.body || {}
+    if (!placeId) return res.status(400).json({ success: false, error: 'Place id is required' })
+
+    const user = req.user
+    if (!Array.isArray(user.favorites)) user.favorites = []
+
+    if (favorited) {
+      if (!user.favorites.includes(placeId)) user.favorites.push(placeId)
+    } else {
+      user.favorites = user.favorites.filter(id => id !== placeId)
+    }
+
+    await user.save()
+    res.json({ success: true, favorites: user.favorites })
+  } catch (err) {
+    console.error('Update favorite error:', err)
+    res.status(500).json({ success: false, error: 'Loi khi cap nhat yeu thich', details: err.message })
   }
 })
 

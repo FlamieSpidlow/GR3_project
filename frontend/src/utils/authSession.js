@@ -1,9 +1,9 @@
 export function getAuthToken() {
-  return sessionStorage.getItem('authToken') || localStorage.getItem('authToken') || ''
+  return sessionStorage.getItem('authToken') || ''
 }
 
 export function getAuthUserRaw() {
-  return sessionStorage.getItem('user') || localStorage.getItem('user') || ''
+  return sessionStorage.getItem('user') || ''
 }
 
 export function getAuthUser() {
@@ -19,14 +19,9 @@ export function getAuthUser() {
 export function setAuthSession(token, user) {
   if (token) sessionStorage.setItem('authToken', token)
   if (user) sessionStorage.setItem('user', JSON.stringify(user))
-
-  localStorage.removeItem('authToken')
-  localStorage.removeItem('user')
 }
 
 export function clearAuthSession() {
   sessionStorage.removeItem('authToken')
   sessionStorage.removeItem('user')
-  localStorage.removeItem('authToken')
-  localStorage.removeItem('user')
 }

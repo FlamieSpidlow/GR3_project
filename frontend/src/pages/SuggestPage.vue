@@ -87,7 +87,6 @@ export default {
     return {
       user: {
         name: 'Người dùng',
-        numberOfKids: 1,
         address: '',
         email: '',
         avatar: '',
@@ -126,43 +125,20 @@ export default {
       const n = typeof v === 'number' ? v : parseFloat(v)
       return Number.isFinite(n) ? n : null
     },
-    setUserLocation(lat, lng, { persist = true } = {}) {
+    setUserLocation(lat, lng) {
       const latNum = this.coerceNumber(lat)
       const lngNum = this.coerceNumber(lng)
       if (latNum === null || lngNum === null) return false
       this.userLocation = { lat: latNum, lng: lngNum }
-      if (persist) {
-        localStorage.setItem('userLocation', JSON.stringify(this.userLocation))
-      }
       return true
     },
-    setUserAddress(address, { persist = true } = {}) {
+    setUserAddress(address) {
       const value = String(address || '').trim()
       if (!value) return false
       this.user.address = value
-      if (persist) {
-        localStorage.setItem('userAddress', value)
-      }
       return true
     },
-    loadUserAddressFromStorage() {
-      const address = localStorage.getItem('userAddress')
-      if (address) this.setUserAddress(address, { persist: false })
-    },
-    loadUserLocationFromStorage() {
-      try {
-        const raw = localStorage.getItem('userLocation')
-        if (!raw) return
-        const parsed = JSON.parse(raw)
-        if (parsed && parsed.lat != null && parsed.lng != null) {
-          this.setUserLocation(parsed.lat, parsed.lng, { persist: false })
-        }
-      } catch {
-        // ignore
-      }
-    },
     async loadUserProfile() {
-      this.loadUserLocationFromStorage()
       let loadedFromProfile = false
       const token = getAuthToken()
       if (token) {
@@ -174,7 +150,7 @@ export default {
             this.user.name = u.parentName || u.username || this.user.name
             this.user.email = u.email || ''
             this.user.avatar = u.avatar || ''
-            this.user.numberOfKids = u.numberOfKids || 1
+            this.favorites = Array.isArray(u.favorites) ? u.favorites : this.favorites
             this.setUserAddress(u.address, { persist: true })
             loadedFromProfile = true
             this.user.lat = u.lat
@@ -188,9 +164,8 @@ export default {
         }
       }
       
-      // Fallback to localStorage only when profile is unavailable.
+      // Fallback to current session data only when profile is unavailable.
       if (!loadedFromProfile) {
-        this.loadUserAddressFromStorage()
         this.loadUserFromStorage()
       }
       this.getUserLocationAndFetch()
@@ -198,7 +173,7 @@ export default {
     loadUserFromStorage() {
       try {
         const authToken = getAuthToken()
-        const raw = getAuthUserRaw() || localStorage.getItem('profile') || null
+        const raw = getAuthUserRaw()
         if (authToken && raw) {
           const parsed = JSON.parse(raw)
           const src = parsed && parsed.user && typeof parsed.user === 'object' ? parsed.user : parsed
@@ -206,7 +181,7 @@ export default {
           this.user.name = src.parentName || src.name || src.fullName || src.displayName || src.username || this.user.name
           this.user.email = src.email || src.mail || ''
           this.user.avatar = src.avatar || src.photoURL || src.image || ''
-          this.user.numberOfKids = src.numberOfKids || src.kids || this.user.numberOfKids
+          if (Array.isArray(src.favorites)) this.favorites = src.favorites
           this.setUserAddress(src.address || src.locationAddress || src.formattedAddress, { persist: true })
           const lat = src.lat ?? src.latitude ?? (src.location && src.location.lat)
           const lng = src.lng ?? src.longitude ?? (src.location && src.location.lng)
@@ -215,22 +190,9 @@ export default {
             this.user.lng = lng
             this.setUserLocation(lat, lng)
           }
-        } else if (raw) {
-          // fallback if no authToken but profile stored
-          const parsed = JSON.parse(raw)
-          const src = parsed && parsed.user && typeof parsed.user === 'object' ? parsed.user : parsed
-          this.user.name = src.name || src.parentName || this.user.name
-          this.user.email = src.email || ''
-          this.user.avatar = src.avatar || ''
-          this.setUserAddress(src.address || src.locationAddress || src.formattedAddress, { persist: true })
-          if (src.lat != null && src.lng != null) {
-            this.user.lat = src.lat
-            this.user.lng = src.lng
-            this.setUserLocation(src.lat, src.lng)
-          }
         }
       } catch (e) {
-        console.warn('Failed to load user from localStorage (SuggestPage)', e)
+        console.warn('Failed to load user from session (SuggestPage)', e)
       }
     },
     async getUserLocationAndFetch() {
@@ -340,19 +302,19 @@ export default {
 
     loadFavorites() {
       try {
-        this.favorites = JSON.parse(localStorage.getItem('favorites') || '[]')
+        const raw = getAuthUserRaw()
+        const user = raw ? JSON.parse(raw) : null
+        this.favorites = user && Array.isArray(user.favorites) ? user.favorites : []
       } catch (e) {
         this.favorites = []
       }
     },
-    saveFavorites() {
-      localStorage.setItem('favorites', JSON.stringify(this.favorites))
-    },
-    onFavoriteToggle({ id, favorited }) {
-      if (favorited) {
-        if (!this.favorites.includes(id)) {
-          this.favorites.push(id)
-        }
+    saveFavorites() {},
+    onFavoriteToggle({ id, favorited, favorites }) {
+      if (Array.isArray(favorites)) {
+        this.favorites = favorites
+      } else if (favorited) {
+        if (!this.favorites.includes(id)) this.favorites.push(id)
       } else {
         this.favorites = this.favorites.filter(fid => fid !== id)
       }

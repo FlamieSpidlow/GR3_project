@@ -63,7 +63,7 @@
 <script>
 import PlaceCard from '../components/PlaceCard.vue'
 import { getPlaceById } from '../api/places'
-import { getProfile, updateLocation } from '../api/auth'
+import { getProfile, updateLocation, updateFavorite } from '../api/auth'
 import { assetUrl } from '../utils/apiBase'
 import { getAuthToken } from '../utils/authSession'
 
@@ -89,27 +89,12 @@ export default {
       const n = typeof v === 'number' ? v : parseFloat(v)
       return Number.isFinite(n) ? n : null
     },
-    setUserLocation(lat, lng, { persist = true } = {}) {
+    setUserLocation(lat, lng) {
       const latNum = this.coerceNumber(lat)
       const lngNum = this.coerceNumber(lng)
       if (latNum === null || lngNum === null) return false
       this.userLocation = { lat: latNum, lng: lngNum }
-      if (persist) {
-        localStorage.setItem('userLocation', JSON.stringify(this.userLocation))
-      }
       return true
-    },
-    loadUserLocationFromStorage() {
-      try {
-        const raw = localStorage.getItem('userLocation')
-        if (!raw) return
-        const parsed = JSON.parse(raw)
-        if (parsed && parsed.lat != null && parsed.lng != null) {
-          this.setUserLocation(parsed.lat, parsed.lng, { persist: false })
-        }
-      } catch {
-        // ignore
-      }
     },
     async loadUserLocationFromProfile() {
       const token = getAuthToken()
@@ -124,15 +109,22 @@ export default {
       }
     },
     async initUserLocation() {
-      // Prefer cached/profile location first so distance can render immediately
-      this.loadUserLocationFromStorage()
+      // Prefer profile location first so distance can render immediately
       await this.loadUserLocationFromProfile()
       // Then attempt to refresh from browser geolocation
       this.getUserLocation()
     },
     async loadFavorites() {
       try {
-        this.favorites = JSON.parse(localStorage.getItem('favorites') || '[]')
+        const token = getAuthToken()
+        if (token) {
+          const profileRes = await getProfile()
+          this.favorites = profileRes.success && profileRes.user && Array.isArray(profileRes.user.favorites)
+            ? profileRes.user.favorites
+            : []
+        } else {
+          this.favorites = []
+        }
         
         if (this.favorites.length === 0) {
           this.favoritePlaces = []
@@ -173,15 +165,22 @@ export default {
         this.isLoading = false
       }
     },
-    removeFavorite(placeId) {
+    async removeFavorite(placeId) {
       this.favorites = this.favorites.filter(id => id !== placeId)
       this.favoritePlaces = this.favoritePlaces.filter(p => (p._id || p.id) !== placeId)
-      localStorage.setItem('favorites', JSON.stringify(this.favorites))
+      try {
+        if (getAuthToken()) await updateFavorite(placeId, false)
+      } catch (e) {
+        console.warn('Failed to sync removed favorite:', e)
+      }
     },
     onSelectPlace(place) {
       this.$router.push(`/place/${place._id || place.id}`)
     },
-    onFavoriteToggle({ id, favorited }) {
+    onFavoriteToggle({ id, favorited, favorites }) {
+      if (Array.isArray(favorites)) {
+        this.favorites = favorites
+      }
       if (!favorited) {
         this.removeFavorite(id)
       }

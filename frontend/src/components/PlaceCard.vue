@@ -51,6 +51,8 @@
 import { formatPrice } from '../utils/priceFormatter'
 import { cleanAddress } from '../utils/addressFormatter'
 import { assetUrl } from '../utils/apiBase'
+import { updateFavorite } from '../api/auth'
+import { getAuthToken, getAuthUserRaw } from '../utils/authSession'
 
 export default {
   name: 'PlaceCard',
@@ -82,27 +84,72 @@ export default {
     this.checkFavorite()
   },
   methods: {
+    readFavorites() {
+      try {
+        const raw = getAuthUserRaw()
+        if (raw) {
+          const user = JSON.parse(raw)
+          if (Array.isArray(user.favorites)) return user.favorites
+        }
+      } catch {
+        // ignore
+      }
+      return []
+    },
+    writeFavorites(favorites) {
+      try {
+        const raw = getAuthUserRaw()
+        if (!raw) return
+        const user = JSON.parse(raw)
+        const nextUser = { ...user, favorites }
+        if (sessionStorage.getItem('user')) sessionStorage.setItem('user', JSON.stringify(nextUser))
+      } catch {
+        // ignore
+      }
+    },
     checkFavorite() {
-      const favorites = JSON.parse(localStorage.getItem('favorites') || '[]')
+      const favorites = this.readFavorites()
       const placeId = this.place._id || this.place.id
       this.localFavorited = favorites.includes(placeId)
     },
-    toggleFavorite() {
+    async toggleFavorite() {
+      if (!getAuthToken()) {
+        this.$emit('favorite-login-required')
+        return
+      }
+
       const placeId = this.place._id || this.place.id
-      let favorites = JSON.parse(localStorage.getItem('favorites') || '[]')
+      let favorites = this.readFavorites()
+      const nextFavorited = !this.localFavorited
+      const previousFavorited = this.localFavorited
       
-      if (this.localFavorited) {
+      if (!nextFavorited) {
         favorites = favorites.filter(id => id !== placeId)
-        this.localFavorited = false
       } else {
         if (!favorites.includes(placeId)) {
           favorites.push(placeId)
         }
-        this.localFavorited = true
       }
       
-      localStorage.setItem('favorites', JSON.stringify(favorites))
-      this.$emit('favorite-toggle', { id: placeId, favorited: this.localFavorited })
+      this.localFavorited = nextFavorited
+      this.writeFavorites(favorites)
+      this.$emit('favorite-toggle', { id: placeId, favorited: nextFavorited, favorites })
+
+      try {
+        const res = await updateFavorite(placeId, nextFavorited)
+        if (!res.success) throw new Error(res.error || 'Update favorite failed')
+        const serverFavorites = Array.isArray(res.favorites) ? res.favorites : favorites
+        this.writeFavorites(serverFavorites)
+        this.$emit('favorite-toggle', { id: placeId, favorited: nextFavorited, favorites: serverFavorites })
+      } catch (err) {
+        console.error('Error syncing favorite:', err)
+        this.localFavorited = previousFavorited
+        const rollbackFavorites = previousFavorited
+          ? Array.from(new Set([...this.readFavorites(), placeId]))
+          : this.readFavorites().filter(id => id !== placeId)
+        this.writeFavorites(rollbackFavorites)
+        this.$emit('favorite-toggle', { id: placeId, favorited: previousFavorited, favorites: rollbackFavorites })
+      }
     },
     extractPlaceName(name) {
       if (!name) return '';
