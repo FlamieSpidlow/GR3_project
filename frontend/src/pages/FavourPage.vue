@@ -66,6 +66,7 @@ import { getPlaceById } from '../api/places'
 import { getProfile, updateLocation, updateFavorite } from '../api/auth'
 import { assetUrl } from '../utils/apiBase'
 import { getAuthToken } from '../utils/authSession'
+import { getBrowserLocationCached } from '../utils/clientCache'
 
 export default {
   name: 'FavourPage',
@@ -192,52 +193,38 @@ export default {
       if (!imagePath) return '/Playground.jpg'
       return assetUrl(imagePath)
     },
-    getUserLocation() {
-      if (!('geolocation' in navigator)) {
+    async getUserLocation() {
+      this.isLocating = true
+      const location = await getBrowserLocationCached({ timeout: 5000 })
+      if (!location) {
         this.userLocation = null
         this.isLocating = false
         return
       }
-      this.isLocating = true
-      navigator.geolocation.getCurrentPosition(
-        async (pos) => {
-          this.setUserLocation(pos.coords.latitude, pos.coords.longitude)
 
-          // Optionally persist to server for future sessions
-          try {
-            const token = getAuthToken()
-            if (token) {
-              await updateLocation({ lat: this.userLocation.lat, lng: this.userLocation.lng })
-            }
-          } catch (e) {
-            console.warn('Failed to persist user location:', e)
-          }
+      this.setUserLocation(location.lat, location.lng)
 
-          // Recalculate distances after getting location
-          this.favoritePlaces = this.favoritePlaces.map(place => {
-            const pLat = this.coerceNumber(place.lat)
-            const pLng = this.coerceNumber(place.lng)
-            place.lat = pLat
-            place.lng = pLng
-            if (pLat != null && pLng != null) {
-              place.distance = this.calculateDistance(
-                this.userLocation.lat, this.userLocation.lng,
-                pLat, pLng
-              )
-            } else {
-              place.distance = null
-            }
-            return place
-          })
+      try {
+        const token = getAuthToken()
+        if (token) {
+          await updateLocation({ lat: this.userLocation.lat, lng: this.userLocation.lng })
+        }
+      } catch (e) {
+        console.warn('Failed to persist user location:', e)
+      }
 
-          this.isLocating = false
-        },
-        () => {
-          this.userLocation = null
-          this.isLocating = false
-        },
-        { timeout: 5000 }
-      )
+      this.favoritePlaces = this.favoritePlaces.map(place => {
+        const pLat = this.coerceNumber(place.lat)
+        const pLng = this.coerceNumber(place.lng)
+        place.lat = pLat
+        place.lng = pLng
+        place.distance = pLat != null && pLng != null
+          ? this.calculateDistance(this.userLocation.lat, this.userLocation.lng, pLat, pLng)
+          : null
+        return place
+      })
+
+      this.isLocating = false
     },
     calculateDistance(lat1, lng1, lat2, lng2) {
       const aLat = this.coerceNumber(lat1)

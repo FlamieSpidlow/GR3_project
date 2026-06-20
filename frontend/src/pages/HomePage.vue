@@ -118,21 +118,8 @@
 <script>
 import PlaceCard from '../components/PlaceCard.vue'
 import { getAllPlaces } from '../api/places'
+import { getFeaturedActivities } from '../api/tags'
 
-const ACTIVITY_ITEMS = [
-  { id: 'swimming', label: 'Bơi lội', image: '/activities/swimming.jpg' },
-  { id: 'climbing', label: 'Leo núi nhân tạo', image: '/activities/climbing.jpg' },
-  { id: 'animalCare', label: 'Chăm sóc thú', image: '/activities/animal-care.jpg' },
-  { id: 'thrill', label: 'Cảm giác mạnh', image: '/activities/thrill.jpg' },
-  { id: 'history', label: 'Khám phá lịch sử', image: '/activities/history.jpg' },
-  { id: 'picnic', label: 'Picnic', image: '/activities/picnic.jpg' },
-  { id: 'farm', label: 'Làm nông trại', image: '/activities/farm.jpg' },
-  { id: 'museumExplore', label: 'Khám phá bảo tàng', image: '/activities/museum-explore.jpg' },
-  { id: 'craftVillage', label: 'Làng nghề & thủ công', image: '/activities/craft-village.jpg' },
-  { id: 'walkingCheckin', label: 'Đi bộ & check-in', image: '/activities/walking-checkin.jpg' },
-  { id: 'performance', label: 'Biểu diễn nghệ thuật', image: '/activities/performance.jpg' },
-  { id: 'natureExplore', label: 'Khám phá thiên nhiên', image: '/activities/nature-explore.jpg' }
-]
 
 export default {
   name: 'HomePage',
@@ -142,6 +129,7 @@ export default {
       allPlaces: [],
       currentIndex: 0,
       displayCount: 3,
+      activityItems: [],
       activityIndex: 0,
       activityDisplayCount: 3,
       errorMessage: '',
@@ -153,7 +141,7 @@ export default {
       return this.allPlaces.length > this.displayCount
     },
     canSlideActivities() {
-      return ACTIVITY_ITEMS.length > this.activityDisplayCount
+      return this.activityItems.length > this.activityDisplayCount
     },
     displayedPlaces() {
       if (this.allPlaces.length === 0) return []
@@ -165,17 +153,18 @@ export default {
       return result
     },
     displayedActivities() {
-      if (!ACTIVITY_ITEMS || ACTIVITY_ITEMS.length === 0) return []
+      if (!this.activityItems || this.activityItems.length === 0) return []
       const result = []
       for (let i = 0; i < this.activityDisplayCount; i++) {
-        const idx = (this.activityIndex + i) % ACTIVITY_ITEMS.length
-        result.push(ACTIVITY_ITEMS[idx])
+        const idx = (this.activityIndex + i) % this.activityItems.length
+        result.push(this.activityItems[idx])
       }
       return result
     }
   },
   mounted() {
     this.loadAllPlaces()
+    this.loadActivities()
   },
   beforeUnmount() {
     // no-op
@@ -217,14 +206,19 @@ export default {
       }
     },
     slideNextActivities() {
-      if (ACTIVITY_ITEMS.length > this.activityDisplayCount) {
-        this.activityIndex = (this.activityIndex + 1) % ACTIVITY_ITEMS.length
+      if (this.activityItems.length > this.activityDisplayCount) {
+        this.activityIndex = (this.activityIndex + 1) % this.activityItems.length
       }
     },
     slidePrevActivities() {
-      if (ACTIVITY_ITEMS.length > this.activityDisplayCount) {
-        this.activityIndex = (this.activityIndex - 1 + ACTIVITY_ITEMS.length) % ACTIVITY_ITEMS.length
+      if (this.activityItems.length > this.activityDisplayCount) {
+        this.activityIndex = (this.activityIndex - 1 + this.activityItems.length) % this.activityItems.length
       }
+    },
+    async loadActivities() {
+      const res = await getFeaturedActivities()
+      this.activityItems = res.success && Array.isArray(res.data) ? res.data : []
+      this.activityIndex = 0
     },
     viewPlaceDetails(place) {
       this.$router.push({
@@ -557,4 +551,47 @@ export default {
   align-items: center;
   justify-content: center;
 }
+
+@media (max-width: 640px) {
+  .home-page {
+    overflow-x: hidden;
+  }
+
+  .hero {
+    min-height: auto;
+  }
+
+  .hero-content {
+    padding: 42px 0 34px;
+  }
+
+  .places,
+  .activities {
+    padding-top: 26px;
+    padding-bottom: 30px;
+  }
+
+  .section-header {
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .section-header h2 {
+    font-size: 1.25rem;
+  }
+
+  .slider-controls {
+    gap: 8px;
+  }
+
+  .slider-btn {
+    width: 38px;
+    height: 38px;
+  }
+
+  .activity-media {
+    height: 170px;
+  }
+}
+
 </style>

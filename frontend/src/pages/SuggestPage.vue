@@ -79,6 +79,7 @@ import PlaceCard from '../components/PlaceCard.vue'
 import { getAllPlaces } from '../api/places'
 import { getProfile, updateLocation } from '../api/auth'
 import { getAuthToken, getAuthUserRaw } from '../utils/authSession'
+import { getBrowserLocationCached } from '../utils/clientCache'
 
 export default {
   name: 'SuggestPage',
@@ -196,33 +197,24 @@ export default {
       }
     },
     async getUserLocationAndFetch() {
-      if ('geolocation' in navigator) {
-        this.isLocating = true
-        navigator.geolocation.getCurrentPosition(async (pos) => {
-          this.setUserLocation(pos.coords.latitude, pos.coords.longitude)
-
-          // Keep recommendation distance fresh, but do not overwrite the profile address badge.
-          try {
-            const token = getAuthToken()
-            if (token) {
-              await updateLocation({
-                lat: this.userLocation.lat,
-                lng: this.userLocation.lng
-              })
-            }
-          } catch (e) {
-            console.warn('Failed to persist user location:', e)
+      this.isLocating = true
+      const location = await getBrowserLocationCached({ timeout: 5000 })
+      if (location) {
+        this.setUserLocation(location.lat, location.lng)
+        try {
+          const token = getAuthToken()
+          if (token) {
+            await updateLocation({
+              lat: this.userLocation.lat,
+              lng: this.userLocation.lng
+            })
           }
-
-          this.isLocating = false
-          await this.fetchRecommendations()
-        }, async () => {
-          this.isLocating = false
-          await this.fetchRecommendations()
-        }, { timeout: 5000 })
-      } else {
-        await this.fetchRecommendations()
+        } catch (e) {
+          console.warn('Failed to persist user location:', e)
+        }
       }
+      this.isLocating = false
+      await this.fetchRecommendations()
     },
     async fetchRecommendations() {
       this.loading = true

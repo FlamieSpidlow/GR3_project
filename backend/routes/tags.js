@@ -13,4 +13,26 @@ router.get('/', async (req, res) => {
   }
 })
 
+router.get('/activities', async (req, res) => {
+  try {
+    const tags = await Tag.find({ featured: true })
+      .sort({ sortOrder: 1, name: 1 })
+      .select('name description image sortOrder')
+      .lean()
+
+    const data = tags.map(tag => ({
+      id: tag._id.toString(),
+      label: tag.name,
+      description: tag.description || '',
+      image: tag.image || '/Playground.jpg',
+      sortOrder: tag.sortOrder || 0
+    }))
+
+    res.json({ success: true, data })
+  } catch (err) {
+    console.error('Get activity tags error:', err)
+    res.status(500).json({ success: false, error: 'Loi lay danh sach hoat dong', details: err.message })
+  }
+})
+
 module.exports = router

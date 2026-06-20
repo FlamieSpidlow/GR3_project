@@ -1,4 +1,5 @@
 import { apiUrl } from '../utils/apiBase'
+import { getBrowserLocationCached } from '../utils/clientCache'
 
 const API_URL = apiUrl('/chatbot')
 const CONVERSATION_KEY = 'chatbotConversationId'
@@ -30,25 +31,7 @@ async function parseJsonSafe(res) {
 }
 
 function getBrowserLocation() {
-  if (typeof navigator === 'undefined' || !navigator.geolocation) {
-    return Promise.resolve(null)
-  }
-
-  return new Promise((resolve) => {
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const lat = pos && pos.coords ? pos.coords.latitude : null
-        const lng = pos && pos.coords ? pos.coords.longitude : null
-        if (Number.isFinite(lat) && Number.isFinite(lng)) {
-          resolve({ lat, lng })
-        } else {
-          resolve(null)
-        }
-      },
-      () => resolve(null),
-      { timeout: 4000, maximumAge: LOCATION_TTL_MS }
-    )
-  })
+  return getBrowserLocationCached({ timeout: 4000, maximumAge: LOCATION_TTL_MS })
 }
 
 export async function askChatbot(question) {

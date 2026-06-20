@@ -579,6 +579,7 @@ import { cleanAddress } from '../utils/addressFormatter'
 import { assetUrl } from '../utils/apiBase'
 import { buildMapsDirectionsUrl, buildMapsEmbedUrl, hasMapTarget } from '../utils/mapLinks'
 import { getAuthToken, getAuthUserRaw } from '../utils/authSession'
+import { getBrowserLocationCached } from '../utils/clientCache'
 
 export default {
   name: 'PlaceDetails',
@@ -1014,21 +1015,20 @@ export default {
       this.loadUserLocationFromStorage()
       await this.loadUserLocationFromProfile()
 
-      if ('geolocation' in navigator) {
-        navigator.geolocation.getCurrentPosition(async (pos) => {
-          this.setUserLocation(pos.coords.latitude, pos.coords.longitude)
-          try {
-            const token = getAuthToken()
-            if (token) {
-              await updateLocation({
-                lat: this.userLocation.lat,
-                lng: this.userLocation.lng
-              })
-            }
-          } catch (e) {
-            console.warn('Failed to persist user location', e)
-          }
-        }, () => {}, { timeout: 5000 })
+      const location = await getBrowserLocationCached({ timeout: 5000 })
+      if (!location) return
+
+      this.setUserLocation(location.lat, location.lng)
+      try {
+        const token = getAuthToken()
+        if (token) {
+          await updateLocation({
+            lat: this.userLocation.lat,
+            lng: this.userLocation.lng
+          })
+        }
+      } catch (e) {
+        console.warn('Failed to persist user location', e)
       }
     },
     calculateUserDistance() {

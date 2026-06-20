@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { API_BASE_URL, apiUrl } from '../utils/apiBase'
 import { getAuthToken } from '../utils/authSession'
+import { clearAllPlacesCache } from './places'
 
 const API_URL = apiUrl('/admin')
 
@@ -113,6 +114,7 @@ export const createPlace = async (placeData) => {
     const response = await axios.post(`${API_URL}/places`, placeData, {
       headers: getAuthHeader()
     })
+    if (response.data && response.data.success) clearAllPlacesCache()
     return response.data
   } catch (error) {
     console.error('Create place error:', error)
@@ -125,6 +127,7 @@ export const updatePlace = async (id, placeData) => {
     const response = await axios.put(`${API_URL}/places/${id}`, placeData, {
       headers: getAuthHeader()
     })
+    if (response.data && response.data.success) clearAllPlacesCache()
     return response.data
   } catch (error) {
     console.error('Update place error:', error)
@@ -137,6 +140,7 @@ export const deletePlace = async (id) => {
     const response = await axios.delete(`${API_URL}/places/${id}`, {
       headers: getAuthHeader()
     })
+    if (response.data && response.data.success) clearAllPlacesCache()
     return response.data
   } catch (error) {
     console.error('Delete place error:', error)
@@ -164,6 +168,7 @@ export const addPlaceFromGoong = async (placeData) => {
     const response = await axios.post(`${API_URL}/places/add-from-goong`, placeData, {
       headers: getAuthHeader()
     })
+    if (response.data && response.data.success) clearAllPlacesCache()
     return response.data
   } catch (error) {
     console.error('Add place from Goong error:', error)
@@ -190,6 +195,7 @@ export const approvePlaceImageSubmission = async (submissionId) => {
     const response = await axios.post(`${API_URL}/place-image-submissions/${encodeURIComponent(submissionId)}/approve`, {}, {
       headers: getAuthHeader()
     })
+    if (response.data && response.data.success) clearAllPlacesCache()
     return response.data
   } catch (error) {
     console.error('Approve place image submission error:', error)

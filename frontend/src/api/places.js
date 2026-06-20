@@ -2,6 +2,14 @@ import { apiUrl } from '../utils/apiBase'
 import { getAuthToken } from '../utils/authSession'
 
 const API_URL = apiUrl('/places')
+const CACHE_TTL_MS = 5 * 60 * 1000
+let allPlacesCache = null
+let allPlacesPromise = null
+
+export function clearAllPlacesCache() {
+  allPlacesCache = null
+  allPlacesPromise = null
+}
 
 const getAuthHeader = () => {
   const token = getAuthToken()
@@ -82,14 +90,27 @@ export async function getRandomPlaces(limit = 4) {
   }
 }
 
-export async function getAllPlaces() {
+export async function getAllPlaces({ force = false } = {}) {
   try {
-    const res = await fetch(`${API_URL}/all`)
-    const data = await res.json()
-    return data
+    if (!force && allPlacesCache && Date.now() - allPlacesCache.at < CACHE_TTL_MS) {
+      return allPlacesCache.data
+    }
+    if (!force && allPlacesPromise) return allPlacesPromise
+
+    allPlacesPromise = fetch(`${API_URL}/all`)
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.success) allPlacesCache = { data, at: Date.now() }
+        return data
+      })
+      .finally(() => {
+        allPlacesPromise = null
+      })
+
+    return allPlacesPromise
   } catch (err) {
     console.error('Get all places error:', err)
-    return { success: false, error: 'Lỗi lấy danh sách địa điểm', details: err.message }
+    return { success: false, error: 'L?i l?y danh s?ch ??a ?i?m', details: err.message }
   }
 }
 

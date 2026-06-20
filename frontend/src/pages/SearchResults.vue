@@ -195,6 +195,7 @@
 import { searchPlaces } from '../api/places'
 import { saveSearchHistory } from '../api/auth'
 import { clearAuthSession, getAuthToken } from '../utils/authSession'
+import { getBrowserLocationCached } from '../utils/clientCache'
 import PlaceCard from '../components/PlaceCard.vue'
 import { formatPrice, parsePriceValue } from '../utils/priceFormatter'
 
@@ -254,26 +255,9 @@ export default {
       }
       window.scrollTo({ top: 0, behavior: 'smooth' })
     },
-    getUserLocation() {
-      return new Promise((resolve) => {
-        if (!('geolocation' in navigator)) {
-          this.userLocation = null
-          resolve()
-          return
-        }
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            this.userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude }
-            console.log('User location:', this.userLocation)
-            resolve()
-          },
-          () => {
-            this.userLocation = null
-            resolve()
-          },
-          { timeout: 5000 }
-        )
-      })
+    async getUserLocation() {
+      const location = await getBrowserLocationCached({ timeout: 5000 })
+      this.userLocation = location || null
     },
     normalizeText(value) {
       return String(value || '')

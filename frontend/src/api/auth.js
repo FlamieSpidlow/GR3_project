@@ -2,6 +2,35 @@ import { apiUrl } from '../utils/apiBase'
 import { getAuthToken } from '../utils/authSession'
 
 const API_URL = apiUrl('/auth')
+const PROFILE_CACHE_TTL_MS = 5 * 60 * 1000
+let profileCache = null
+let profilePromise = null
+let profilePromiseToken = ''
+
+export function clearProfileCache() {
+  profileCache = null
+  profilePromise = null
+  profilePromiseToken = ''
+}
+
+function setProfileCache(data) {
+  if (data && data.success && data.user) {
+    profileCache = { data, token: getAuthToken(), at: Date.now() }
+  }
+  return data
+}
+
+function updateCachedUser(patch) {
+  if (!profileCache || !profileCache.data || !profileCache.data.user) return
+  profileCache = {
+    ...profileCache,
+    at: Date.now(),
+    data: {
+      ...profileCache.data,
+      user: { ...profileCache.data.user, ...patch }
+    }
+  }
+}
 
 async function parseJsonSafe(res) {
   const contentType = res.headers.get('content-type') || ''
@@ -29,7 +58,7 @@ export async function loginUser(credentials) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(credentials)
   })
-  return parseJsonSafe(res)
+  return parseJsonSafe(res).then(setProfileCache)
 }
 
 export async function forgotPassword(email) {
@@ -60,7 +89,7 @@ export async function updateProfile(data) {
     },
     body: JSON.stringify(data)
   })
-  return parseJsonSafe(res)
+  return parseJsonSafe(res).then(setProfileCache)
 }
 
 export async function changePassword({ currentPassword, newPassword }) {
@@ -76,16 +105,31 @@ export async function changePassword({ currentPassword, newPassword }) {
   return parseJsonSafe(res)
 }
 
-export async function getProfile() {
+export async function getProfile({ force = false } = {}) {
   const token = getAuthToken()
-  const res = await fetch(`${API_URL}/profile`, {
+  if (!token) return { success: false, error: 'Vui long dang nhap' }
+
+  if (!force && profileCache && profileCache.token === token && Date.now() - profileCache.at < PROFILE_CACHE_TTL_MS) {
+    return profileCache.data
+  }
+  if (!force && profilePromise && profilePromiseToken === token) return profilePromise
+
+  profilePromiseToken = token
+  profilePromise = fetch(`${API_URL}/profile`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': token ? `Bearer ${token}` : ''
     }
   })
-  return parseJsonSafe(res)
+    .then(parseJsonSafe)
+    .then(setProfileCache)
+    .finally(() => {
+      profilePromise = null
+      profilePromiseToken = ''
+    })
+
+  return profilePromise
 }
 
 export async function updateLocation(data) {
@@ -98,7 +142,11 @@ export async function updateLocation(data) {
     },
     body: JSON.stringify(data)
   })
-  return parseJsonSafe(res)
+  const parsed = await parseJsonSafe(res)
+  if (parsed && parsed.success && parsed.user && profileCache && profileCache.data && profileCache.data.user) {
+    updateCachedUser(parsed.user)
+  }
+  return parsed
 }
 
 export async function updateFavorite(placeId, favorited) {
@@ -111,7 +159,11 @@ export async function updateFavorite(placeId, favorited) {
     },
     body: JSON.stringify({ favorited })
   })
-  return parseJsonSafe(res)
+  const parsed = await parseJsonSafe(res)
+  if (parsed && parsed.success && Array.isArray(parsed.favorites) && profileCache && profileCache.data && profileCache.data.user) {
+    updateCachedUser({ favorites: parsed.favorites })
+  }
+  return parsed
 }
 
 export async function saveSearchHistory(query) {
@@ -124,7 +176,11 @@ export async function saveSearchHistory(query) {
     },
     body: JSON.stringify({ query })
   })
-  return parseJsonSafe(res)
+  const parsed = await parseJsonSafe(res)
+  if (parsed && parsed.success && Array.isArray(parsed.searchHistory)) {
+    updateCachedUser({ searchHistory: parsed.searchHistory })
+  }
+  return parsed
 }
 
 export async function clearSearchHistory() {
@@ -136,5 +192,9 @@ export async function clearSearchHistory() {
       'Authorization': token ? `Bearer ${token}` : ''
     }
   })
-  return parseJsonSafe(res)
+  const parsed = await parseJsonSafe(res)
+  if (parsed && parsed.success) {
+    updateCachedUser({ searchHistory: [] })
+  }
+  return parsed
 }

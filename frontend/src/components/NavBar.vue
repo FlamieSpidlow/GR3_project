@@ -189,7 +189,7 @@
 </template>
 
 <script>
-import { clearSearchHistory, getProfile, saveSearchHistory } from '../api/auth'
+import { clearProfileCache, clearSearchHistory, getProfile, saveSearchHistory } from '../api/auth'
 import { clearAuthSession, getAuthToken, getAuthUserRaw } from '../utils/authSession'
 
 export default {
@@ -353,6 +353,7 @@ export default {
     },
     logout() {
       clearAuthSession()
+      clearProfileCache()
       this.isAuthenticated = false
       this.showMenu = false
       
@@ -832,4 +833,96 @@ export default {
     grid-template-columns: 1fr;
   }
 }
+
+@media (max-width: 760px) {
+  .navbar-inner {
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 10px;
+    padding: 10px 12px;
+  }
+
+  .brand-area {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .about-link {
+    display: none;
+  }
+
+  .nav-area {
+    order: 3;
+    flex: 1 0 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .nav-area::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nav-links {
+    width: max-content;
+    min-width: 100%;
+    gap: 6px;
+    justify-content: flex-start;
+  }
+
+  .nav-links li a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 36px;
+    padding: 8px 10px;
+    border-radius: 999px;
+    background: #f8fafc;
+    white-space: nowrap;
+    font-size: 0.88rem;
+  }
+
+  .user-actions {
+    flex: 0 0 auto;
+    gap: 6px;
+  }
+
+  .icon-btn {
+    width: 38px;
+    height: 38px;
+  }
+
+  .login-btn {
+    padding: 9px 12px;
+    white-space: nowrap;
+  }
+
+  .dropdown-menu {
+    right: 0;
+    min-width: 190px;
+  }
+
+  .search-modal {
+    align-items: stretch;
+    padding: 66px 10px 12px;
+  }
+
+  .search-dialog {
+    max-height: calc(100vh - 82px);
+    overflow-y: auto;
+  }
+
+  .search-input-row {
+    flex-direction: column;
+  }
+
+  .search-input-row .tw-btn {
+    width: 100%;
+  }
+
+  .search-age input[type="range"] {
+    flex-basis: auto;
+    min-width: 0;
+  }
+}
+
 </style>
