@@ -9,6 +9,7 @@ const reviewsRoutes = require('./routes/reviews')
 const chatbotRoutes = require('./routes/chatbot')
 const tagsRoutes = require('./routes/tags')
 const ticketsRoutes = require('./routes/tickets')
+const notificationsRoutes = require('./routes/notifications')
 const cors = require('cors')
 
 // Debug: Check if Goong API key is loaded
@@ -34,6 +35,7 @@ app.use('/api/reviews', reviewsRoutes)
 app.use('/api/chatbot', chatbotRoutes)
 app.use('/api/tags', tagsRoutes)
 app.use('/api/tickets', ticketsRoutes)
+app.use('/api/notifications', notificationsRoutes)
 
 const frontendDist = path.join(__dirname, '..', 'frontend', 'dist')
 app.use(express.static(frontendDist))

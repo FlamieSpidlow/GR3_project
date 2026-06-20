@@ -259,6 +259,7 @@ import { clearProfileCache, clearSearchHistory, getProfile, saveSearchHistory } 
 import { clearAuthSession, getAuthToken, getAuthUserRaw } from '../utils/authSession'
 import {
   clearNotifications,
+  loadNotifications,
   markAllNotificationsRead,
   notificationState,
   resolveConfirmation,
@@ -302,6 +303,7 @@ export default {
   },
   mounted() {
     this.checkAuth()
+    if (this.isAuthenticated) loadNotifications()
     document.addEventListener('click', this.closeMenu)
   },
   watch: {
@@ -309,6 +311,11 @@ export default {
       this.checkAuth()
       this.showMenu = false
       this.showNotifications = false
+      if (this.isAuthenticated) {
+        loadNotifications()
+      } else {
+        clearNotifications({ remote: false })
+      }
     }
   },
   beforeUnmount() {
@@ -352,7 +359,9 @@ export default {
       this.showMenu = false
       this.showSearchPopup = false
       this.showNotifications = !this.showNotifications
-      if (this.showNotifications) markAllNotificationsRead()
+      if (this.showNotifications) {
+        loadNotifications().finally(() => markAllNotificationsRead())
+      }
     },
     clearNotificationList() {
       clearNotifications()
@@ -473,6 +482,7 @@ export default {
     logout() {
       clearAuthSession()
       clearProfileCache()
+      clearNotifications({ remote: false })
       this.isAuthenticated = false
       this.showMenu = false
       
