@@ -6,18 +6,18 @@
           <router-link to="/" class="brand" aria-label="TheWeekend">
             <img src="/Logo.jpg" alt="TheWeekend" class="brand-logo" />
           </router-link>
-          <router-link v-if="!isAdmin" to="/about" class="about-link">Vá» chÃºng tÃ´i</router-link>
+          <router-link v-if="!isAdmin" to="/about" class="about-link">Về chúng tôi</router-link>
         </div>
 
         <div class="nav-area">
           <ul v-if="!isAdmin" class="nav-links">
-            <li><router-link to="/">Trang chá»§</router-link></li>
-            <li><router-link to="/suggest">Gá»£i Ã½</router-link></li>
-            <li><router-link to="/favour">YÃªu thÃ­ch</router-link></li>
-            <li><router-link to="/tickets">VÃ© cá»§a tÃ´i</router-link></li>
+            <li><router-link to="/">Trang chủ</router-link></li>
+            <li><router-link to="/suggest">Gợi ý</router-link></li>
+            <li><router-link to="/favour">Yêu thích</router-link></li>
+            <li><router-link to="/tickets">Vé của tôi</router-link></li>
           </ul>
           <ul v-else class="nav-links">
-            <li><router-link to="/admin">Quáº£n trá»‹ há»‡ thá»‘ng</router-link></li>
+            <li><router-link to="/admin">Quản trị hệ thống</router-link></li>
           </ul>
         </div>
 
@@ -26,8 +26,8 @@
             type="button"
             class="icon-btn"
             @click="openSearchPopup"
-            aria-label="TÃ¬m kiáº¿m"
-            title="TÃ¬m kiáº¿m"
+            aria-label="Tìm kiếm"
+            title="Tìm kiếm"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <circle cx="11" cy="11" r="7" />
@@ -40,8 +40,8 @@
               type="button"
               class="icon-btn notification-btn"
               @click.stop="toggleNotifications"
-              aria-label="ThÃ´ng bÃ¡o"
-              title="ThÃ´ng bÃ¡o"
+              aria-label="Thông báo"
+              title="Thông báo"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
@@ -51,10 +51,10 @@
             </button>
             <div v-if="showNotifications" class="notification-panel" @click.stop>
               <div class="notification-header">
-                <strong>ThÃ´ng bÃ¡o</strong>
-                <button v-if="notifications.length > 0" type="button" class="link-btn" @click="clearNotificationList">XÃ³a táº¥t cáº£</button>
+                <strong>Thông báo</strong>
+                <button v-if="notifications.length > 0" type="button" class="link-btn" @click="clearNotificationList">Xóa tất cả</button>
               </div>
-              <div v-if="notifications.length === 0" class="notification-empty">ChÆ°a cÃ³ thÃ´ng bÃ¡o má»›i</div>
+              <div v-if="notifications.length === 0" class="notification-empty">Chưa có thông báo mới</div>
               <div v-else class="notification-list">
                 <div
                   v-for="item in notifications"
@@ -77,7 +77,7 @@
               </div>
             </div>
             <div class="user-menu">
-              <button @click="toggleMenu" class="user-icon-btn" aria-label="Má»Ÿ menu ngÆ°á»i dÃ¹ng">
+              <button @click="toggleMenu" class="user-icon-btn" aria-label="Mở menu người dùng">
                 <img
                   v-if="user.avatar"
                   :src="user.avatar"
@@ -97,14 +97,14 @@
                     <path d="M2 17l10 5 10-5"></path>
                     <path d="M2 12l10 5 10-5"></path>
                   </svg>
-                  Quáº£n trá»‹ há»‡ thá»‘ng
+                  Quản trị hệ thống
                 </button>
                 <button @click="editProfile" class="menu-item">
                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                   </svg>
-                  Chá»‰nh sá»­a thÃ´ng tin
+                  Chỉnh sửa thông tin
                 </button>
                 <button @click="changePassword" class="menu-item">
                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -112,7 +112,7 @@
                     <path d="M20 12v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-5"></path>
                     <path d="M16 6V5a4 4 0 0 0-8 0v1"></path>
                   </svg>
-                  Äá»•i máº­t kháº©u
+                  Đổi mật khẩu
                 </button>
                 <button v-if="!isAdmin" @click="goToTickets" class="menu-item">
                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -120,7 +120,7 @@
                     <path d="M8 7h8"></path>
                     <path d="M8 11h8"></path>
                   </svg>
-                  VÃ© cá»§a tÃ´i
+                  Vé của tôi
                 </button>
                 <button @click="logout" class="menu-item logout">
                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -128,13 +128,13 @@
                     <polyline points="17 16 21 12 17 8"></polyline>
                     <line x1="21" y1="12" x2="9" y2="12"></line>
                   </svg>
-                  ÄÄƒng xuáº¥t
+                  Đăng xuất
                 </button>
               </div>
             </div>
           </template>
           <template v-else>
-            <button class="tw-btn tw-btn-primary login-btn" @click="goToLogin">ÄÄƒng nháº­p</button>
+            <button class="tw-btn tw-btn-primary login-btn" @click="goToLogin">Đăng nhập</button>
           </template>
         </div>
       </div>
@@ -144,8 +144,8 @@
       <div class="search-backdrop" @click="closeSearchPopup"></div>
       <div class="search-dialog" role="dialog" aria-modal="true">
         <div class="search-header">
-          <h3 class="search-title">TÃ¬m kiáº¿m</h3>
-          <button type="button" class="close-btn" @click="closeSearchPopup">ÄÃ³ng</button>
+          <h3 class="search-title">Tìm kiếm</h3>
+          <button type="button" class="close-btn" @click="closeSearchPopup">Đóng</button>
         </div>
 
         <div class="search-body">
@@ -158,34 +158,34 @@
               @keyup.enter="submitSearch"
             />
             <button type="button" class="tw-btn tw-btn-primary" @click="submitSearch">
-              TÃ¬m kiáº¿m
+              Tìm kiếm
             </button>
           </div>
 
           <div v-if="searchError" class="search-error">{{ searchError }}</div>
 
           <div class="search-age">
-            <label>Äá»™ tuá»•i phÃ¹ há»£p: <strong>{{ searchAge }}</strong></label>
+            <label>Độ tuổi phù hợp: <strong>{{ searchAge }}</strong></label>
             <input type="range" min="1" max="12" v-model="searchAge" />
           </div>
 
           <div class="search-grid">
             <div class="search-block">
               <div class="block-header">
-                <span class="block-title">Lá»‹ch sá»­ tÃ¬m kiáº¿m</span>
+                <span class="block-title">Lịch sử tìm kiếm</span>
                 <button
                   v-if="isAuthenticated && !isLoadingSearchHistory && searchHistory.length > 0"
                   type="button"
                   class="link-btn"
                   @click="clearHistory"
                 >
-                  XÃ³a táº¥t cáº£
+                  Xóa tất cả
                 </button>
               </div>
 
-              <div v-if="!isAuthenticated" class="block-empty tw-muted">ChÆ°a cÃ³ lá»‹ch sá»­ tÃ¬m kiáº¿m</div>
-              <div v-else-if="isLoadingSearchHistory" class="block-empty tw-muted">Äang táº£i...</div>
-              <div v-else-if="searchHistory.length === 0" class="block-empty tw-muted">ChÆ°a cÃ³ lá»‹ch sá»­ tÃ¬m kiáº¿m</div>
+              <div v-if="!isAuthenticated" class="block-empty tw-muted">Chưa có lịch sử tìm kiếm</div>
+              <div v-else-if="isLoadingSearchHistory" class="block-empty tw-muted">Đang tải...</div>
+              <div v-else-if="searchHistory.length === 0" class="block-empty tw-muted">Chưa có lịch sử tìm kiếm</div>
               <div v-else class="history-list">
                 <button
                   v-for="(item, idx) in searchHistory.slice(0, 6)"
@@ -201,7 +201,7 @@
 
             <div class="search-block">
               <div class="block-header">
-                <span class="block-title">Tá»« khÃ³a phá»• biáº¿n</span>
+                <span class="block-title">Từ khóa phổ biến</span>
               </div>
               <div class="chips">
                 <button
@@ -285,7 +285,7 @@ export default {
   },
   computed: {
     popularKeywords() {
-      return ['cÃ´ng viÃªn', 'khu vui chÆ¡i trong nhÃ ', 'miá»…n phÃ­', 'cuá»‘i tuáº§n', 'hoáº¡t Ä‘á»™ng cho bÃ©', 'bÆ¡i lá»™i']
+      return ['công viên', 'khu vui chơi trong nhà', 'miễn phí', 'cuối tuần', 'hoạt động cho bé', 'bơi lội']
     },
     notifications() {
       return notificationState.items
@@ -416,7 +416,7 @@ export default {
     async submitSearch() {
       this.searchError = ''
       if (!this.searchQuery || !this.searchQuery.trim()) {
-        this.searchError = 'Vui lÃ²ng nháº­p tá»« khÃ³a tÃ¬m kiáº¿m'
+        this.searchError = 'Vui lòng nhập từ khóa tìm kiếm'
         return
       }
 
@@ -477,8 +477,8 @@ export default {
       this.showMenu = false
       
       this.$notify({
-        title: 'ÄÃ£ Ä‘Äƒng xuáº¥t',
-        message: 'Báº¡n Ä‘Ã£ Ä‘Äƒng xuáº¥t thÃ nh cÃ´ng',
+        title: 'Đã đăng xuất',
+        message: 'Bạn đã đăng xuất thành công',
         type: 'info',
         duration: 2000
       })
