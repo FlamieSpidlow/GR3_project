@@ -3,6 +3,7 @@ const router = express.Router()
 const TicketOrder = require('../models/TicketOrder')
 const Place = require('../models/Place')
 const { authenticate, requireAdmin } = require('../middleware/auth')
+const { createUserNotification } = require('../services/notificationService')
 
 const removeVietnameseAccents = (value) => String(value || '')
   .normalize('NFD')
@@ -65,6 +66,27 @@ const populateOrder = (query) => query
   .populate('place', 'name address price images')
   .populate('user', 'username email parentName')
   .populate('confirmedBy', 'username parentName')
+
+const statusNotification = (status, order) => {
+  const placeName = order.place && order.place.name ? order.place.name : 'địa điểm'
+  if (status === 'confirmed') {
+    return {
+      type: 'success',
+      title: 'Vé đã được xác nhận',
+      message: `Đơn vé tại ${placeName} đã được xác nhận. Mã vé của bạn: ${order.ticketCode || 'đang cập nhật'}.`
+    }
+  }
+  if (status === 'cancelled') {
+    return { type: 'warning', title: 'Vé đã bị hủy', message: `Đơn vé tại ${placeName} đã bị hủy.` }
+  }
+  if (status === 'used') {
+    return { type: 'info', title: 'Vé đã sử dụng', message: `Vé tại ${placeName} đã được đánh dấu là đã sử dụng.` }
+  }
+  if (status === 'pending') {
+    return { type: 'info', title: 'Vé đang chờ xác nhận', message: `Đơn vé tại ${placeName} đã thanh toán và đang chờ quản trị viên xác nhận.` }
+  }
+  return null
+}
 
 const getPublicOrigin = (req) => {
   const configured = process.env.FRONTEND_PUBLIC_ORIGIN || process.env.APP_PUBLIC_ORIGIN
@@ -135,6 +157,11 @@ router.post('/', authenticate, async (req, res) => {
     })
 
     const populated = await populateOrder(TicketOrder.findById(order._id))
+    await createUserNotification(req.user._id, {
+      type: 'info',
+      title: 'Đã tạo đơn vé',
+      message: `Đơn vé tại ${place.name} đã được tạo. Vui lòng thanh toán để chờ xác nhận.`
+    })
     res.status(201).json({ success: true, message: 'Đã gửi yêu cầu đặt vé', data: populated })
   } catch (err) {
     console.error('Create ticket order error:', err)
@@ -162,6 +189,11 @@ router.post('/:id/simulate-payment', authenticate, async (req, res) => {
 
     await order.save()
     const populated = await populateOrder(TicketOrder.findById(order._id))
+    await createUserNotification(order.user, {
+      type: 'success',
+      title: 'Thanh toán thành công',
+      message: `Đơn vé tại ${populated.place?.name || 'địa điểm'} đã thanh toán và đang chờ xác nhận.`
+    })
     res.json({ success: true, message: 'Thanh toán thành công, vé đang chờ xác nhận', data: populated })
   } catch (err) {
     console.error('Simulate ticket payment error:', err)
@@ -190,6 +222,11 @@ router.post('/:id/simulate-payment/scan', async (req, res) => {
 
     await order.save()
     const populated = await populateOrder(TicketOrder.findById(order._id))
+    await createUserNotification(order.user, {
+      type: 'success',
+      title: 'Thanh toán thành công',
+      message: `Đơn vé tại ${populated.place?.name || 'địa điểm'} đã thanh toán và đang chờ xác nhận.`
+    })
     res.json({ success: true, message: 'Thanh toán thành công, vé đang chờ xác nhận', data: populated })
   } catch (err) {
     console.error('Scan ticket payment error:', err)
@@ -299,6 +336,10 @@ router.patch('/admin/:id/status', authenticate, requireAdmin, async (req, res) =
 
     await order.save()
     const populated = await populateOrder(TicketOrder.findById(order._id))
+    const notification = statusNotification(status, populated)
+    if (notification) {
+      await createUserNotification(order.user, notification)
+    }
     res.json({ success: true, message: 'Đã cập nhật trạng thái vé', data: populated })
   } catch (err) {
     console.error('Update ticket order status error:', err)

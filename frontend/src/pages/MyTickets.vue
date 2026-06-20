@@ -180,7 +180,7 @@ export default {
       if (res.success) {
         this.closeQrPreview()
         await this.loadOrders()
-        this.$notify({ type: 'success', title: 'Thanh toán thành công', message: 'Vé đang chờ quản trị viên xác nhận.' })
+        this.$notify({ type: 'success', title: 'Thanh toán thành công', message: 'Vé đang chờ quản trị viên xác nhận.', persist: false })
       } else {
         this.$notify({ type: 'error', title: 'Không thể thanh toán', message: res.error || 'Không thể thanh toán đơn vé.' })
       }

@@ -803,6 +803,12 @@ export default {
       if (res.success) {
         this.ticketSuccess = 'Đã gửi yêu cầu đặt vé. Bạn có thể xem trạng thái trong mục Vé của tôi.'
         this.createdTicketOrder = res.data
+        this.$notify({
+          type: 'info',
+          title: 'Đã tạo đơn vé',
+          message: `Đơn vé tại ${this.place.name || 'địa điểm'} đã được tạo. Vui lòng thanh toán để chờ xác nhận.`,
+          persist: false
+        })
         await this.createPaymentQr(res.data)
         this.startPaymentStatusWatcher(res.data)
         this.ticketSuccess = 'Đã tạo đơn vé. Vui lòng quét QR để thanh toán.'
@@ -853,6 +859,12 @@ export default {
         this.createdTicketOrder = res.data
         this.ticketError = ''
         this.ticketPaymentCompleted = true
+        this.$notify({
+          type: 'success',
+          title: 'Thanh toán thành công',
+          message: 'Vé của bạn đang chờ quản trị viên xác nhận.',
+          persist: false
+        })
         this.ticketSuccess = 'Thanh toán thành công. Vé của bạn đang chờ quản trị viên xác nhận.'
       }, 2000)
     },
@@ -963,6 +975,14 @@ export default {
         if (getAuthToken()) {
           const res = await updateFavorite(placeId, nextFavorited)
           if (!res.success) throw new Error(res.error || 'Update favorite failed')
+          this.$notify({
+            type: nextFavorited ? 'success' : 'info',
+            title: nextFavorited ? 'Đã thêm yêu thích' : 'Đã bỏ yêu thích',
+            message: nextFavorited
+              ? `${this.place.name || 'Địa điểm'} đã được thêm vào danh sách yêu thích.`
+              : `${this.place.name || 'Địa điểm'} đã được bỏ khỏi danh sách yêu thích.`,
+            persist: false
+          })
           const serverFavorites = Array.isArray(res.favorites) ? res.favorites : favorites
           if (user) {
             const nextUser = { ...user, favorites: serverFavorites }
@@ -972,6 +992,12 @@ export default {
       } catch (e) {
         console.error('Error toggling favorite:', e)
         this.checkFavorite()
+        this.$notify({
+          type: 'error',
+          title: 'Không thể cập nhật yêu thích',
+          message: 'Vui lòng thử lại sau.',
+          persist: false
+        })
       }
     },
     coerceNumber(value) {
@@ -1258,6 +1284,7 @@ export default {
       this.submittingReview = true
       this.reviewError = ''
 
+      const wasEditingReview = !!this.editingReviewId
       let res
       if (this.editingReviewId) {
         // Update existing review
@@ -1279,6 +1306,14 @@ export default {
       }
 
       if (res.success) {
+        this.$notify({
+          type: 'success',
+          title: wasEditingReview ? 'Đã cập nhật đánh giá' : 'Đã gửi đánh giá',
+          message: wasEditingReview
+            ? `Đánh giá của bạn về ${this.place.name || 'địa điểm'} đã được cập nhật.`
+            : `Đánh giá của bạn về ${this.place.name || 'địa điểm'} đã được gửi thành công.`,
+          persist: false
+        })
         // Reset form and close modal
         this.closeReviewModal()
         // Reload reviews
@@ -1324,6 +1359,12 @@ export default {
 
       const res = await deleteReview(reviewId)
       if (res.success) {
+        this.$notify({
+          type: 'info',
+          title: 'Đã xóa đánh giá',
+          message: `Đánh giá của bạn về ${this.place.name || 'địa điểm'} đã được xóa.`,
+          persist: false
+        })
         await this.loadReviews(this.reviewsPagination.page)
         this.hasReviewed = false
         // Update place rating

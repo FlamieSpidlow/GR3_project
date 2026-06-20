@@ -73,7 +73,7 @@ export function notify(input = {}) {
   notificationState.items.unshift(item)
   trimList()
 
-  if (getAuthToken()) {
+  if (options.persist !== false && getAuthToken()) {
     createNotification({
       title: item.title,
       message: item.message,

@@ -1,10 +1,12 @@
 const express = require('express')
 const router = express.Router()
 const User = require('../models/User')
+const Place = require('../models/Place')
 const bcrypt = require('bcrypt')
 const nodemailer = require('nodemailer')
 const jwt = require('jsonwebtoken')
 const { authenticate, JWT_SECRET } = require('../middleware/auth')
+const { createUserNotification } = require('../services/notificationService')
 
 const buildUserResponse = (user) => ({
   id: user._id,
@@ -270,6 +272,16 @@ router.put('/favorites/:placeId', authenticate, async (req, res) => {
     }
 
     await user.save()
+
+    const place = await Place.findById(placeId).select('name').lean()
+    const placeName = place && place.name ? place.name : 'địa điểm'
+    await createUserNotification(user._id, {
+      type: favorited ? 'success' : 'info',
+      title: favorited ? 'Đã thêm yêu thích' : 'Đã bỏ yêu thích',
+      message: favorited
+        ? `${placeName} đã được thêm vào danh sách yêu thích.`
+        : `${placeName} đã được bỏ khỏi danh sách yêu thích.`
+    })
     res.json({ success: true, favorites: user.favorites })
   } catch (err) {
     console.error('Update favorite error:', err)

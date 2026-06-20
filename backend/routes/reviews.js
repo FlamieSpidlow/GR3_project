@@ -5,6 +5,7 @@ const Review = require('../models/Review')
 const Place = require('../models/Place')
 const ReviewImageSubmission = require('../models/ReviewImageSubmission')
 const { authenticate, verifyAuthToken } = require('../middleware/auth')
+const { createUserNotification } = require('../services/notificationService')
 const multer = require('multer')
 const path = require('path')
 const fs = require('fs')
@@ -168,6 +169,13 @@ router.post('/', authenticate, upload.array('images', 3), async (req, res) => {
     await review.populate('user', 'username avatar parentName')
 
     const hasPendingImages = !!(req.files && req.files.length > 0)
+    await createUserNotification(userId, {
+      type: 'success',
+      title: 'Đã gửi đánh giá',
+      message: hasPendingImages
+        ? `Đánh giá của bạn về ${place.name} đã được gửi. Ảnh sẽ hiển thị sau khi được duyệt.`
+        : `Đánh giá của bạn về ${place.name} đã được gửi thành công.`
+    })
     res.json({
       success: true,
       data: review,
@@ -246,6 +254,14 @@ router.put('/:reviewId', authenticate, upload.array('images', 3), async (req, re
     await review.populate('user', 'username avatar parentName')
 
     const hasPendingImages = !!(req.files && req.files.length > 0)
+    const place = await Place.findById(review.place).select('name').lean()
+    await createUserNotification(review.user, {
+      type: 'success',
+      title: 'Đã cập nhật đánh giá',
+      message: hasPendingImages
+        ? `Đánh giá của bạn về ${place?.name || 'địa điểm'} đã được cập nhật. Ảnh mới sẽ hiển thị sau khi được duyệt.`
+        : `Đánh giá của bạn về ${place?.name || 'địa điểm'} đã được cập nhật.`
+    })
     res.json({
       success: true,
       data: review,
@@ -292,6 +308,8 @@ router.delete('/:reviewId', authenticate, async (req, res) => {
     }
 
     const placeId = review.place
+    const reviewOwner = review.user
+    const deletedReviewPlace = await Place.findById(placeId).select('name').lean()
     await review.deleteOne()
 
     // Cập nhật rating trung bình của place
@@ -301,6 +319,11 @@ router.delete('/:reviewId', authenticate, async (req, res) => {
     ])
     const newRating = avgResult.length > 0 ? Math.round(avgResult[0].avgRating * 10) / 10 : 0
     await Place.findByIdAndUpdate(placeId, { rating: newRating })
+    await createUserNotification(reviewOwner, {
+      type: 'info',
+      title: 'Đã xóa đánh giá',
+      message: `Đánh giá của bạn về ${deletedReviewPlace?.name || 'địa điểm'} đã được xóa.`
+    })
 
     res.json({ success: true, message: 'Xóa đánh giá thành công' })
   } catch (err) {
@@ -343,6 +366,15 @@ router.post('/:reviewId/reaction', authenticate, async (req, res) => {
     await review.save()
 
     const myReaction = likedSet.has(userId) ? 'like' : (dislikedSet.has(userId) ? 'dislike' : null)
+    const reviewOwnerId = review.user.toString()
+    if (myReaction && reviewOwnerId !== userId) {
+      const place = await Place.findById(review.place).select('name').lean()
+      await createUserNotification(review.user, {
+        type: 'info',
+        title: myReaction === 'like' ? 'Đánh giá có lượt thích mới' : 'Đánh giá có phản hồi mới',
+        message: `${req.user.parentName || req.user.username || 'Một người dùng'} đã ${myReaction === 'like' ? 'thích' : 'không thích'} đánh giá của bạn về ${place?.name || 'địa điểm'}.`
+      })
+    }
     res.json({
       success: true,
       data: {
