@@ -118,7 +118,7 @@
 <script>
 import PlaceCard from '../components/PlaceCard.vue'
 import { getAllPlaces } from '../api/places'
-import { getFeaturedActivities } from '../api/tags'
+import { DEFAULT_ACTIVITIES, getFeaturedActivities } from '../api/tags'
 
 
 export default {
@@ -129,7 +129,7 @@ export default {
       allPlaces: [],
       currentIndex: 0,
       displayCount: 3,
-      activityItems: [],
+      activityItems: [...DEFAULT_ACTIVITIES],
       activityIndex: 0,
       activityDisplayCount: 3,
       errorMessage: '',
@@ -216,9 +216,17 @@ export default {
       }
     },
     async loadActivities() {
-      const res = await getFeaturedActivities()
-      this.activityItems = res.success && Array.isArray(res.data) ? res.data : []
-      this.activityIndex = 0
+      try {
+        const res = await getFeaturedActivities({ force: true })
+        this.activityItems = res.success && Array.isArray(res.data) && res.data.length > 0
+          ? res.data
+          : [...DEFAULT_ACTIVITIES]
+        this.activityIndex = 0
+      } catch (err) {
+        console.error('Load activities error:', err)
+        this.activityItems = [...DEFAULT_ACTIVITIES]
+        this.activityIndex = 0
+      }
     },
     viewPlaceDetails(place) {
       this.$router.push({
