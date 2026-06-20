@@ -753,7 +753,7 @@ export default {
     },
     openTicketModal() {
       if (!this.isLoggedIn) {
-        alert('Vui lòng đăng nhập để đặt vé')
+        this.$notify({ type: 'warning', title: 'Cần đăng nhập', message: 'Vui lòng đăng nhập để đặt vé.' })
         this.$router.push('/login')
         return
       }
@@ -1220,7 +1220,7 @@ export default {
         review.dislikeCount = Number(res.data.dislikeCount || 0)
         review.myReaction = res.data.myReaction || null
       } else {
-        alert(res.error || 'Không thể cập nhật cảm xúc')
+        this.$notify({ type: 'error', title: 'Không thể cập nhật', message: res.error || 'Không thể cập nhật cảm xúc.' })
       }
     },
     getRatingLabel(rating) {
@@ -1314,7 +1314,13 @@ export default {
       this.showReviewModal = true
     },
     async deleteReviewItem(reviewId) {
-      if (!confirm('Bạn có chắc muốn xóa đánh giá này?')) return
+      const confirmed = await this.$confirm({
+        title: 'Xóa đánh giá',
+        message: 'Bạn có chắc muốn xóa đánh giá này?',
+        confirmText: 'Xóa',
+        tone: 'danger'
+      })
+      if (!confirmed) return
 
       const res = await deleteReview(reviewId)
       if (res.success) {
@@ -1325,7 +1331,7 @@ export default {
           this.place.rating = this.reviewStats.avgRating
         }
       } else {
-        alert(res.error || 'Không thể xóa đánh giá')
+        this.$notify({ type: 'error', title: 'Không thể xóa đánh giá', message: res.error || 'Không thể xóa đánh giá.' })
       }
     },
     formatDate(dateStr) {

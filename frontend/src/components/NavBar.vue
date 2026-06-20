@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="nav-shell">
     <nav class="navbar">
       <div class="navbar-inner">
@@ -6,18 +6,18 @@
           <router-link to="/" class="brand" aria-label="TheWeekend">
             <img src="/Logo.jpg" alt="TheWeekend" class="brand-logo" />
           </router-link>
-          <router-link v-if="!isAdmin" to="/about" class="about-link">Về chúng tôi</router-link>
+          <router-link v-if="!isAdmin" to="/about" class="about-link">Vá» chÃºng tÃ´i</router-link>
         </div>
 
         <div class="nav-area">
           <ul v-if="!isAdmin" class="nav-links">
-            <li><router-link to="/">Trang chủ</router-link></li>
-            <li><router-link to="/suggest">Gợi ý</router-link></li>
-            <li><router-link to="/favour">Yêu thích</router-link></li>
-            <li><router-link to="/tickets">Vé của tôi</router-link></li>
+            <li><router-link to="/">Trang chá»§</router-link></li>
+            <li><router-link to="/suggest">Gá»£i Ã½</router-link></li>
+            <li><router-link to="/favour">YÃªu thÃ­ch</router-link></li>
+            <li><router-link to="/tickets">VÃ© cá»§a tÃ´i</router-link></li>
           </ul>
           <ul v-else class="nav-links">
-            <li><router-link to="/admin">Quản trị hệ thống</router-link></li>
+            <li><router-link to="/admin">Quáº£n trá»‹ há»‡ thá»‘ng</router-link></li>
           </ul>
         </div>
 
@@ -26,14 +26,48 @@
             type="button"
             class="icon-btn"
             @click="openSearchPopup"
-            aria-label="Tìm kiếm"
-            title="Tìm kiếm"
+            aria-label="TÃ¬m kiáº¿m"
+            title="TÃ¬m kiáº¿m"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <circle cx="11" cy="11" r="7" />
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
           </button>
+
+          <div class="notification-menu">
+            <button
+              type="button"
+              class="icon-btn notification-btn"
+              @click.stop="toggleNotifications"
+              aria-label="ThÃ´ng bÃ¡o"
+              title="ThÃ´ng bÃ¡o"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+              </svg>
+              <span v-if="unreadNotificationCount > 0" class="notification-dot">{{ unreadNotificationCount > 9 ? '9+' : unreadNotificationCount }}</span>
+            </button>
+            <div v-if="showNotifications" class="notification-panel" @click.stop>
+              <div class="notification-header">
+                <strong>ThÃ´ng bÃ¡o</strong>
+                <button v-if="notifications.length > 0" type="button" class="link-btn" @click="clearNotificationList">XÃ³a táº¥t cáº£</button>
+              </div>
+              <div v-if="notifications.length === 0" class="notification-empty">ChÆ°a cÃ³ thÃ´ng bÃ¡o má»›i</div>
+              <div v-else class="notification-list">
+                <div
+                  v-for="item in notifications"
+                  :key="item.id"
+                  :class="['notification-item', item.type, { unread: !item.read }]"
+                >
+                  <div class="notification-item-title">{{ item.title || notificationTypeLabel(item.type) }}</div>
+                  <div class="notification-item-message">{{ item.message }}</div>
+                  <div class="notification-item-time">{{ formatNotificationTime(item.createdAt) }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
 
           <template v-if="isAuthenticated">
             <div class="user-info">
@@ -43,7 +77,7 @@
               </div>
             </div>
             <div class="user-menu">
-              <button @click="toggleMenu" class="user-icon-btn" aria-label="Mở menu người dùng">
+              <button @click="toggleMenu" class="user-icon-btn" aria-label="Má»Ÿ menu ngÆ°á»i dÃ¹ng">
                 <img
                   v-if="user.avatar"
                   :src="user.avatar"
@@ -63,14 +97,14 @@
                     <path d="M2 17l10 5 10-5"></path>
                     <path d="M2 12l10 5 10-5"></path>
                   </svg>
-                  Quản trị hệ thống
+                  Quáº£n trá»‹ há»‡ thá»‘ng
                 </button>
                 <button @click="editProfile" class="menu-item">
                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                   </svg>
-                  Chỉnh sửa thông tin
+                  Chá»‰nh sá»­a thÃ´ng tin
                 </button>
                 <button @click="changePassword" class="menu-item">
                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -78,7 +112,7 @@
                     <path d="M20 12v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-5"></path>
                     <path d="M16 6V5a4 4 0 0 0-8 0v1"></path>
                   </svg>
-                  Đổi mật khẩu
+                  Äá»•i máº­t kháº©u
                 </button>
                 <button v-if="!isAdmin" @click="goToTickets" class="menu-item">
                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -86,7 +120,7 @@
                     <path d="M8 7h8"></path>
                     <path d="M8 11h8"></path>
                   </svg>
-                  Vé của tôi
+                  VÃ© cá»§a tÃ´i
                 </button>
                 <button @click="logout" class="menu-item logout">
                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -94,13 +128,13 @@
                     <polyline points="17 16 21 12 17 8"></polyline>
                     <line x1="21" y1="12" x2="9" y2="12"></line>
                   </svg>
-                  Đăng xuất
+                  ÄÄƒng xuáº¥t
                 </button>
               </div>
             </div>
           </template>
           <template v-else>
-            <button class="tw-btn tw-btn-primary login-btn" @click="goToLogin">Đăng nhập</button>
+            <button class="tw-btn tw-btn-primary login-btn" @click="goToLogin">ÄÄƒng nháº­p</button>
           </template>
         </div>
       </div>
@@ -110,8 +144,8 @@
       <div class="search-backdrop" @click="closeSearchPopup"></div>
       <div class="search-dialog" role="dialog" aria-modal="true">
         <div class="search-header">
-          <h3 class="search-title">Tìm kiếm</h3>
-          <button type="button" class="close-btn" @click="closeSearchPopup">Đóng</button>
+          <h3 class="search-title">TÃ¬m kiáº¿m</h3>
+          <button type="button" class="close-btn" @click="closeSearchPopup">ÄÃ³ng</button>
         </div>
 
         <div class="search-body">
@@ -124,34 +158,34 @@
               @keyup.enter="submitSearch"
             />
             <button type="button" class="tw-btn tw-btn-primary" @click="submitSearch">
-              Tìm kiếm
+              TÃ¬m kiáº¿m
             </button>
           </div>
 
           <div v-if="searchError" class="search-error">{{ searchError }}</div>
 
           <div class="search-age">
-            <label>Độ tuổi phù hợp: <strong>{{ searchAge }}</strong></label>
+            <label>Äá»™ tuá»•i phÃ¹ há»£p: <strong>{{ searchAge }}</strong></label>
             <input type="range" min="1" max="12" v-model="searchAge" />
           </div>
 
           <div class="search-grid">
             <div class="search-block">
               <div class="block-header">
-                <span class="block-title">Lịch sử tìm kiếm</span>
+                <span class="block-title">Lá»‹ch sá»­ tÃ¬m kiáº¿m</span>
                 <button
                   v-if="isAuthenticated && !isLoadingSearchHistory && searchHistory.length > 0"
                   type="button"
                   class="link-btn"
                   @click="clearHistory"
                 >
-                  Xóa tất cả
+                  XÃ³a táº¥t cáº£
                 </button>
               </div>
 
-              <div v-if="!isAuthenticated" class="block-empty tw-muted">Chưa có lịch sử tìm kiếm</div>
-              <div v-else-if="isLoadingSearchHistory" class="block-empty tw-muted">Đang tải...</div>
-              <div v-else-if="searchHistory.length === 0" class="block-empty tw-muted">Chưa có lịch sử tìm kiếm</div>
+              <div v-if="!isAuthenticated" class="block-empty tw-muted">ChÆ°a cÃ³ lá»‹ch sá»­ tÃ¬m kiáº¿m</div>
+              <div v-else-if="isLoadingSearchHistory" class="block-empty tw-muted">Äang táº£i...</div>
+              <div v-else-if="searchHistory.length === 0" class="block-empty tw-muted">ChÆ°a cÃ³ lá»‹ch sá»­ tÃ¬m kiáº¿m</div>
               <div v-else class="history-list">
                 <button
                   v-for="(item, idx) in searchHistory.slice(0, 6)"
@@ -167,7 +201,7 @@
 
             <div class="search-block">
               <div class="block-header">
-                <span class="block-title">Từ khóa phổ biến</span>
+                <span class="block-title">Tá»« khÃ³a phá»• biáº¿n</span>
               </div>
               <div class="chips">
                 <button
@@ -185,12 +219,51 @@
         </div>
       </div>
     </div>
+
+    <div v-if="confirmDialog" class="app-dialog-layer">
+      <div class="app-dialog-backdrop" @click="resolveConfirm(false)"></div>
+      <div class="app-dialog" role="dialog" aria-modal="true">
+        <h3>{{ confirmDialog.title }}</h3>
+        <p>{{ confirmDialog.message }}</p>
+        <div class="app-dialog-actions">
+          <button type="button" class="tw-btn tw-btn-outline" @click="resolveConfirm(false)">{{ confirmDialog.cancelText }}</button>
+          <button type="button" :class="['tw-btn', confirmDialog.tone === 'danger' ? 'dialog-danger' : 'tw-btn-primary']" @click="resolveConfirm(true)">
+            {{ confirmDialog.confirmText }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="promptDialog" class="app-dialog-layer">
+      <div class="app-dialog-backdrop" @click="resolvePromptValue(true)"></div>
+      <div class="app-dialog" role="dialog" aria-modal="true">
+        <h3>{{ promptDialog.title }}</h3>
+        <p v-if="promptDialog.message">{{ promptDialog.message }}</p>
+        <textarea
+          v-model="promptDialog.value"
+          class="prompt-input"
+          :placeholder="promptDialog.placeholder"
+          rows="4"
+        ></textarea>
+        <div class="app-dialog-actions">
+          <button type="button" class="tw-btn tw-btn-outline" @click="resolvePromptValue(true)">{{ promptDialog.cancelText }}</button>
+          <button type="button" class="tw-btn tw-btn-primary" @click="resolvePromptValue(false)">{{ promptDialog.confirmText }}</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
 import { clearProfileCache, clearSearchHistory, getProfile, saveSearchHistory } from '../api/auth'
 import { clearAuthSession, getAuthToken, getAuthUserRaw } from '../utils/authSession'
+import {
+  clearNotifications,
+  markAllNotificationsRead,
+  notificationState,
+  resolveConfirmation,
+  resolvePrompt
+} from '../utils/notifications'
 
 export default {
   name: 'NavBar',
@@ -206,12 +279,25 @@ export default {
       searchAge: 3,
       searchHistory: [],
       searchError: '',
-      isLoadingSearchHistory: false
+      isLoadingSearchHistory: false,
+      showNotifications: false
     }
   },
   computed: {
     popularKeywords() {
-      return ['công viên', 'khu vui chơi trong nhà', 'miễn phí', 'cuối tuần', 'hoạt động cho bé', 'bơi lội']
+      return ['cÃ´ng viÃªn', 'khu vui chÆ¡i trong nhÃ ', 'miá»…n phÃ­', 'cuá»‘i tuáº§n', 'hoáº¡t Ä‘á»™ng cho bÃ©', 'bÆ¡i lá»™i']
+    },
+    notifications() {
+      return notificationState.items
+    },
+    unreadNotificationCount() {
+      return notificationState.items.filter(item => !item.read).length
+    },
+    confirmDialog() {
+      return notificationState.confirm
+    },
+    promptDialog() {
+      return notificationState.prompt
     }
   },
   mounted() {
@@ -222,6 +308,7 @@ export default {
     $route() {
       this.checkAuth()
       this.showMenu = false
+      this.showNotifications = false
     }
   },
   beforeUnmount() {
@@ -246,6 +333,7 @@ export default {
     },
     openSearchPopup() {
       this.showMenu = false
+      this.showNotifications = false
       this.showSearchPopup = true
       this.searchError = ''
       this.loadSearchHistory()
@@ -259,6 +347,32 @@ export default {
     closeSearchPopup() {
       this.showSearchPopup = false
       this.searchError = ''
+    },
+    toggleNotifications() {
+      this.showMenu = false
+      this.showSearchPopup = false
+      this.showNotifications = !this.showNotifications
+      if (this.showNotifications) markAllNotificationsRead()
+    },
+    clearNotificationList() {
+      clearNotifications()
+      this.showNotifications = false
+    },
+    notificationTypeLabel(type) {
+      if (type === 'success') return 'Thành công'
+      if (type === 'error') return 'Cảnh báo'
+      if (type === 'warning') return 'Lưu ý'
+      return 'Thông báo'
+    },
+    formatNotificationTime(value) {
+      if (!value) return ''
+      return new Date(value).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+    },
+    resolveConfirm(value) {
+      resolveConfirmation(value)
+    },
+    resolvePromptValue(cancelled) {
+      resolvePrompt(this.promptDialog ? this.promptDialog.value : '', cancelled)
     },
     async loadSearchHistory() {
       const token = getAuthToken()
@@ -302,7 +416,7 @@ export default {
     async submitSearch() {
       this.searchError = ''
       if (!this.searchQuery || !this.searchQuery.trim()) {
-        this.searchError = 'Vui lòng nhập từ khóa tìm kiếm'
+        this.searchError = 'Vui lÃ²ng nháº­p tá»« khÃ³a tÃ¬m kiáº¿m'
         return
       }
 
@@ -327,12 +441,17 @@ export default {
       })
     },
     toggleMenu() {
+      this.showNotifications = false
       this.showMenu = !this.showMenu
     },
     closeMenu(event) {
       const userMenu = this.$el.querySelector('.user-menu')
       if (userMenu && !userMenu.contains(event.target)) {
         this.showMenu = false
+      }
+      const notificationMenu = this.$el.querySelector('.notification-menu')
+      if (notificationMenu && !notificationMenu.contains(event.target)) {
+        this.showNotifications = false
       }
     },
     editProfile() {
@@ -358,8 +477,8 @@ export default {
       this.showMenu = false
       
       this.$notify({
-        title: 'Đã đăng xuất',
-        message: 'Bạn đã đăng xuất thành công',
+        title: 'ÄÃ£ Ä‘Äƒng xuáº¥t',
+        message: 'Báº¡n Ä‘Ã£ Ä‘Äƒng xuáº¥t thÃ nh cÃ´ng',
         type: 'info',
         duration: 2000
       })
@@ -498,6 +617,182 @@ export default {
   width: 20px;
   height: 20px;
   display: block;
+}
+
+.notification-menu {
+  position: relative;
+}
+
+.notification-btn {
+  position: relative;
+}
+
+.notification-dot {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #ffffff;
+  border: 2px solid #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.68rem;
+  line-height: 1;
+  font-weight: 900;
+}
+
+.notification-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(360px, calc(100vw - 24px));
+  max-height: min(480px, calc(100vh - 110px));
+  overflow: hidden;
+  background: var(--tw-surface);
+  border: 1px solid var(--tw-border);
+  border-radius: 14px;
+  box-shadow: var(--tw-shadow-md);
+  z-index: 2200;
+}
+
+.notification-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 14px;
+  border-bottom: 1px solid var(--tw-border);
+}
+
+.notification-empty {
+  padding: 22px 14px;
+  color: var(--tw-muted);
+  text-align: center;
+  font-weight: 700;
+}
+
+.notification-list {
+  max-height: 410px;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.notification-item {
+  padding: 11px 12px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background: #ffffff;
+}
+
+.notification-item + .notification-item {
+  margin-top: 8px;
+}
+
+.notification-item.unread {
+  border-color: rgba(79, 70, 229, 0.22);
+  background: #eef2ff;
+}
+
+.notification-item.success { border-left: 4px solid #059669; }
+.notification-item.error { border-left: 4px solid #dc2626; }
+.notification-item.warning { border-left: 4px solid #d97706; }
+.notification-item.info { border-left: 4px solid #2563eb; }
+
+.notification-item-title {
+  color: var(--tw-text);
+  font-weight: 900;
+  font-size: 0.92rem;
+}
+
+.notification-item-message {
+  margin-top: 4px;
+  color: var(--tw-muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.notification-item-time {
+  margin-top: 6px;
+  color: #94a3b8;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.app-dialog-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.app-dialog-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.58);
+}
+
+.app-dialog {
+  position: relative;
+  width: min(440px, 100%);
+  background: var(--tw-surface);
+  border: 1px solid var(--tw-border);
+  border-radius: 14px;
+  box-shadow: var(--tw-shadow-md);
+  padding: 18px;
+}
+
+.app-dialog h3 {
+  margin: 0 0 8px;
+  color: var(--tw-text);
+  font-size: 1.08rem;
+  font-weight: 900;
+}
+
+.app-dialog p {
+  margin: 0 0 16px;
+  color: var(--tw-muted);
+  line-height: 1.5;
+}
+
+.app-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.dialog-danger {
+  background: #dc2626;
+  color: #ffffff;
+  border: 1px solid #dc2626;
+}
+
+.dialog-danger:hover {
+  background: #b91c1c;
+}
+
+.prompt-input {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid var(--tw-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: var(--tw-text);
+  font: inherit;
+}
+
+.prompt-input:focus {
+  outline: none;
+  border-color: var(--tw-primary);
 }
 
 @media (max-width: 900px) {

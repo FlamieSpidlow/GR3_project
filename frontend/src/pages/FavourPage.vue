@@ -30,7 +30,7 @@
 
           <div class="location-warning" v-else-if="!userLocation">
             <span class="warn-icon">⚠️</span>
-            <p>Chưa lấy được vị trí của bạn nên <strong>không hiển thị khoảng cách</strong>. Hãy bật quyền định vị (hoặc chạy bằng <strong>https/localhost</strong>).</p>
+            <p>Chưa lấy được vị trí của bạn nên <strong>không hiển thị khoảng cách</strong>. Hãy bật quyền định vị cho website trong trình duyệt.</p>
           </div>
 
           <div v-if="isLoading" class="loading">

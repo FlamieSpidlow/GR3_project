@@ -51,8 +51,6 @@ export default {
         const res = await forgotPassword(this.email)
         if (res.success) {
           this.$notify({ title: 'Đã gửi', message: res.message || 'Mã đã được gửi', type: 'success' })
-          // For dev when API returns code, log it
-          if (res.code) console.warn('DEV reset code:', res.code)
           this.$router.push({ path: '/reset', query: { email: this.email } })
         } else {
           this.errorMessage = res.error || 'Không thể gửi mã'

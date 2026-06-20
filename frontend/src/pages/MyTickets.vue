@@ -180,9 +180,9 @@ export default {
       if (res.success) {
         this.closeQrPreview()
         await this.loadOrders()
-        alert('Thanh toán thành công. Vé đang chờ xác nhận.')
+        this.$notify({ type: 'success', title: 'Thanh toán thành công', message: 'Vé đang chờ quản trị viên xác nhận.' })
       } else {
-        alert(res.error || 'Không thể thanh toán đơn vé')
+        this.$notify({ type: 'error', title: 'Không thể thanh toán', message: res.error || 'Không thể thanh toán đơn vé.' })
       }
     },
     totalQuantity(order) {

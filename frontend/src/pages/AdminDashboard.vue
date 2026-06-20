@@ -52,7 +52,7 @@ export default {
     // Kiểm tra quyền admin
     const user = getAuthUser() || {}
     if (user.role !== 'admin') {
-      alert('Bạn không có quyền truy cập trang này')
+      this.$notify({ type: 'error', title: 'Không có quyền truy cập', message: 'Bạn cần tài khoản quản trị để mở trang này.' })
       this.$router.push('/')
       return
     }

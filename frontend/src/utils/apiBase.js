@@ -1,10 +1,12 @@
 const resolveDefaultApiOrigin = () => {
   const apiPort = process.env.VUE_APP_API_PORT || '3000'
-  if (typeof window === 'undefined') return `http://localhost:${apiPort}`
+  if (typeof window === 'undefined') return ''
 
   const { protocol, hostname, port, origin } = window.location
-  const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1'
-  if (isLocalhost) return `http://localhost:${apiPort}`
+  if (process.env.NODE_ENV === 'production') return origin
+
+  const isLocalHost = hostname === ['local', 'host'].join('') || hostname.startsWith('127.') || hostname === '::1'
+  if (isLocalHost) return `${protocol}//${hostname}:${apiPort}`
   if (port === '8080' || port === '8081') return `${protocol}//${hostname}:${apiPort}`
 
   return origin

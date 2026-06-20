@@ -1,6 +1,5 @@
 const express = require('express')
 const router = express.Router()
-const os = require('os')
 const TicketOrder = require('../models/TicketOrder')
 const Place = require('../models/Place')
 const { authenticate, requireAdmin } = require('../middleware/auth')
@@ -67,24 +66,23 @@ const populateOrder = (query) => query
   .populate('user', 'username email parentName')
   .populate('confirmedBy', 'username parentName')
 
-const getLanFrontendOrigin = () => {
+const getPublicOrigin = (req) => {
   const configured = process.env.FRONTEND_PUBLIC_ORIGIN || process.env.APP_PUBLIC_ORIGIN
   if (configured) return configured.replace(/\/$/, '')
 
-  const port = process.env.FRONTEND_PORT || '8080'
-  const interfaces = os.networkInterfaces()
-  for (const entries of Object.values(interfaces)) {
-    for (const item of entries || []) {
-      if (item && item.family === 'IPv4' && !item.internal && item.address) {
-        return `http://${item.address}:${port}`
-      }
-    }
-  }
-  return `http://localhost:${port}`
+  const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https'
+  const host = req.headers['x-forwarded-host'] || req.headers.host
+  if (host) return `${proto}://${host}`.replace(/\/$/, '')
+
+  return ''
 }
 
 router.get('/payment-origin', (req, res) => {
-  res.json({ success: true, origin: getLanFrontendOrigin() })
+  const origin = getPublicOrigin(req)
+  if (!origin) {
+    return res.status(500).json({ success: false, error: 'Khong the xac dinh dia chi website cong khai' })
+  }
+  res.json({ success: true, origin })
 })
 
 router.post('/', authenticate, async (req, res) => {

@@ -107,8 +107,16 @@ router.post('/forgot-password', async (req, res) => {
       return res.json({ success: true, message: 'Ma xac thuc da duoc gui toi email cua ban' })
     }
 
-    console.warn('SMTP not configured - returning reset code in response for dev')
-    return res.json({ success: true, message: 'Ma xac thuc dev da duoc tao', code })
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('SMTP not configured - returning reset code in response for local development')
+      return res.json({ success: true, message: 'Ma xac thuc da duoc tao cho moi truong local', code })
+    }
+
+    console.error('SMTP not configured - cannot send reset code in production')
+    return res.status(503).json({
+      success: false,
+      error: 'He thong email chua duoc cau hinh. Vui long thu lai sau.'
+    })
   } catch (err) {
     console.error('Forgot password error:', err)
     res.status(500).json({ success: false, error: 'Loi khi xu ly yeu cau', details: err.message })

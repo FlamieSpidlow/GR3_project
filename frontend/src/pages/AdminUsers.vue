@@ -117,7 +117,7 @@ export default {
     checkAdmin() {
       const user = getAuthUser() || {}
       if (user.role !== 'admin') {
-        alert('Bạn không có quyền truy cập trang này')
+        this.$notify({ type: 'error', title: 'Không có quyền truy cập', message: 'Bạn cần tài khoản quản trị để mở trang này.' })
         this.$router.push('/')
       }
     },
@@ -135,11 +135,11 @@ export default {
     async addUser() {
       const res = await createUser(this.formData)
       if (res.success) {
-        alert('Thêm người dùng thành công!')
+        this.$notify({ type: 'success', title: 'Đã thêm người dùng', message: 'Người dùng mới đã được tạo thành công.' })
         this.closeModals()
         this.loadUsers()
       } else {
-        alert('Lỗi: ' + res.error)
+        this.$notify({ type: 'error', title: 'Không thể thêm người dùng', message: res.error || 'Đã có lỗi xảy ra.' })
       }
     },
     editUser(user) {
@@ -158,25 +158,31 @@ export default {
       delete dataToUpdate.password // Không gửi password
       const res = await updateUser(this.editingUserId, dataToUpdate)
       if (res.success) {
-        alert('Cập nhật người dùng thành công!')
+        this.$notify({ type: 'success', title: 'Đã cập nhật người dùng', message: 'Thông tin người dùng đã được lưu.' })
         this.closeModals()
         this.loadUsers()
       } else {
-        alert('Lỗi: ' + res.error)
+        this.$notify({ type: 'error', title: 'Không thể cập nhật người dùng', message: res.error || 'Đã có lỗi xảy ra.' })
       }
     },
-    confirmDelete(user) {
-      if (confirm(`Bạn có chắc muốn xóa người dùng "${user.username}"?`)) {
+    async confirmDelete(user) {
+      const confirmed = await this.$confirm({
+        title: 'Xóa người dùng',
+        message: `Bạn có chắc muốn xóa người dùng "${user.username}"?`,
+        confirmText: 'Xóa',
+        tone: 'danger'
+      })
+      if (confirmed) {
         this.deleteUserById(user._id)
       }
     },
     async deleteUserById(id) {
       const res = await deleteUser(id)
       if (res.success) {
-        alert('Xóa người dùng thành công!')
+        this.$notify({ type: 'success', title: 'Đã xóa người dùng', message: 'Người dùng đã được xóa khỏi hệ thống.' })
         this.loadUsers()
       } else {
-        alert('Lỗi: ' + res.error)
+        this.$notify({ type: 'error', title: 'Không thể xóa người dùng', message: res.error || 'Đã có lỗi xảy ra.' })
       }
     },
     closeModals() {

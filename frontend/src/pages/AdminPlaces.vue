@@ -304,7 +304,7 @@ export default {
     checkAdmin() {
       const user = getAuthUser() || {}
       if (user.role !== 'admin') {
-        alert('Bạn không có quyền truy cập trang này')
+        this.$notify({ type: 'error', title: 'Không có quyền truy cập', message: 'Bạn cần tài khoản quản trị để mở trang này.' })
         this.$router.push('/')
       }
     },
@@ -363,31 +363,41 @@ export default {
     },
     async approveReviewImage(submission) {
       if (!submission?._id) return
-      if (!confirm('Phê duyệt ảnh đánh giá này?')) return
+      const confirmed = await this.$confirm({
+        title: 'Phê duyệt ảnh đánh giá',
+        message: 'Ảnh này sẽ được hiển thị trong đánh giá sau khi phê duyệt.',
+        confirmText: 'Phê duyệt'
+      })
+      if (!confirmed) return
       const res = await approveReviewImageSubmission(submission._id)
       if (res && res.success) {
-        alert('Đã phê duyệt ảnh đánh giá!')
+        this.$notify({ type: 'success', title: 'Đã phê duyệt ảnh', message: 'Ảnh đánh giá đã được phê duyệt.' })
         await this.loadPendingReviewImageSubmissions()
       } else {
-        alert('Lỗi: ' + (res?.error || 'Không thể phê duyệt'))
+        this.$notify({ type: 'error', title: 'Không thể phê duyệt', message: res?.error || 'Không thể phê duyệt ảnh đánh giá.' })
       }
     },
     async rejectReviewImage(submission) {
       if (!submission?._id) return
-      const reason = prompt('Lý do từ chối (có thể bỏ trống):', '')
+      const reason = await this.$prompt({
+        title: 'Từ chối ảnh đánh giá',
+        message: 'Nhập lý do từ chối nếu cần.',
+        placeholder: 'Lý do từ chối',
+        confirmText: 'Từ chối'
+      })
       if (reason === null) return
       const res = await rejectReviewImageSubmission(submission._id, reason || '')
       if (res && res.success) {
-        alert('Đã từ chối ảnh đánh giá!')
+        this.$notify({ type: 'success', title: 'Đã từ chối ảnh', message: 'Ảnh đánh giá đã được từ chối.' })
         await this.loadPendingReviewImageSubmissions()
       } else {
-        alert('Lỗi: ' + (res?.error || 'Không thể từ chối'))
+        this.$notify({ type: 'error', title: 'Không thể từ chối', message: res?.error || 'Không thể từ chối ảnh đánh giá.' })
       }
     },
     async addPlace() {
       const dataToSend = { ...this.formData }
       if (hasPriceRange(dataToSend.price)) {
-        alert('Mỗi địa điểm chỉ có một giá cố định. Vui lòng nhập một giá, ví dụ: Miễn phí hoặc 50.000đ.')
+        this.$notify({ type: 'warning', title: 'Giá chưa hợp lệ', message: 'Mỗi địa điểm chỉ có một giá cố định. Vui lòng nhập một giá, ví dụ: Miễn phí hoặc 50.000đ.' })
         return
       }
       dataToSend.price = formatPrice(dataToSend.price)
@@ -407,12 +417,12 @@ export default {
       
       const res = await createPlace(dataToSend)
       if (res.success) {
-        alert('Thêm địa điểm thành công!')
+        this.$notify({ type: 'success', title: 'Đã thêm địa điểm', message: 'Địa điểm mới đã được lưu vào hệ thống.' })
         this.closeModals()
         this.loadPlaces()
         this.loadTags()
       } else {
-        alert('Lỗi: ' + res.error)
+        this.$notify({ type: 'error', title: 'Không thể thêm địa điểm', message: res.error || 'Đã có lỗi xảy ra.' })
       }
     },
     editPlace(place) {
@@ -456,7 +466,7 @@ export default {
     async updatePlace() {
       const dataToSend = { ...this.formData }
       if (hasPriceRange(dataToSend.price)) {
-        alert('Mỗi địa điểm chỉ có một giá cố định. Vui lòng nhập một giá, ví dụ: Miễn phí hoặc 50.000đ.')
+        this.$notify({ type: 'warning', title: 'Giá chưa hợp lệ', message: 'Mỗi địa điểm chỉ có một giá cố định. Vui lòng nhập một giá, ví dụ: Miễn phí hoặc 50.000đ.' })
         return
       }
       dataToSend.price = formatPrice(dataToSend.price)
@@ -476,7 +486,7 @@ export default {
       
       const res = await updatePlace(this.editingPlaceId, dataToSend)
       if (res.success) {
-        alert('Cập nhật địa điểm thành công!')
+        this.$notify({ type: 'success', title: 'Đã cập nhật địa điểm', message: 'Thông tin địa điểm đã được lưu.' })
         const updatedPlace = res.data
         const index = this.places.findIndex(place => place._id === this.editingPlaceId)
         if (index !== -1 && updatedPlace) {
@@ -486,25 +496,31 @@ export default {
         this.closeModals()
         this.loadTags()
       } else {
-        alert('Lỗi: ' + res.error)
+        this.$notify({ type: 'error', title: 'Không thể cập nhật địa điểm', message: res.error || 'Đã có lỗi xảy ra.' })
       }
     },
-    confirmDelete(place) {
-      if (confirm(`Bạn có chắc muốn xóa địa điểm "${place.name}"?`)) {
+    async confirmDelete(place) {
+      const confirmed = await this.$confirm({
+        title: 'Xóa địa điểm',
+        message: `Bạn có chắc muốn xóa địa điểm "${place.name}"?`,
+        confirmText: 'Xóa',
+        tone: 'danger'
+      })
+      if (confirmed) {
         this.deletePlaceById(place._id)
       }
     },
     async deletePlaceById(id) {
       const res = await deletePlace(id)
       if (res.success) {
-        alert('Xóa địa điểm thành công!')
+        this.$notify({ type: 'success', title: 'Đã xóa địa điểm', message: 'Địa điểm đã được xóa khỏi hệ thống.' })
         const index = this.places.findIndex(place => place._id === id)
         if (index !== -1) {
           this.places.splice(index, 1)
           this.loadPlaceOptionLists()
         }
       } else {
-        alert('Lỗi: ' + res.error)
+        this.$notify({ type: 'error', title: 'Không thể xóa địa điểm', message: res.error || 'Đã có lỗi xảy ra.' })
       }
     },
     closeModals() {
@@ -558,10 +574,10 @@ export default {
           // Thêm các ảnh mới vào mảng images
           this.formData.images = [...this.formData.images, ...result.data.imageUrls]
         } else {
-          alert('Lỗi upload: ' + result.error)
+          this.$notify({ type: 'error', title: 'Không thể tải ảnh', message: result.error || 'Upload ảnh không thành công.' })
         }
       } catch (error) {
-        alert('Lỗi upload ảnh: ' + error.message)
+        this.$notify({ type: 'error', title: 'Không thể tải ảnh', message: error.message || 'Upload ảnh không thành công.' })
       } finally {
         this.uploadingImage = false
         // Reset input file
@@ -632,8 +648,9 @@ export default {
         // Xóa kết quả đã thêm khỏi list
         this.searchResults = this.searchResults.filter(r => r.placeId !== place.placeId)
         this.loadPlaces()
+        this.$notify({ type: 'success', title: 'Đã thêm địa điểm', message: 'Địa điểm từ Goong đã được thêm vào hệ thống.' })
       } else {
-        alert('Lỗi: ' + (res.error || 'Không thể thêm địa điểm'))
+        this.$notify({ type: 'error', title: 'Không thể thêm địa điểm', message: res.error || 'Không thể thêm địa điểm.' })
         place.adding = false
       }
     }

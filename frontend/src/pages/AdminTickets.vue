@@ -93,7 +93,7 @@ export default {
     checkAdmin() {
       const user = getAuthUser() || {}
       if (user.role !== 'admin') {
-        alert('Bạn không có quyền truy cập trang này')
+        this.$notify({ type: 'error', title: 'Không có quyền truy cập', message: 'Bạn cần tài khoản quản trị để mở trang này.' })
         this.$router.push('/')
       }
     },
@@ -110,13 +110,19 @@ export default {
     },
     async updateStatus(order, status) {
       const label = this.statusLabel(status).toLowerCase()
-      if (!confirm(`Cập nhật đơn vé này thành "${label}"?`)) return
+      const confirmed = await this.$confirm({
+        title: 'Cập nhật trạng thái vé',
+        message: `Cập nhật đơn vé này thành "${label}"?`,
+        confirmText: 'Cập nhật'
+      })
+      if (!confirmed) return
 
       const res = await updateTicketOrderStatus(order._id, status)
       if (res.success) {
+        this.$notify({ type: 'success', title: 'Đã cập nhật vé', message: `Đơn vé đã được chuyển sang "${label}".` })
         await this.loadOrders()
       } else {
-        alert(res.error || 'Không thể cập nhật trạng thái vé')
+        this.$notify({ type: 'error', title: 'Không thể cập nhật vé', message: res.error || 'Không thể cập nhật trạng thái vé' })
       }
     },
     statusLabel(status) {
