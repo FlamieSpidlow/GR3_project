@@ -22,21 +22,24 @@
     </div>
     <div class="card-body">
       <h3 class="card-title">{{ extractPlaceName(place.name) }}</h3>
-      <p v-if="showAddress" class="card-address">{{ place.address || 'Địa chỉ không rõ' }}</p>
+      <p v-if="showAddress" class="card-address">{{ cleanAddress(place.address, place.name) || 'Địa chỉ không rõ' }}</p>
       
       <div class="place-tags" v-if="showTags && place.tags && place.tags.length > 0">
         <span v-for="tag in place.tags.slice(0, 4)" :key="tag" class="tag">{{ tag }}</span>
       </div>
       
       <div class="meta-row">
-        <span v-if="getRating(place) > 0">⭐ {{ getRating(place) }}/5</span>
+        <span v-if="getRating(place) > 0" class="rating-meta">
+          <span class="rating-star">★</span>
+          <span>{{ getRating(place) }}/5</span>
+        </span>
         <span v-else class="no-rating">Chưa có đánh giá</span>
         <span>👶 {{ place.ageRange || '0-12' }} tuổi</span>
-        <span>💰 {{ place.price || 'Miễn phí' }}</span>
+        <span>Giá: {{ formatPrice(place.price) }}</span>
       </div>
       
       <div v-if="getDistance(place) !== null" class="distance-row">
-        Cách bạn {{ (getDistance(place) / 1000).toFixed(1) }} km
+        Cách bạn khoảng {{ (getDistance(place) / 1000).toFixed(1) }} km
       </div>
 
       <button v-if="showButton" class="btn" @click.stop="$emit('select', place)">Xem chi tiết</button>
@@ -45,6 +48,10 @@
 </template>
 
 <script>
+import { formatPrice } from '../utils/priceFormatter'
+import { cleanAddress } from '../utils/addressFormatter'
+import { assetUrl } from '../utils/apiBase'
+
 export default {
   name: 'PlaceCard',
   props: {
@@ -111,10 +118,11 @@ export default {
       }
       return null
     },
+    formatPrice,
+    cleanAddress,
     getImageUrl(imagePath) {
-      if (!imagePath) return '/default.jpg'
-      if (imagePath.startsWith('http')) return imagePath
-      return `http://localhost:3000${imagePath}`
+      if (!imagePath) return '/Playground.jpg'
+      return assetUrl(imagePath)
     }
   }
 }
@@ -204,11 +212,11 @@ export default {
 }
 
 .card-title {
-  font-weight: 900;
-  font-size: 1.06rem;
+  font-weight: 700;
+  font-size: 1rem;
   margin: 0 0 6px 0;
   color: var(--tw-text);
-  line-height: 1.3;
+  line-height: 1.35;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -216,7 +224,7 @@ export default {
 }
 
 .card-address {
-  font-size: 0.85rem;
+  font-size: 0.88rem;
   color: var(--tw-muted);
   margin: 0 0 10px 0;
   display: -webkit-box;
@@ -233,7 +241,7 @@ export default {
 }
 
 .place-tags .tag {
-  font-size: 0.65rem;
+  font-size: 0.72rem;
   padding: 2px 8px;
   background: var(--tw-bg);
   border: 1px solid var(--tw-border);
@@ -246,9 +254,19 @@ export default {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  font-size: 0.85rem;
+  font-size: 0.88rem;
   color: var(--tw-muted);
   margin-bottom: 8px;
+}
+
+.rating-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.rating-star {
+  color: #f59e0b;
 }
 
 .meta-row .no-rating {
@@ -259,7 +277,7 @@ export default {
 .distance-row {
   color: #059669;
   font-weight: 600;
-  font-size: 0.85rem;
+  font-size: 0.88rem;
   margin-bottom: 10px;
 }
 
@@ -275,6 +293,10 @@ export default {
   cursor: pointer;
   font-weight: 500;
   transition: background 0.2s;
+  text-align: center;
+  text-decoration: none;
+  font-family: inherit;
+  font-size: 0.95rem;
 }
 
 .btn:hover {

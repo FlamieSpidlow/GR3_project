@@ -58,6 +58,7 @@
 
 <script>
 import { updateProfile, getProfile } from '../api/auth'
+import { getAuthUserRaw } from '../utils/authSession'
 
 export default {
   name: 'EditProfile',
@@ -84,7 +85,7 @@ export default {
       this.email = u.email || ''
     } else {
       // Fallback to localStorage
-      const user = localStorage.getItem('user')
+      const user = getAuthUserRaw()
       if (user) {
         const u = JSON.parse(user)
         this.parentName = u.parentName || ''

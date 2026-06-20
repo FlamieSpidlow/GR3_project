@@ -8,7 +8,8 @@ router.post('/', async (req, res) => {
     const result = await answerQuestion(question, conversationId, userLocation)
     const answer = result && typeof result.answer === 'string' ? result.answer : NO_DATA_RESPONSE
     const cid = result && result.conversationId ? String(result.conversationId) : (conversationId ? String(conversationId) : 'default')
-    res.json({ success: true, answer, conversationId: cid })
+    const places = result && Array.isArray(result.places) ? result.places : []
+    res.json({ success: true, answer, conversationId: cid, places })
   } catch (err) {
     console.error('Chatbot error:', err)
     res.status(500).json({ success: false, error: 'Loi chatbot', answer: NO_DATA_RESPONSE })

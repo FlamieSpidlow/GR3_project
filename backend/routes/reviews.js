@@ -4,21 +4,17 @@ const mongoose = require('mongoose')
 const Review = require('../models/Review')
 const Place = require('../models/Place')
 const ReviewImageSubmission = require('../models/ReviewImageSubmission')
-const { authenticate } = require('../middleware/auth')
+const { authenticate, verifyAuthToken } = require('../middleware/auth')
 const multer = require('multer')
 const path = require('path')
 const fs = require('fs')
-const User = require('../models/User')
 
 async function getOptionalUser(req) {
   try {
     const authHeader = req.headers.authorization || ''
     if (!authHeader.startsWith('Bearer ')) return null
     const token = authHeader.split(' ')[1]
-    if (!token || !token.startsWith('token_')) return null
-    const userId = token.slice(6)
-    if (!userId) return null
-    return await User.findById(userId)
+    return await verifyAuthToken(token)
   } catch {
     return null
   }

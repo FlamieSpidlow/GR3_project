@@ -30,7 +30,7 @@ export default {
   height: 100%;
   display: flex;
   flex-direction: column;
-  --chatbot-bottom-offset: 56px;
+  --chatbot-bottom-offset: 38px;
 }
 
 .app-header {

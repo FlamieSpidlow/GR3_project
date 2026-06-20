@@ -26,6 +26,12 @@
             <h2>Quản lý địa điểm</h2>
             <p>Xem, thêm, sửa, xóa địa điểm</p>
           </router-link>
+
+          <router-link to="/admin/tickets" class="admin-card tw-surface">
+            <div class="card-icon">T</div>
+            <h2>Quản lý vé</h2>
+            <p>Xác nhận, hủy và đánh dấu vé đã sử dụng</p>
+          </router-link>
         </div>
       </div>
     </main>
@@ -33,6 +39,8 @@
 </template>
 
 <script>
+import { getAuthUser } from '../utils/authSession'
+
 export default {
   name: 'AdminDashboard',
   data() {
@@ -42,7 +50,7 @@ export default {
   },
   mounted() {
     // Kiểm tra quyền admin
-    const user = JSON.parse(localStorage.getItem('user') || '{}')
+    const user = getAuthUser() || {}
     if (user.role !== 'admin') {
       alert('Bạn không có quyền truy cập trang này')
       this.$router.push('/')

@@ -12,29 +12,38 @@
       <div class="user-card tw-surface">
         <div class="avatar">
           <img v-if="user.avatar" :src="user.avatar" alt="avatar" class="avatar-img" />
-          <div v-else class="avatar-fallback">👤</div>
+          <div v-else class="avatar-fallback">{{ userInitials }}</div>
         </div>
         <div class="user-info">
-          <h2>{{ user.name }}</h2>
-          <p class="email" v-if="user.email">{{ user.email }}</p>
-          <div class="badges">
-            <span class="badge">🏠 {{ user.address || 'Chưa đặt địa chỉ' }}</span>
+          <div class="user-heading">
+            <h2>{{ user.name }}</h2>
+            <p class="email" v-if="user.email">{{ user.email }}</p>
+          </div>
+          <div class="profile-row">
+            <span class="profile-icon" aria-label="Địa chỉ" title="Địa chỉ">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M3 10.5 12 3l9 7.5" />
+                <path d="M5 9.5V21h14V9.5" />
+                <path d="M9 21v-6h6v6" />
+              </svg>
+            </span>
+            <span class="profile-value">{{ user.address || 'Chưa đặt địa chỉ' }}</span>
           </div>
         </div>
       </div>
 
       <div class="location-found-banner" v-if="nearbyCount > 0">
-        <span class="banner-icon">📍</span>
+        <span class="status-dot"></span>
         <p>Đã tìm thấy các địa điểm vui chơi gần bạn. Hiện tại có <strong>{{ nearbyCount }}</strong> địa điểm đang hoạt động!</p>
       </div>
 
       <div class="location-warning" v-if="isLocating && !userLocation">
-        <span class="banner-icon">⏳</span>
+        <span class="status-dot warning"></span>
         <p>Đang lấy vị trí của bạn...</p>
       </div>
 
       <div class="location-warning" v-else-if="!userLocation">
-        <span class="banner-icon">⚠️</span>
+        <span class="status-dot warning"></span>
         <p>Chưa lấy được vị trí của bạn nên <strong>không hiển thị khoảng cách</strong>. Hãy bật quyền định vị cho trình duyệt (hoặc chạy bằng <strong>https/localhost</strong>).</p>
       </div>
 
@@ -67,8 +76,9 @@
 
 <script>
 import PlaceCard from '../components/PlaceCard.vue'
-import { getAllPlaces, reverseGeocode } from '../api/places'
+import { getAllPlaces } from '../api/places'
 import { getProfile, updateLocation } from '../api/auth'
+import { getAuthToken, getAuthUserRaw } from '../utils/authSession'
 
 export default {
   name: 'SuggestPage',
@@ -93,6 +103,9 @@ export default {
     }
   },
   computed: {
+    userInitials() {
+      return String(this.user.name || 'U').trim().slice(0, 1).toUpperCase()
+    },
     displayed() {
       return this.recommendations.slice(0, this.displayLimit)
     },
@@ -123,6 +136,19 @@ export default {
       }
       return true
     },
+    setUserAddress(address, { persist = true } = {}) {
+      const value = String(address || '').trim()
+      if (!value) return false
+      this.user.address = value
+      if (persist) {
+        localStorage.setItem('userAddress', value)
+      }
+      return true
+    },
+    loadUserAddressFromStorage() {
+      const address = localStorage.getItem('userAddress')
+      if (address) this.setUserAddress(address, { persist: false })
+    },
     loadUserLocationFromStorage() {
       try {
         const raw = localStorage.getItem('userLocation')
@@ -137,7 +163,8 @@ export default {
     },
     async loadUserProfile() {
       this.loadUserLocationFromStorage()
-      const token = localStorage.getItem('authToken')
+      let loadedFromProfile = false
+      const token = getAuthToken()
       if (token) {
         try {
           // Fetch from server to get latest user data
@@ -148,7 +175,8 @@ export default {
             this.user.email = u.email || ''
             this.user.avatar = u.avatar || ''
             this.user.numberOfKids = u.numberOfKids || 1
-            this.user.address = u.address || ''
+            this.setUserAddress(u.address, { persist: true })
+            loadedFromProfile = true
             this.user.lat = u.lat
             this.user.lng = u.lng
             if (u.lat != null && u.lng != null) {
@@ -160,14 +188,17 @@ export default {
         }
       }
       
-      // Fallback to localStorage
-      this.loadUserFromStorage()
+      // Fallback to localStorage only when profile is unavailable.
+      if (!loadedFromProfile) {
+        this.loadUserAddressFromStorage()
+        this.loadUserFromStorage()
+      }
       this.getUserLocationAndFetch()
     },
     loadUserFromStorage() {
       try {
-        const authToken = localStorage.getItem('authToken')
-        const raw = localStorage.getItem('user') || localStorage.getItem('profile') || null
+        const authToken = getAuthToken()
+        const raw = getAuthUserRaw() || localStorage.getItem('profile') || null
         if (authToken && raw) {
           const parsed = JSON.parse(raw)
           const src = parsed && parsed.user && typeof parsed.user === 'object' ? parsed.user : parsed
@@ -176,6 +207,7 @@ export default {
           this.user.email = src.email || src.mail || ''
           this.user.avatar = src.avatar || src.photoURL || src.image || ''
           this.user.numberOfKids = src.numberOfKids || src.kids || this.user.numberOfKids
+          this.setUserAddress(src.address || src.locationAddress || src.formattedAddress, { persist: true })
           const lat = src.lat ?? src.latitude ?? (src.location && src.location.lat)
           const lng = src.lng ?? src.longitude ?? (src.location && src.location.lng)
           if (lat != null && lng != null) {
@@ -190,6 +222,7 @@ export default {
           this.user.name = src.name || src.parentName || this.user.name
           this.user.email = src.email || ''
           this.user.avatar = src.avatar || ''
+          this.setUserAddress(src.address || src.locationAddress || src.formattedAddress, { persist: true })
           if (src.lat != null && src.lng != null) {
             this.user.lat = src.lat
             this.user.lng = src.lng
@@ -206,27 +239,19 @@ export default {
         navigator.geolocation.getCurrentPosition(async (pos) => {
           this.setUserLocation(pos.coords.latitude, pos.coords.longitude)
 
-          // Optionally persist to server for future sessions
+          // Keep recommendation distance fresh, but do not overwrite the profile address badge.
           try {
-            const token = localStorage.getItem('authToken')
+            const token = getAuthToken()
             if (token) {
-              await updateLocation({ lat: this.userLocation.lat, lng: this.userLocation.lng })
+              await updateLocation({
+                lat: this.userLocation.lat,
+                lng: this.userLocation.lng
+              })
             }
           } catch (e) {
             console.warn('Failed to persist user location:', e)
           }
 
-          // if user has no readable address stored, try reverse geocoding
-          try {
-            if (!this.user.address) {
-              const rev = await reverseGeocode(this.userLocation.lat, this.userLocation.lng)
-              if (rev && rev.success && rev.data) {
-                this.user.address = rev.data
-              }
-            }
-          } catch (e) {
-            console.warn('Reverse geocode failed in frontend', e)
-          }
           this.isLocating = false
           await this.fetchRecommendations()
         }, async () => {
@@ -296,10 +321,6 @@ export default {
       }
       this.loading = false
     },
-    avgRating(place) {
-      if (place.averageRating) return Number(place.averageRating).toFixed(1)
-      return 'なし'
-    },
     calculateDistance(lat1, lng1, lat2, lng2) {
       const aLat = this.coerceNumber(lat1)
       const aLng = this.coerceNumber(lng1)
@@ -327,17 +348,6 @@ export default {
     saveFavorites() {
       localStorage.setItem('favorites', JSON.stringify(this.favorites))
     },
-    isFavorited(placeId) {
-      return this.favorites.includes(placeId)
-    },
-    toggleFavorite(placeId) {
-      if (this.isFavorited(placeId)) {
-        this.favorites = this.favorites.filter(id => id !== placeId)
-      } else {
-        this.favorites.push(placeId)
-      }
-      this.saveFavorites()
-    },
     onFavoriteToggle({ id, favorited }) {
       if (favorited) {
         if (!this.favorites.includes(id)) {
@@ -351,12 +361,6 @@ export default {
     viewDetails(place) {
       this.$router.push({ path: `/place/${place.id}` })
     },
-    // goFavorites removed
-    getImageUrl(imagePath) {
-      if (!imagePath) return '/default.jpg'
-      if (imagePath.startsWith('http')) return imagePath
-      return `http://localhost:3000${imagePath}`
-    },
     loadMore() {
       this.displayLimit += 6
     }
@@ -366,33 +370,95 @@ export default {
 
 <style scoped>
 .recommendations-page { background: var(--tw-bg); min-height: 100%; }
-.site-header { position: relative; z-index: 10; }
 .content { padding: 0; }
-.site-footer { background: #fff; border-top: 1px solid var(--tw-border); padding: 14px 16px; text-align: center; color: #6b7280; font-size: 0.9rem; }
 
 .page-hero { position: relative; padding: 34px 0 26px 0; overflow: hidden; }
 .page-hero::before { content: ''; position: absolute; inset: 0; background-image: url('~@/../public/Playground.jpg'); background-size: cover; background-position: center; transform: scale(1.02); }
 .page-hero::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(15, 23, 42, 0.72) 0%, rgba(15, 23, 42, 0.45) 60%, rgba(15, 23, 42, 0.3) 100%); }
 .page-hero-inner { position: relative; z-index: 1; text-align: center; color: #fff; }
-.page-hero-inner h1 { margin: 0 0 8px 0; font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; }
-.page-hero-inner p { margin: 0; color: rgba(255,255,255,0.88); font-weight: 600; line-height: 1.5; }
+.page-hero-inner h1 { margin: 0 0 8px 0; font-size: 2rem; font-weight: 700; letter-spacing: 0; line-height: 1.25; }
+.page-hero-inner p { margin: 0; color: rgba(255,255,255,0.88); font-weight: 500; line-height: 1.55; }
 
-.page-body { padding-top: 26px; padding-bottom: 46px; }
-.user-card { display:flex; gap:16px; align-items:center; padding:16px; border:1px solid #eee; border-radius:8px; }
-.user-card .avatar { width:64px; height:64px; border-radius:8px; background:#f3f4f6; display:flex; align-items:center; justify-content:center }
-.avatar-img { width:64px; height:64px; object-fit:cover; border-radius:8px }
-.avatar-fallback { font-size:28px }
-.user-info .email { margin:4px 0; color:#374151; font-size:14px }
-.coords { margin-top:6px; font-size:12px; color:#6b7280 }
-.user-info h2 { margin:0; }
-.muted { color:#6b7280; }
-.badges { margin-top:8px; display:flex; gap:8px }
-.badge { background:#fef2f2; color:#b91c1c; padding:6px 10px; border-radius:20px; font-weight:600 }
-.location-found-banner { display:flex; align-items:center; gap:12px; background:linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); padding:16px 20px; border-radius:12px; margin-top:20px; border:1px solid #6ee7b7 }
-.location-found-banner .banner-icon { font-size:1.5rem }
+.page-body { padding-top: 24px; padding-bottom: 46px; }
+.user-card {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  padding: 20px 22px;
+  border: 1px solid var(--tw-border);
+  border-radius: 8px;
+  box-shadow: var(--tw-shadow-sm);
+}
+.avatar {
+  width:82px;
+  height:82px;
+  flex: 0 0 82px;
+  border-radius:12px;
+  background:#f1f5f9;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+}
+.avatar-img { width:100%; height:100%; object-fit:cover; display:block; }
+.avatar-fallback { font-size:22px; font-weight:700; color:#475569 }
+.user-info {
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+}
+.user-heading h2 { margin:0; font-size:1.55rem; line-height:1.2; letter-spacing:0; color:#0f172a; }
+.user-info .email { margin:5px 0 0; color:#475569; font-size:1rem; line-height:1.35; }
+.profile-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  color: #334155;
+  width: fit-content;
+  max-width: 100%;
+  padding: 8px 12px 8px 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+.profile-icon {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  color:#475569;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.profile-icon svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.profile-value {
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-weight:700;
+  color: #1f2937;
+  line-height: 1.35;
+}
+.location-found-banner { display:flex; align-items:center; gap:12px; background:#f0fdf4; padding:14px 18px; border-radius:8px; margin-top:20px; border:1px solid #bbf7d0 }
+.status-dot { width:10px; height:10px; flex:0 0 auto; border-radius:50%; background:#16a34a }
+.status-dot.warning { background:#d97706 }
 .location-found-banner p { margin:0; color:#065f46; font-size:0.95rem }
 .location-found-banner strong { color:#047857; font-size:1.1rem }
-.location-warning { display:flex; align-items:center; gap:12px; background:#fffbeb; padding:14px 18px; border-radius:12px; margin-top:14px; border:1px solid #f59e0b }
+.location-warning { display:flex; align-items:center; gap:12px; background:#fffbeb; padding:14px 18px; border-radius:8px; margin-top:14px; border:1px solid #f59e0b }
 .location-warning p { margin:0; color:#92400e; font-size:0.95rem }
 .section-title { margin-top:20px; margin-bottom:12px }
 .grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:16px }
@@ -402,26 +468,29 @@ export default {
 }
 
 @media (max-width: 640px) {
+  .user-card {
+    align-items: flex-start;
+    gap: 14px;
+    padding: 16px;
+  }
+  .avatar {
+    width: 64px;
+    height: 64px;
+    flex-basis: 64px;
+  }
+  .user-heading h2 {
+    font-size: 1.25rem;
+  }
+  .user-info .email {
+    font-size: 0.92rem;
+  }
+  .profile-row {
+    width: 100%;
+    padding-right: 10px;
+  }
   .grid { grid-template-columns: 1fr; }
+  .profile-value { white-space:normal; }
 }
-.card { background:#fff; border-radius:12px; overflow:hidden; border:1px solid #e5e7eb; display:flex; flex-direction:column; height:auto; box-shadow:0 2px 8px rgba(0,0,0,0.04); transition:all 0.2s }
-.card:hover { box-shadow:0 4px 16px rgba(0,0,0,0.08); transform:translateY(-2px) }
-.card-media { position:relative; height:180px; background:#f3f4f6; flex-shrink:0 }
-.card-media img { width:100%; height:100%; object-fit:cover }
-.favorite-btn { position:absolute; top:10px; right:10px; width:36px; height:36px; border-radius:50%; border:none; background:rgba(255,255,255,0.9); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:18px; transition:all 0.2s; box-shadow:0 2px 6px rgba(0,0,0,0.1) }
-.favorite-btn:hover { transform:scale(1.1); background:white }
-.favorite-btn.active { background:#fee2e2 }
-.fav { position:absolute; top:8px; right:8px; font-size:20px; cursor:pointer }
-.badge-match { position:absolute; left:8px; top:8px; background:#7c3aed; color:#fff; padding:6px 10px; border-radius:20px; font-weight:700 }
-.card-body { padding:16px; flex:1; display:flex; flex-direction:column }
-.card-title { margin:0 0 8px 0; font-size:1.1rem; line-height:1.3; min-height:28px; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden }
-.card-address { color:#6b7280; margin-bottom:12px; font-size:0.9rem; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; min-height:40px; line-height:1.4 }
-.meta { display:flex; flex-direction:column; gap:8px; font-size:13px; color:#374151; margin-bottom:16px; min-height:52px }
-.meta .meta-row { display:flex; flex-wrap:wrap; gap:12px; align-items:center }
-.meta .no-rating { color:#9ca3af; font-style:italic }
-.distance { color:#059669; font-weight:600 }
-.btn { background:#6366f1; color:#fff; border:none; padding:12px 16px; border-radius:8px; width:100%; margin-top:auto; font-weight:500; cursor:pointer; transition:background 0.2s }
-.btn:hover { background:#4f46e5 }
 .btn-outline { border:1px solid #6366f1; background:transparent; padding:10px 14px; border-radius:8px; color:#6366f1 }
 .more { display:flex; justify-content:center; margin-top:18px }
 .loading, .empty { padding:20px; text-align:center; color:#6b7280 }

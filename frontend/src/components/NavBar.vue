@@ -6,17 +6,18 @@
           <router-link to="/" class="brand" aria-label="TheWeekend">
             <img src="/Logo.jpg" alt="TheWeekend" class="brand-logo" />
           </router-link>
-          <router-link v-if="!isAdmin" to="/about" class="about-link">{{ t('nav.about') }}</router-link>
+          <router-link v-if="!isAdmin" to="/about" class="about-link">Về chúng tôi</router-link>
         </div>
 
         <div class="nav-area">
           <ul v-if="!isAdmin" class="nav-links">
-            <li><router-link to="/">{{ t('nav.home') }}</router-link></li>
-            <li><router-link to="/suggest">{{ t('nav.suggest') }}</router-link></li>
-            <li><router-link to="/favour">{{ t('nav.favour') }}</router-link></li>
+            <li><router-link to="/">Trang chủ</router-link></li>
+            <li><router-link to="/suggest">Gợi ý</router-link></li>
+            <li><router-link to="/favour">Yêu thích</router-link></li>
+            <li><router-link to="/tickets">Vé của tôi</router-link></li>
           </ul>
           <ul v-else class="nav-links">
-            <li><router-link to="/admin">{{ t('nav.admin') }}</router-link></li>
+            <li><router-link to="/admin">Quản trị hệ thống</router-link></li>
           </ul>
         </div>
 
@@ -25,33 +26,14 @@
             type="button"
             class="icon-btn"
             @click="openSearchPopup"
-            :aria-label="t('search.open')"
-            :title="t('search.open')"
+            aria-label="Tìm kiếm"
+            title="Tìm kiếm"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <circle cx="11" cy="11" r="7" />
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
           </button>
-
-          <div class="lang-switch" role="group" aria-label="Language">
-            <button
-              type="button"
-              class="lang-btn"
-              :class="{ active: lang === 'vi' }"
-              @click="setLanguage('vi')"
-            >
-              VI
-            </button>
-            <button
-              type="button"
-              class="lang-btn"
-              :class="{ active: lang === 'en' }"
-              @click="setLanguage('en')"
-            >
-              EN
-            </button>
-          </div>
 
           <template v-if="isAuthenticated">
             <div class="user-info">
@@ -81,14 +63,14 @@
                     <path d="M2 17l10 5 10-5"></path>
                     <path d="M2 12l10 5 10-5"></path>
                   </svg>
-                  {{ t('userMenu.admin') }}
+                  Quản trị hệ thống
                 </button>
                 <button @click="editProfile" class="menu-item">
                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                   </svg>
-                  {{ t('userMenu.editProfile') }}
+                  Chỉnh sửa thông tin
                 </button>
                 <button @click="changePassword" class="menu-item">
                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -96,7 +78,15 @@
                     <path d="M20 12v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-5"></path>
                     <path d="M16 6V5a4 4 0 0 0-8 0v1"></path>
                   </svg>
-                  {{ t('userMenu.changePassword') }}
+                  Đổi mật khẩu
+                </button>
+                <button v-if="!isAdmin" @click="goToTickets" class="menu-item">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M4 5a2 2 0 0 1 2-2h12v18l-3-2-3 2-3-2-3 2V5z"></path>
+                    <path d="M8 7h8"></path>
+                    <path d="M8 11h8"></path>
+                  </svg>
+                  Vé của tôi
                 </button>
                 <button @click="logout" class="menu-item logout">
                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -104,13 +94,13 @@
                     <polyline points="17 16 21 12 17 8"></polyline>
                     <line x1="21" y1="12" x2="9" y2="12"></line>
                   </svg>
-                  {{ t('auth.logout') }}
+                  Đăng xuất
                 </button>
               </div>
             </div>
           </template>
           <template v-else>
-            <button class="tw-btn tw-btn-primary login-btn" @click="goToLogin">{{ t('auth.login') }}</button>
+            <button class="tw-btn tw-btn-primary login-btn" @click="goToLogin">Đăng nhập</button>
           </template>
         </div>
       </div>
@@ -120,8 +110,8 @@
       <div class="search-backdrop" @click="closeSearchPopup"></div>
       <div class="search-dialog" role="dialog" aria-modal="true">
         <div class="search-header">
-          <h3 class="search-title">{{ t('search.title') }}</h3>
-          <button type="button" class="close-btn" @click="closeSearchPopup">{{ t('common.close') }}</button>
+          <h3 class="search-title">Tìm kiếm</h3>
+          <button type="button" class="close-btn" @click="closeSearchPopup">Đóng</button>
         </div>
 
         <div class="search-body">
@@ -130,38 +120,38 @@
               ref="searchInput"
               type="text"
               v-model="searchQuery"
-              :placeholder="t('search.placeholder')"
+              placeholder="VD: công viên, khu vui chơi trong nhà, miễn phí..."
               @keyup.enter="submitSearch"
             />
             <button type="button" class="tw-btn tw-btn-primary" @click="submitSearch">
-              {{ t('search.button') }}
+              Tìm kiếm
             </button>
           </div>
 
           <div v-if="searchError" class="search-error">{{ searchError }}</div>
 
           <div class="search-age">
-            <label>{{ t('search.ageLabel') }}: <strong>{{ searchAge }}</strong></label>
+            <label>Độ tuổi phù hợp: <strong>{{ searchAge }}</strong></label>
             <input type="range" min="1" max="12" v-model="searchAge" />
           </div>
 
           <div class="search-grid">
             <div class="search-block">
               <div class="block-header">
-                <span class="block-title">{{ t('search.history') }}</span>
+                <span class="block-title">Lịch sử tìm kiếm</span>
                 <button
                   v-if="isAuthenticated && !isLoadingSearchHistory && searchHistory.length > 0"
                   type="button"
                   class="link-btn"
                   @click="clearHistory"
                 >
-                  {{ t('search.clearAll') }}
+                  Xóa tất cả
                 </button>
               </div>
 
-              <div v-if="!isAuthenticated" class="block-empty tw-muted">{{ t('search.emptyHistory') }}</div>
-              <div v-else-if="isLoadingSearchHistory" class="block-empty tw-muted">{{ t('common.loading') }}</div>
-              <div v-else-if="searchHistory.length === 0" class="block-empty tw-muted">{{ t('search.emptyHistory') }}</div>
+              <div v-if="!isAuthenticated" class="block-empty tw-muted">Chưa có lịch sử tìm kiếm</div>
+              <div v-else-if="isLoadingSearchHistory" class="block-empty tw-muted">Đang tải...</div>
+              <div v-else-if="searchHistory.length === 0" class="block-empty tw-muted">Chưa có lịch sử tìm kiếm</div>
               <div v-else class="history-list">
                 <button
                   v-for="(item, idx) in searchHistory.slice(0, 6)"
@@ -177,7 +167,7 @@
 
             <div class="search-block">
               <div class="block-header">
-                <span class="block-title">{{ t('search.popular') }}</span>
+                <span class="block-title">Từ khóa phổ biến</span>
               </div>
               <div class="chips">
                 <button
@@ -199,8 +189,8 @@
 </template>
 
 <script>
-import { clearSearchHistory, getProfile } from '../api/auth'
-import { i18nState, setLanguage, t } from '../i18n'
+import { clearSearchHistory, getProfile, saveSearchHistory } from '../api/auth'
+import { clearAuthSession, getAuthToken, getAuthUserRaw } from '../utils/authSession'
 
 export default {
   name: 'NavBar',
@@ -220,13 +210,8 @@ export default {
     }
   },
   computed: {
-    lang() {
-      return i18nState.lang
-    },
     popularKeywords() {
-      return this.lang === 'en'
-        ? ['park', 'indoor playground', 'free', 'weekend', 'kids activities', 'swimming']
-        : ['công viên', 'khu vui chơi trong nhà', 'miễn phí', 'cuối tuần', 'hoạt động cho bé', 'bơi lội']
+      return ['công viên', 'khu vui chơi trong nhà', 'miễn phí', 'cuối tuần', 'hoạt động cho bé', 'bơi lội']
     }
   },
   mounted() {
@@ -243,11 +228,9 @@ export default {
     document.removeEventListener('click', this.closeMenu)
   },
   methods: {
-    t,
-    setLanguage,
     checkAuth() {
-      const authToken = localStorage.getItem('authToken')
-      const userData = localStorage.getItem('user')
+      const authToken = getAuthToken()
+      const userData = getAuthUserRaw()
       
       if (authToken && userData) {
         this.isAuthenticated = true
@@ -278,7 +261,7 @@ export default {
       this.searchError = ''
     },
     async loadSearchHistory() {
-      const token = localStorage.getItem('authToken')
+      const token = getAuthToken()
       if (!token) {
         this.searchHistory = []
         this.isLoadingSearchHistory = false
@@ -316,14 +299,27 @@ export default {
         console.warn('Failed to clear search history:', e)
       }
     },
-    submitSearch() {
+    async submitSearch() {
       this.searchError = ''
       if (!this.searchQuery || !this.searchQuery.trim()) {
-        this.searchError = t('search.errorEmpty')
+        this.searchError = 'Vui lòng nhập từ khóa tìm kiếm'
         return
       }
 
       const q = this.searchQuery.trim()
+      if (this.isAuthenticated) {
+        try {
+          const res = await saveSearchHistory(q)
+          if (res && res.success && Array.isArray(res.searchHistory)) {
+            this.searchHistory = res.searchHistory
+          } else if (res && res.status === 401) {
+            clearAuthSession()
+            this.checkAuth()
+          }
+        } catch (e) {
+          console.warn('Failed to save search history:', e)
+        }
+      }
       this.showSearchPopup = false
       this.$router.push({
         path: '/search',
@@ -347,13 +343,16 @@ export default {
       this.showMenu = false
       this.$router.push('/profile/change-password')
     },
+    goToTickets() {
+      this.showMenu = false
+      this.$router.push('/tickets')
+    },
     goToAdmin() {
       this.showMenu = false
       this.$router.push('/admin')
     },
     logout() {
-      localStorage.removeItem('authToken')
-      localStorage.removeItem('user')
+      clearAuthSession()
       this.isAuthenticated = false
       this.showMenu = false
       
@@ -408,7 +407,7 @@ export default {
 .about-link {
   text-decoration: none;
   color: var(--tw-muted);
-  font-weight: 800;
+  font-weight: 650;
   font-size: 0.95rem;
   padding: 8px 10px;
   border-radius: 999px;
@@ -450,7 +449,7 @@ export default {
 .nav-links li a {
   text-decoration: none;
   color: var(--tw-muted);
-  font-weight: 700;
+  font-weight: 650;
   font-size: 0.95rem;
   transition: color 0.18s ease;
 }
@@ -500,35 +499,6 @@ export default {
   display: block;
 }
 
-.lang-switch {
-  display: inline-flex;
-  border: 1px solid var(--tw-border);
-  border-radius: 999px;
-  overflow: hidden;
-  background: var(--tw-surface);
-}
-
-.lang-btn {
-  border: none;
-  background: transparent;
-  padding: 8px 10px;
-  font-weight: 900;
-  font-size: 0.82rem;
-  cursor: pointer;
-  color: var(--tw-muted);
-  min-width: 44px;
-}
-
-.lang-btn:hover {
-  background: var(--tw-bg);
-  color: var(--tw-text);
-}
-
-.lang-btn.active {
-  background: var(--tw-primary);
-  color: var(--tw-surface);
-}
-
 @media (max-width: 900px) {
   .nav-links { gap: 14px; font-size: 0.92rem }
   .navbar-inner { padding-left: 16px; padding-right: 16px }
@@ -564,8 +534,8 @@ export default {
 }
 
 .user-details { text-align: left }
-.user-details .parent-name { margin: 0; font-weight: 800; color: var(--tw-text); font-size: 0.95rem; line-height: 1.1 }
-.user-details .email { margin: 0; color: var(--tw-muted); font-size: 0.82rem; line-height: 1.1 }
+.user-details .parent-name { margin: 0; font-weight: 700; color: var(--tw-text); font-size: 0.95rem; line-height: 1.25 }
+.user-details .email { margin: 0; color: var(--tw-muted); font-size: 0.84rem; line-height: 1.25 }
 
 .menu-item {
   display: flex;
@@ -688,9 +658,9 @@ export default {
 
 .search-title {
   margin: 0;
-  font-weight: 900;
+  font-weight: 700;
   font-size: 1.05rem;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
 }
 
 .close-btn {

@@ -38,6 +38,7 @@
 
 <script>
 import { loginUser } from '../api/auth'
+import { setAuthSession } from '../utils/authSession'
 
 export default {
   name: 'LoginPage',
@@ -66,16 +67,8 @@ export default {
           password: this.password
         })
 
-        console.log('Login response:', response)
-
         if (response.success || response.token) {
-          // Save token to localStorage
-          if (response.token) {
-            localStorage.setItem('authToken', response.token)
-          }
-          if (response.user) {
-            localStorage.setItem('user', JSON.stringify(response.user))
-          }
+          setAuthSession(response.token, response.user)
 
           this.$notify({
             title: 'Thành công!',

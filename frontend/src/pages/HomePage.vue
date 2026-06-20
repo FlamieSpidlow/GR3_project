@@ -4,8 +4,8 @@
       <section class="hero">
         <div class="hero-inner tw-container-wide">
           <div class="hero-content">
-            <h1>{{ t('home.heroTitle') }}</h1>
-            <p>{{ t('home.heroSubtitle') }}</p>
+            <h1>Khám phá khu vui chơi cho trẻ em</h1>
+            <p>Tìm những địa điểm và hoạt động thú vị cho bé</p>
           </div>
         </div>
       </section>
@@ -13,14 +13,14 @@
       <section class="section-block">
         <div class="tw-container-wide">
           <div class="section-header centered">
-            <h2 class="tw-section-title">{{ t('home.topTitle') }}</h2>
+            <h2 class="tw-section-title">Một số địa điểm vui chơi cho trẻ nhỏ</h2>
           </div>
 
           <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
 
           <div class="places">
             <div v-if="locationLoading" class="loading-spinner">
-              <p>{{ t('home.loadingPlaces') }}</p>
+              <p>Đang tải các địa điểm gần bạn...</p>
             </div>
             <div v-else class="carousel-container">
               <button
@@ -57,7 +57,7 @@
               </transition-group>
             </div>
             <div v-if="!locationLoading && allPlaces.length === 0 && !errorMessage" class="no-places">
-              <p>{{ t('home.noPlaces') }}</p>
+              <p>Không tìm thấy địa điểm.</p>
             </div>
           </div>
         </div>
@@ -66,8 +66,8 @@
       <section class="section-block section-activities">
         <div class="tw-container-wide">
           <div class="section-header centered">
-            <h2 class="tw-section-title">{{ t('home.activitiesTitle') }}</h2>
-            <p class="tw-muted">{{ t('home.activitiesSubtitle') }}</p>
+            <h2 class="tw-section-title">Hoạt động thú vị</h2>
+            <p class="tw-muted">Gợi ý các trải nghiệm phù hợp cho trẻ nhỏ</p>
           </div>
 
           <div class="activities-carousel">
@@ -101,10 +101,10 @@
                 class="activity-card"
               >
                 <div class="activity-media">
-                  <img src="/Playground.jpg" :alt="t(activity.key)" />
+                  <img :src="activity.image" :alt="activity.label" />
                 </div>
                 <div class="activity-body">
-                  <h3 class="activity-title">{{ t(activity.key) }}</h3>
+                  <h3 class="activity-title">{{ activity.label }}</h3>
                 </div>
               </div>
             </transition-group>
@@ -118,16 +118,20 @@
 <script>
 import PlaceCard from '../components/PlaceCard.vue'
 import { getAllPlaces } from '../api/places'
-import { t } from '../i18n'
 
 const ACTIVITY_ITEMS = [
-  { id: 'swimming', key: 'activities.swimming' },
-  { id: 'climbing', key: 'activities.climbing' },
-  { id: 'animalCare', key: 'activities.animalCare' },
-  { id: 'thrill', key: 'activities.thrill' },
-  { id: 'history', key: 'activities.history' },
-  { id: 'picnic', key: 'activities.picnic' },
-  { id: 'farm', key: 'activities.farm' }
+  { id: 'swimming', label: 'Bơi lội', image: '/activities/swimming.jpg' },
+  { id: 'climbing', label: 'Leo núi nhân tạo', image: '/activities/climbing.jpg' },
+  { id: 'animalCare', label: 'Chăm sóc thú', image: '/activities/animal-care.jpg' },
+  { id: 'thrill', label: 'Cảm giác mạnh', image: '/activities/thrill.jpg' },
+  { id: 'history', label: 'Khám phá lịch sử', image: '/activities/history.jpg' },
+  { id: 'picnic', label: 'Picnic', image: '/activities/picnic.jpg' },
+  { id: 'farm', label: 'Làm nông trại', image: '/activities/farm.jpg' },
+  { id: 'museumExplore', label: 'Khám phá bảo tàng', image: '/activities/museum-explore.jpg' },
+  { id: 'craftVillage', label: 'Làng nghề & thủ công', image: '/activities/craft-village.jpg' },
+  { id: 'walkingCheckin', label: 'Đi bộ & check-in', image: '/activities/walking-checkin.jpg' },
+  { id: 'performance', label: 'Biểu diễn nghệ thuật', image: '/activities/performance.jpg' },
+  { id: 'natureExplore', label: 'Khám phá thiên nhiên', image: '/activities/nature-explore.jpg' }
 ]
 
 export default {
@@ -177,7 +181,6 @@ export default {
     // no-op
   },
   methods: {
-    t,
     async loadAllPlaces() {
       this.locationLoading = true
       this.errorMessage = ''
@@ -287,9 +290,9 @@ export default {
 .hero-content h1 {
   font-size: 2.4rem;
   margin: 0 0 12px 0;
-  font-weight: 900;
-  letter-spacing: -0.03em;
-  line-height: 1.15;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.2;
 }
 
 .hero-content p {
@@ -345,17 +348,16 @@ export default {
   text-align: left;
   border: 1px solid var(--tw-border);
   background: var(--tw-surface);
-  border-radius: 14px;
-  box-shadow: var(--tw-shadow-sm);
+  border-radius: 8px;
   overflow: hidden;
   cursor: pointer;
   padding: 0;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition: border-color 0.15s ease, transform 0.15s ease;
 }
 
 .activity-card:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--tw-shadow-md);
+  transform: translateY(-2px);
+  border-color: #cbd5e1;
 }
 
 .activity-media {
@@ -377,9 +379,8 @@ export default {
 
 .activity-title {
   margin: 0 0 6px 0;
-  font-size: 1.1rem;
-  font-weight: 900;
-  letter-spacing: -0.02em;
+  font-size: 1rem;
+  font-weight: 700;
   color: var(--tw-text);
 }
 

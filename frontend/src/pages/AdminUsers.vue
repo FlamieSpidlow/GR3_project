@@ -88,6 +88,7 @@
 
 <script>
 import { getAllUsers, createUser, updateUser, deleteUser } from '../api/admin'
+import { getAuthUser } from '../utils/authSession'
 
 export default {
   name: 'AdminUsers',
@@ -114,7 +115,7 @@ export default {
   },
   methods: {
     checkAdmin() {
-      const user = JSON.parse(localStorage.getItem('user') || '{}')
+      const user = getAuthUser() || {}
       if (user.role !== 'admin') {
         alert('Bạn không có quyền truy cập trang này')
         this.$router.push('/')

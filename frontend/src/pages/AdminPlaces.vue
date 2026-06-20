@@ -12,7 +12,7 @@
 
         <!-- Search from Goong API -->
         <div class="search-section">
-          <h3>🔍 Tìm kiếm địa điểm mới</h3>
+          <h3>Tìm kiếm địa điểm mới</h3>
           <div class="search-bar">
             <input 
               v-model="searchQuery" 
@@ -63,8 +63,8 @@
                 <img :src="getImageUrl(s.imageUrl)" alt="review submission" />
               </div>
               <div class="submission-info">
-                <div class="submission-place">📍 {{ s.place?.name || 'Không rõ địa điểm' }}</div>
-                <div class="submission-user">👤 {{ s.submittedBy?.parentName || s.submittedBy?.username || 'Không rõ' }}</div>
+                <div class="submission-place">Địa điểm: {{ s.place?.name || 'Không rõ địa điểm' }}</div>
+                <div class="submission-user">Người gửi: {{ s.submittedBy?.parentName || s.submittedBy?.username || 'Không rõ' }}</div>
                 <div class="submission-time">🕒 {{ formatDateTime(s.createdAt) }}</div>
               </div>
               <div class="submission-actions">
@@ -77,7 +77,7 @@
 
         <hr class="divider" />
 
-        <h3>📍 Địa điểm trong Database ({{ places.length }})</h3>
+        <h3>Địa điểm trong Database ({{ places.length }})</h3>
 
         <div v-if="isLoading" class="loading">Đang tải...</div>
         <div v-else-if="errorMessage" class="error-message">{{ errorMessage }}</div>
@@ -90,10 +90,10 @@
             </div>
             <div class="place-info">
               <h3>{{ place.name }}</h3>
-              <p class="place-address">{{ place.address || 'Chưa có địa chỉ' }}</p>
+              <p class="place-address">{{ cleanAddress(place.address, place.name) || 'Chưa có địa chỉ' }}</p>
               <div class="place-meta">
                 <span class="meta-tag">👶 {{ place.ageRange || '0-12' }}</span>
-                <span class="meta-tag">💰 {{ place.price || 'Miễn phí' }}</span>
+                <span class="meta-tag">Giá: {{ formatPrice(place.price) }}</span>
               </div>
             </div>
             <div class="place-actions">
@@ -136,7 +136,7 @@
               </div>
               <div class="form-group">
                 <label>Giá tiền *</label>
-                <input v-model="formData.price" type="text" required placeholder="VD: Miễn phí, 50,000đ - 100,000đ" />
+                <input v-model="formData.price" type="text" required placeholder="VD: Miễn phí hoặc 50.000đ" />
               </div>
               <div class="form-group">
                 <label>Hình ảnh (chọn nhiều ảnh)</label>
@@ -168,28 +168,21 @@
                 <label>Bãi đỗ xe</label>
                 <select v-model="formData.parking">
                   <option value="">Chưa cập nhật</option>
-                  <option value="Có (ô tô, xe máy)">Có (ô tô, xe máy)</option>
-                  <option value="Chỉ xe máy">Chỉ xe máy</option>
-                  <option value="Không có">Không có</option>
+                  <option v-for="option in availableParkingOptions" :key="option" :value="option">{{ option }}</option>
                 </select>
               </div>
               <div class="form-group">
                 <label>Ăn uống / Picnic</label>
                 <select v-model="formData.food">
                   <option value="">Chưa cập nhật</option>
-                  <option value="Có quán ăn">Có quán ăn</option>
-                  <option value="Cho phép picnic">Cho phép picnic</option>
-                  <option value="Có quán ăn & cho phép picnic">Có quán ăn & cho phép picnic</option>
-                  <option value="Không">Không</option>
+                  <option v-for="option in availableFoodOptions" :key="option" :value="option">{{ option }}</option>
                 </select>
               </div>
               <div class="form-group">
                 <label>Tiện ích (WC, khu nghỉ)</label>
                 <select v-model="formData.facilities">
                   <option value="">Chưa cập nhật</option>
-                  <option value="WC, khu nghỉ">WC, khu nghỉ</option>
-                  <option value="Chỉ WC">Chỉ WC</option>
-                  <option value="Không">Không</option>
+                  <option v-for="option in availableFacilityOptions" :key="option" :value="option">{{ option }}</option>
                 </select>
               </div>
               <div class="form-group">
@@ -219,12 +212,17 @@ import {
   createPlace,
   updatePlace,
   deletePlace,
+  getAllTags,
   searchGoongPlaces,
   addPlaceFromGoong,
   getReviewImageSubmissions,
   approveReviewImageSubmission,
   rejectReviewImageSubmission
 } from '../api/admin'
+import { formatPrice, hasPriceRange } from '../utils/priceFormatter'
+import { cleanAddress } from '../utils/addressFormatter'
+import { apiUrl, assetUrl } from '../utils/apiBase'
+import { getAuthToken, getAuthUser } from '../utils/authSession'
 
 export default {
   name: 'AdminPlaces',
@@ -243,6 +241,7 @@ export default {
       searchQuery: '',
       searchResults: [],
       isSearching: false,
+      searchRequestId: 0,
       searchMessage: '',
       formData: {
         placeId: '',
@@ -264,24 +263,46 @@ export default {
       },
       editingPlaceId: null,
       uploadingImage: false,
-      availableTags: [
+      fallbackTags: [
         'Trong nhà', 'Ngoài trời', 'Picnic', 'Leo núi', 'Vận động',
         'Chụp ảnh', 'Check-in', 'Công viên', 'Giải trí',
         'Gia đình', 'Cuối tuần', 'Sinh thái', 'Thư giãn', 'Gần Hà Nội', 'Bơi lội',
         'Nông trại', 'Chăm sóc thú', 'Động vật', 'Nhà bóng', 'Cảm giác mạnh',
         'Đồ thủ công', 'Truyền thống',
         'Lịch sử', 'Văn hóa'
-      ]
+      ],
+      availableTags: [],
+      fallbackParkingOptions: ['Có (ô tô, xe máy)', 'Có bãi đỗ xe gần địa điểm', 'Chỉ xe máy', 'Không có'],
+      fallbackFoodOptions: ['Có quán ăn', 'Có quán ăn gần đó', 'Cho phép picnic', 'Có quán ăn & cho phép picnic', 'Không'],
+      fallbackFacilityOptions: ['WC, khu nghỉ', 'Chỉ WC', 'Không'],
+      availableParkingOptions: [],
+      availableFoodOptions: [],
+      availableFacilityOptions: []
     }
   },
   mounted() {
     this.checkAdmin()
     this.loadPlaces()
+    this.loadTags()
     this.loadPendingReviewImageSubmissions()
   },
   methods: {
+    mergeTags(...tagGroups) {
+      const seen = new Set()
+      const merged = []
+      for (const group of tagGroups) {
+        for (const tag of group || []) {
+          const value = String(tag || '').trim()
+          const key = value.toLowerCase()
+          if (!value || seen.has(key)) continue
+          seen.add(key)
+          merged.push(value)
+        }
+      }
+      return merged
+    },
     checkAdmin() {
-      const user = JSON.parse(localStorage.getItem('user') || '{}')
+      const user = getAuthUser() || {}
       if (user.role !== 'admin') {
         alert('Bạn không có quyền truy cập trang này')
         this.$router.push('/')
@@ -293,10 +314,31 @@ export default {
       const res = await getAllPlaces()
       if (res.success) {
         this.places = res.data
+        this.loadPlaceOptionLists()
       } else {
         this.errorMessage = res.error || 'Lỗi tải danh sách địa điểm'
       }
       this.isLoading = false
+    },
+    loadPlaceOptionLists() {
+      const parking = this.places.map(place => place.parking)
+      const food = this.places.map(place => place.food)
+      const facilities = this.places.map(place => place.facilities)
+      const parkingOptions = this.mergeTags(parking, this.fallbackParkingOptions)
+      const foodOptions = this.mergeTags(food)
+      const facilityOptions = this.mergeTags(facilities)
+      this.availableParkingOptions = parkingOptions.length ? parkingOptions : [...this.fallbackParkingOptions]
+      this.availableFoodOptions = foodOptions.length ? foodOptions : [...this.fallbackFoodOptions]
+      this.availableFacilityOptions = facilityOptions.length ? facilityOptions : [...this.fallbackFacilityOptions]
+    },
+    async loadTags() {
+      const res = await getAllTags()
+      if (res.success) {
+        const apiTags = (res.data || []).map(tag => tag.name).filter(Boolean)
+        this.availableTags = apiTags.length ? this.mergeTags(apiTags) : [...this.fallbackTags]
+      } else {
+        this.availableTags = [...this.fallbackTags]
+      }
     },
     formatDateTime(iso) {
       if (!iso) return ''
@@ -344,6 +386,11 @@ export default {
     },
     async addPlace() {
       const dataToSend = { ...this.formData }
+      if (hasPriceRange(dataToSend.price)) {
+        alert('Mỗi địa điểm chỉ có một giá cố định. Vui lòng nhập một giá, ví dụ: Miễn phí hoặc 50.000đ.')
+        return
+      }
+      dataToSend.price = formatPrice(dataToSend.price)
       // Tạo ageRange từ ageMin và ageMax
       dataToSend.ageRange = `${this.formData.ageMin}-${this.formData.ageMax}`
       // Tạo openingHours từ time
@@ -363,6 +410,7 @@ export default {
         alert('Thêm địa điểm thành công!')
         this.closeModals()
         this.loadPlaces()
+        this.loadTags()
       } else {
         alert('Lỗi: ' + res.error)
       }
@@ -399,10 +447,19 @@ export default {
         facilities: place.facilities || '',
         tags: place.tags || []
       }
+      this.availableTags = this.mergeTags(this.availableTags, place.tags || [])
+      this.availableParkingOptions = this.mergeTags(this.availableParkingOptions, [place.parking])
+      this.availableFoodOptions = this.mergeTags(this.availableFoodOptions, [place.food])
+      this.availableFacilityOptions = this.mergeTags(this.availableFacilityOptions, [place.facilities])
       this.showEditModal = true
     },
     async updatePlace() {
       const dataToSend = { ...this.formData }
+      if (hasPriceRange(dataToSend.price)) {
+        alert('Mỗi địa điểm chỉ có một giá cố định. Vui lòng nhập một giá, ví dụ: Miễn phí hoặc 50.000đ.')
+        return
+      }
+      dataToSend.price = formatPrice(dataToSend.price)
       // Tạo ageRange từ ageMin và ageMax
       dataToSend.ageRange = `${this.formData.ageMin}-${this.formData.ageMax}`
       // Tạo openingHours từ time
@@ -420,8 +477,14 @@ export default {
       const res = await updatePlace(this.editingPlaceId, dataToSend)
       if (res.success) {
         alert('Cập nhật địa điểm thành công!')
+        const updatedPlace = res.data
+        const index = this.places.findIndex(place => place._id === this.editingPlaceId)
+        if (index !== -1 && updatedPlace) {
+          this.places.splice(index, 1, updatedPlace)
+          this.loadPlaceOptionLists()
+        }
         this.closeModals()
-        this.loadPlaces()
+        this.loadTags()
       } else {
         alert('Lỗi: ' + res.error)
       }
@@ -435,7 +498,11 @@ export default {
       const res = await deletePlace(id)
       if (res.success) {
         alert('Xóa địa điểm thành công!')
-        this.loadPlaces()
+        const index = this.places.findIndex(place => place._id === id)
+        if (index !== -1) {
+          this.places.splice(index, 1)
+          this.loadPlaceOptionLists()
+        }
       } else {
         alert('Lỗi: ' + res.error)
       }
@@ -455,7 +522,11 @@ export default {
         ageMax: 12,
         price: 'Miễn phí',
         openTime: '08:00',
-        closeTime: '18:00'
+        closeTime: '18:00',
+        parking: '',
+        food: '',
+        facilities: '',
+        tags: []
       }
       this.editingPlaceId = null
       this.uploadingImage = false
@@ -473,8 +544,8 @@ export default {
       }
 
       try {
-        const token = localStorage.getItem('authToken')
-        const response = await fetch('http://localhost:3000/api/admin/places/upload-image', {
+        const token = getAuthToken()
+        const response = await fetch(apiUrl('/admin/places/upload-image'), {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${token}`
@@ -501,33 +572,46 @@ export default {
       this.formData.images.splice(index, 1)
     },
     getImageUrl(imagePath) {
-      if (!imagePath) return '/default.jpg'
-      if (imagePath.startsWith('http')) return imagePath
-      return `http://localhost:3000${imagePath}`
+      if (!imagePath) return '/Playground.jpg'
+      return assetUrl(imagePath)
     },
+    formatPrice,
+    cleanAddress,
     // ============ GOONG SEARCH METHODS ============
     async searchGoong() {
-      if (!this.searchQuery.trim()) {
+      const query = this.searchQuery.trim()
+      if (!query) {
         this.searchMessage = 'Vui lòng nhập từ khóa tìm kiếm'
+        this.searchResults = []
         return
       }
       
+      const requestId = ++this.searchRequestId
       this.isSearching = true
       this.searchMessage = ''
       this.searchResults = []
       
-      const res = await searchGoongPlaces(this.searchQuery)
-      
-      if (res.success) {
-        this.searchResults = res.data || []
-        if (this.searchResults.length === 0) {
-          this.searchMessage = 'Không tìm thấy địa điểm mới (có thể đã có trong database)'
+      try {
+        const res = await searchGoongPlaces(query)
+
+        if (requestId !== this.searchRequestId) return
+
+        if (res.success) {
+          this.searchResults = (res.data || []).map(result => ({
+            ...result,
+            adding: false
+          }))
+          if (this.searchResults.length === 0) {
+            this.searchMessage = 'Không tìm thấy địa điểm mới (có thể đã có trong database)'
+          }
+        } else {
+          this.searchMessage = 'Lỗi: ' + (res.error || 'Không thể tìm kiếm')
         }
-      } else {
-        this.searchMessage = 'Lỗi: ' + (res.error || 'Không thể tìm kiếm')
+      } finally {
+        if (requestId === this.searchRequestId) {
+          this.isSearching = false
+        }
       }
-      
-      this.isSearching = false
     },
     async addFromGoongDirect(place) {
       // Đánh dấu đang thêm

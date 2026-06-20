@@ -14,9 +14,10 @@ export default {
 .app-footer {
   background: var(--tw-surface);
   border-top: 1px solid var(--tw-border);
-  padding: 14px 16px;
+  padding: 8px 12px;
   text-align: center;
   color: var(--tw-muted);
-  font-size: 0.9rem;
+  font-size: 0.78rem;
+  line-height: 1.25;
 }
 </style>

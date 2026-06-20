@@ -1,4 +1,6 @@
-const API_URL = 'http://localhost:3000/api/chatbot'
+import { apiUrl } from '../utils/apiBase'
+
+const API_URL = apiUrl('/chatbot')
 const CONVERSATION_KEY = 'chatbotConversationId'
 const LOCATION_KEY = 'chatbotUserLocation'
 const LOCATION_TTL_MS = 5 * 60 * 1000

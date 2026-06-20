@@ -3,8 +3,8 @@
     <main class="site-main">
       <section class="page-hero">
         <div class="page-hero-inner tw-container-wide">
-          <h1>{{ t('about.title') }}</h1>
-          <p>{{ t('about.subtitle') }}</p>
+          <h1>Về chúng tôi</h1>
+          <p>TheWeekend giúp bạn tìm khu vui chơi và hoạt động phù hợp cho bé.</p>
         </div>
       </section>
 
@@ -12,7 +12,7 @@
         <div class="tw-container-wide">
           <div class="tw-surface body-card">
             <h2 class="body-title">TheWeekend</h2>
-            <p class="body-text tw-muted">{{ t('about.subtitle') }}</p>
+            <p class="body-text tw-muted">TheWeekend giúp bạn tìm khu vui chơi và hoạt động phù hợp cho bé.</p>
           </div>
         </div>
       </section>
@@ -21,13 +21,8 @@
 </template>
 
 <script>
-import { t } from '../i18n'
-
 export default {
-  name: 'AboutPage',
-  methods: {
-    t
-  }
+  name: 'AboutPage'
 }
 </script>
 

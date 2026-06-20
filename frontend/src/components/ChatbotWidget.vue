@@ -55,7 +55,20 @@
               class="tw-chatbot__msg"
               :class="msg.role === 'user' ? 'tw-chatbot__msg--user' : 'tw-chatbot__msg--bot'"
             >
-              <div class="tw-chatbot__bubble">{{ msg.text }}</div>
+              <div class="tw-chatbot__bubble">
+                <div>{{ msg.text }}</div>
+                <div v-if="msg.role === 'assistant' && msg.places && msg.places.length" class="tw-chatbot__links">
+                  <router-link
+                    v-for="place in msg.places"
+                    :key="place.id"
+                    class="tw-chatbot__place-link"
+                    :to="place.path"
+                    @click="isOpen = false"
+                  >
+                    Xem {{ place.name }}
+                  </router-link>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -140,6 +153,7 @@ export default {
       this.$nextTick(() => this.scrollToBottom())
 
       let answer = NO_DATA_RESPONSE
+      let places = []
       try {
         const res = await askChatbot(question)
         if (res && typeof res.answer === 'string' && res.answer.trim()) {
@@ -147,12 +161,17 @@ export default {
         } else {
           answer = NO_DATA_RESPONSE
         }
+        if (res && Array.isArray(res.places)) {
+          places = res.places
+            .filter(place => place && place.id && place.name && place.path)
+            .slice(0, 3)
+        }
       } catch (err) {
         answer = NO_DATA_RESPONSE
       }
 
       this.isLoading = false
-      const botMsg = { id: `${Date.now()}-a`, role: 'assistant', text: answer }
+      const botMsg = { id: `${Date.now()}-a`, role: 'assistant', text: answer, places }
       this.messages.push(botMsg)
       this.$nextTick(() => this.scrollToBottom())
     }
@@ -362,6 +381,36 @@ export default {
   background: linear-gradient(135deg, var(--chat-accent), var(--chat-accent-strong));
   color: #ffffff;
   border-color: transparent;
+}
+
+.tw-chatbot__links {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.tw-chatbot__place-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  background: #eef2ff;
+  color: var(--chat-accent-2);
+  border: 1px solid #c7d2fe;
+  font-weight: 700;
+  font-size: 0.86rem;
+  line-height: 1.25;
+  text-decoration: none;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.tw-chatbot__place-link:hover {
+  background: #e0e7ff;
+  border-color: #a5b4fc;
+  transform: translateY(-1px);
 }
 
 .tw-chatbot__typing {

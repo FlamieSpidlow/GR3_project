@@ -13,6 +13,20 @@ const fs = require('fs')
 const { authenticate, requireAdmin } = require('../middleware/auth')
 const { searchPlacesByQuery, getPlaceDetails } = require('../services/goongService')
 
+const normalizePriceText = (input) => String(input || '')
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .replace(/đ/g, 'd')
+  .replace(/Đ/g, 'D')
+  .toLowerCase()
+
+const hasPriceRange = (price) => {
+  const normalized = normalizePriceText(price).trim()
+  if (!normalized) return false
+  return /\b(mien phi|free)\b\s*[-–—]\s*\d/.test(normalized) ||
+    /\d[\d\s.,]*(?:k|d|vnd|dong)?\s*[-–—]\s*(?:\d|\b(?:mien phi|free)\b)/.test(normalized)
+}
+
 const normalizeTag = (input) => {
   const s = String(input || '').toLowerCase().trim()
   return s
@@ -245,6 +259,10 @@ router.post('/places', async (req, res) => {
     }
 
     // Kiểm tra placeId đã tồn tại
+    if (hasPriceRange(price)) {
+      return res.status(400).json({ success: false, error: 'Mỗi địa điểm chỉ có một giá cố định' })
+    }
+
     const existingPlace = await Place.findOne({ placeId })
     if (existingPlace) {
       return res.status(400).json({ success: false, error: 'Địa điểm đã tồn tại' })
@@ -289,6 +307,10 @@ router.put('/places/:id', async (req, res) => {
     }
 
     // Cập nhật các trường nếu có
+    if (price !== undefined && hasPriceRange(price)) {
+      return res.status(400).json({ success: false, error: 'Mỗi địa điểm chỉ có một giá cố định' })
+    }
+
     if (name) place.name = name
     if (address !== undefined) place.address = address
     if (openingHours !== undefined) place.openingHours = openingHours
@@ -527,20 +549,31 @@ router.delete('/places/:id', async (req, res) => {
 // Tìm kiếm địa điểm từ Goong API (không trong database)
 router.get('/search-goong', async (req, res) => {
   try {
-    const { query } = req.query
+    const query = String(req.query.query || '').trim()
     if (!query) {
       return res.status(400).json({ success: false, error: 'Thiếu từ khóa tìm kiếm' })
     }
 
     // Tìm từ Goong API
     const goongResults = await searchPlacesByQuery(query, 20)
+    const uniqueGoongResults = []
+    const seenGoongPlaceIds = new Set()
+    for (const place of goongResults) {
+      const placeId = place.placeId || place.id
+      if (!placeId || seenGoongPlaceIds.has(placeId)) continue
+      seenGoongPlaceIds.add(placeId)
+      uniqueGoongResults.push({ ...place, placeId })
+    }
     
     // Lấy danh sách placeId đã có trong database
-    const existingPlaces = await Place.find({}, 'placeId')
+    const existingPlaces = await Place.find(
+      { placeId: { $in: uniqueGoongResults.map(p => p.placeId) } },
+      'placeId'
+    ).lean()
     const existingPlaceIds = new Set(existingPlaces.map(p => p.placeId))
     
     // Lọc ra những địa điểm chưa có trong database
-    const newPlaces = goongResults.filter(p => !existingPlaceIds.has(p.placeId))
+    const newPlaces = uniqueGoongResults.filter(p => !existingPlaceIds.has(p.placeId))
     
     res.json({ success: true, data: newPlaces })
   } catch (err) {
@@ -559,6 +592,10 @@ router.post('/places/add-from-goong', async (req, res) => {
     }
 
     // Kiểm tra đã tồn tại chưa
+    if (hasPriceRange(price)) {
+      return res.status(400).json({ success: false, error: 'Mỗi địa điểm chỉ có một giá cố định' })
+    }
+
     const existing = await Place.findOne({ placeId })
     if (existing) {
       return res.status(400).json({ success: false, error: 'Địa điểm đã tồn tại trong database' })
@@ -573,6 +610,7 @@ router.post('/places/add-from-goong', async (req, res) => {
     }
 
     const ageRange = `${ageMin || 0}-${ageMax || 12}`
+    await upsertTags(tags)
     
     const newPlace = new Place({
       placeId,
@@ -580,11 +618,15 @@ router.post('/places/add-from-goong', async (req, res) => {
       address: placeDetails.address || '',
       lat: placeDetails.lat || null,
       lng: placeDetails.lng || null,
+      phone: placeDetails.phone || '',
+      website: placeDetails.website || '',
+      openingHours: placeDetails.openingHours || [],
+      types: placeDetails.types || [],
       ageRange,
       price: price || 'Miễn phí',
       tags: tags || [],
       images: [],
-      rating: 0
+      rating: placeDetails.rating || 0
     })
 
     await newPlace.save()

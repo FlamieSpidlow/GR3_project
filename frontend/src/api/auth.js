@@ -1,13 +1,17 @@
-const API_URL = 'http://localhost:3000/api/auth'
+import { apiUrl } from '../utils/apiBase'
+import { getAuthToken } from '../utils/authSession'
+
+const API_URL = apiUrl('/auth')
 
 async function parseJsonSafe(res) {
   const contentType = res.headers.get('content-type') || ''
   if (contentType.includes('application/json')) {
-    return res.json()
+    const data = await res.json()
+    return { ...data, status: res.status, ok: res.ok }
   }
   // Attempt to return text for debugging when server returns HTML or plain text
   const text = await res.text()
-  return { success: false, error: `Unexpected non-JSON response from server: ${text.slice(0, 500)}` }
+  return { success: false, status: res.status, ok: res.ok, error: `Unexpected non-JSON response from server: ${text.slice(0, 500)}` }
 }
 
 export async function registerUser(userData) {
@@ -47,7 +51,7 @@ export async function resetPassword({ email, code, newPassword }) {
 }
 
 export async function updateProfile(data) {
-  const token = localStorage.getItem('authToken')
+  const token = getAuthToken()
   const res = await fetch(`${API_URL}/profile`, {
     method: 'PUT',
     headers: {
@@ -60,7 +64,7 @@ export async function updateProfile(data) {
 }
 
 export async function changePassword({ currentPassword, newPassword }) {
-  const token = localStorage.getItem('authToken')
+  const token = getAuthToken()
   const res = await fetch(`${API_URL}/change-password`, {
     method: 'POST',
     headers: {
@@ -73,7 +77,7 @@ export async function changePassword({ currentPassword, newPassword }) {
 }
 
 export async function getProfile() {
-  const token = localStorage.getItem('authToken')
+  const token = getAuthToken()
   const res = await fetch(`${API_URL}/profile`, {
     method: 'GET',
     headers: {
@@ -85,7 +89,7 @@ export async function getProfile() {
 }
 
 export async function updateLocation(data) {
-  const token = localStorage.getItem('authToken')
+  const token = getAuthToken()
   const res = await fetch(`${API_URL}/location`, {
     method: 'PUT',
     headers: {
@@ -98,7 +102,7 @@ export async function updateLocation(data) {
 }
 
 export async function saveSearchHistory(query) {
-  const token = localStorage.getItem('authToken')
+  const token = getAuthToken()
   const res = await fetch(`${API_URL}/search-history`, {
     method: 'POST',
     headers: {
@@ -111,7 +115,7 @@ export async function saveSearchHistory(query) {
 }
 
 export async function clearSearchHistory() {
-  const token = localStorage.getItem('authToken')
+  const token = getAuthToken()
   const res = await fetch(`${API_URL}/search-history`, {
     method: 'DELETE',
     headers: {

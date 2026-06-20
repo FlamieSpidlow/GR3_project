@@ -36,6 +36,14 @@ const ensureFetch = () => {
   }
 }
 
+const getOllamaBaseUrl = () => {
+  const baseUrl = process.env.OLLAMA_BASE_URL
+  if (!baseUrl) {
+    throw new Error('OLLAMA_BASE_URL is required in backend/.env')
+  }
+  return baseUrl
+}
+
 const loadLangchain = async () => {
   if (cachedLangchain) return cachedLangchain
 
@@ -75,6 +83,121 @@ const normalizeText = (input) => {
     .replace(/[^a-z0-9\s-]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
+}
+
+const QUESTION_STOPWORDS = new Set([
+  'co', 'khong', 'nao', 'gi', 've', 'cho', 'toi', 'minh', 'ban', 'hay', 'la',
+  'o', 'dau', 'dia', 'diem', 'noi', 'nay', 'do', 'gan', 'nhat', 'phu', 'hop',
+  'bao', 'nhieu', 'may', 'gio', 'mo', 'cua', 'dong', 'tuoi', 'tre', 'em',
+  'duoc', 'khong', 'can', 'tim', 'goi', 'y', 'mot', 'vai'
+])
+
+const getMeaningfulTokens = (text) => normalizeText(text)
+  .split(' ')
+  .map(token => token.trim())
+  .filter(token => token.length >= 2 && !QUESTION_STOPWORDS.has(token) && !/^\d+$/.test(token))
+
+const getSmallTalkAnswer = (question) => {
+  const q = normalizeText(question)
+  if (!q) return null
+
+  const words = q.split(' ').filter(Boolean)
+  const hasPlaceIntent = [
+    'dia diem',
+    'goi y',
+    'tim',
+    'choi',
+    'di dau',
+    'gan',
+    'gia',
+    'mo cua',
+    'dia chi',
+    'chi duong',
+    'dat ve'
+  ].some(keyword => q.includes(keyword))
+
+  if (hasPlaceIntent && words.length > 3) return null
+
+  const greetings = [
+    'chao',
+    'xin chao',
+    'hello',
+    'hi',
+    'hey',
+    'alo',
+    'chao ban',
+    'bot oi'
+  ]
+  const thanks = [
+    'cam on',
+    'thanks',
+    'thank you',
+    'tks',
+    'ok cam on',
+    'cam on ban'
+  ]
+  const farewells = [
+    'tam biet',
+    'bye',
+    'goodbye',
+    'hen gap lai'
+  ]
+  const identityQuestions = [
+    'ban la ai',
+    'm la ai',
+    'may la ai',
+    'chatbot la ai'
+  ]
+  const helpQuestions = [
+    'ban lam duoc gi',
+    'bot lam duoc gi',
+    'giup gi duoc',
+    'huong dan'
+  ]
+
+  const isExactOrShortMatch = (patterns) => patterns.some(pattern => q === pattern || (words.length <= 4 && q.includes(pattern)))
+
+  if (isExactOrShortMatch(greetings)) {
+    return 'Xin chào! Mình có thể gợi ý địa điểm vui chơi, xem giá vé, giờ mở cửa, địa chỉ và đường đi cho bạn.'
+  }
+
+  if (isExactOrShortMatch(thanks)) {
+    return 'Không có gì nhé. Bạn cần tìm địa điểm nào nữa thì cứ nhắn mình.'
+  }
+
+  if (isExactOrShortMatch(farewells)) {
+    return 'Tạm biệt nhé, chúc bạn có một chuyến đi vui!'
+  }
+
+  if (isExactOrShortMatch(identityQuestions)) {
+    return 'Mình là chatbot hỗ trợ gợi ý địa điểm vui chơi và cung cấp thông tin chi tiết cho từng địa điểm.'
+  }
+
+  if (isExactOrShortMatch(helpQuestions)) {
+    return 'Mình có thể gợi ý địa điểm theo nhu cầu, trả lời giá vé, giờ mở cửa, địa chỉ, độ tuổi phù hợp và gửi link xem chi tiết.'
+  }
+
+  return null
+}
+
+const hasRelevantContext = (question, docs, { hasHardFilter = false } = {}) => {
+  if (hasHardFilter) return true
+
+  const tokens = getMeaningfulTokens(question)
+  if (tokens.length === 0) return true
+
+  const strongTokens = tokens.filter(token => token.length >= 4)
+  return (Array.isArray(docs) ? docs : []).some(doc => {
+    const contentNorm = normalizeText(doc && doc.pageContent ? doc.pageContent : '')
+    const meta = doc && doc.metadata ? doc.metadata : {}
+    const nameNorm = normalizeText(meta.placeName || '')
+    const tagsNorm = Array.isArray(meta.tagsNorm) ? meta.tagsNorm.join(' ') : ''
+    const haystack = `${contentNorm} ${nameNorm} ${tagsNorm}`
+    const strongMatches = strongTokens.filter(token => haystack.includes(token)).length
+    if (strongMatches > 0) return true
+    const looseMatches = tokens.filter(token => haystack.includes(token)).length
+    return looseMatches >= Math.min(2, tokens.length)
+  })
 }
 
 const cleanupSessions = () => {
@@ -337,7 +460,7 @@ const getVectorStore = async () => {
     return null
   }
 
-  const baseUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434'
+  const baseUrl = getOllamaBaseUrl()
   const embedModel = process.env.OLLAMA_EMBED_MODEL || 'nomic-embed-text'
   const embeddings = new OllamaEmbeddings({ baseUrl, model: embedModel })
 
@@ -461,6 +584,160 @@ const extractTagsFromQuestion = async (question) => {
   return Array.from(new Set(matched))
 }
 
+const placeToFocus = (place) => place
+  ? [{
+      placeMongoId: place._id ? String(place._id) : '',
+      placeName: place.name || '',
+      nameNorm: normalizeText(place.name || ''),
+      count: 1
+    }].filter(p => p.placeMongoId && p.placeName)
+  : []
+
+const placeLinkPayload = (place) => {
+  const id = place && place._id ? String(place._id) : ''
+  const name = place && place.name ? String(place.name) : ''
+  if (!id || !name) return null
+  return { id, name, path: `/place/${id}` }
+}
+
+const isSwimmingIntent = (question) => {
+  const q = normalizeText(question)
+  return /(^|\s)(boi|di boi|ho boi|be boi|boi loi|cong vien nuoc|water park|waterpark|swimming|swim)(\s|$)/.test(q)
+}
+
+const getLinkedPlacesFromDocs = (docs, answer, limit = 3) => {
+  const answerNorm = normalizeText(answer)
+  const map = new Map()
+  for (const doc of Array.isArray(docs) ? docs : []) {
+    const meta = doc && doc.metadata ? doc.metadata : {}
+    const id = meta.placeMongoId ? String(meta.placeMongoId) : ''
+    const name = meta.placeName ? String(meta.placeName) : ''
+    if (!id || !name || map.has(id)) continue
+    const nameNorm = normalizeText(name)
+    const mentioned = nameNorm && answerNorm.includes(nameNorm)
+    map.set(id, { id, name, path: `/place/${id}`, mentioned })
+  }
+
+  const items = Array.from(map.values())
+  const mentioned = items.filter(item => item.mentioned)
+  return (mentioned.length > 0 ? mentioned : items).slice(0, limit).map(({ mentioned, ...item }) => item)
+}
+
+const getDirectPlaceAnswer = (place, question) => {
+  if (!place) return null
+  const q = normalizeText(question)
+  const name = place.name || 'Địa điểm này'
+
+  if (/(^|\s)(gia|gia ve|bao nhieu|ve)(\s|$)/.test(q)) {
+    return place.price ? `${name} có giá ${place.price}.` : NO_DATA_RESPONSE
+  }
+
+  if (/(^|\s)(may gio|gio mo cua|mo cua|dong cua|thoi gian|lich)(\s|$)/.test(q)) {
+    const hours = Array.isArray(place.openingHours) ? place.openingHours.filter(Boolean).join('; ') : ''
+    return hours ? `${name} mở cửa ${hours}.` : NO_DATA_RESPONSE
+  }
+
+  if (/(^|\s)(dia chi|o dau|nam o dau|vi tri)(\s|$)/.test(q)) {
+    return place.address ? `${name} ở ${place.address}.` : NO_DATA_RESPONSE
+  }
+
+  if (/(^|\s)(do tuoi|tuoi|may tuoi|phu hop)(\s|$)/.test(q)) {
+    return place.ageRange ? `${name} phù hợp cho độ tuổi ${place.ageRange}.` : NO_DATA_RESPONSE
+  }
+
+  if (/(^|\s)(bai do xe|do xe|gui xe|parking)(\s|$)/.test(q)) {
+    return place.parking ? `${name}: bãi đỗ xe ${place.parking}.` : NO_DATA_RESPONSE
+  }
+
+  if (/(^|\s)(an uong|an|quan an|do an|food)(\s|$)/.test(q)) {
+    return place.food ? `${name}: ăn uống ${place.food}.` : NO_DATA_RESPONSE
+  }
+
+  if (/(^|\s)(tien ich|wc|nha ve sinh|khu nghi|facilities)(\s|$)/.test(q)) {
+    return place.facilities ? `${name}: tiện ích ${place.facilities}.` : NO_DATA_RESPONSE
+  }
+
+  return null
+}
+
+const findDirectPlace = async (question, focusPlaces, mentionedFocusIds, ambiguous) => {
+  const projection = 'name address ageRange price openingHours parking food facilities tags'
+
+  if (Array.isArray(mentionedFocusIds) && mentionedFocusIds.length > 0) {
+    const place = await Place.findById(mentionedFocusIds[0], projection).lean()
+    if (place) return place
+  }
+
+  const q = normalizeText(question)
+  if (!q) return null
+
+  const places = await Place.find({}, projection).lean()
+  const explicitPlace = places
+    .map(place => ({ place, nameNorm: normalizeText(place.name || '') }))
+    .filter(item => item.nameNorm && q.includes(item.nameNorm))
+    .sort((a, b) => b.nameNorm.length - a.nameNorm.length)[0]?.place || null
+  if (explicitPlace) return explicitPlace
+
+  if (ambiguous && Array.isArray(focusPlaces) && focusPlaces.length === 1 && focusPlaces[0].placeMongoId) {
+    const place = await Place.findById(focusPlaces[0].placeMongoId, projection).lean()
+    if (place) return place
+  }
+
+  return null
+}
+
+const getDirectRecommendation = async (question) => {
+  const q = normalizeText(question)
+
+  if (isSwimmingIntent(question)) {
+    const places = await Place.find({
+      tags: { $in: [/^Bơi lội$/i, /^Công viên nước$/i] }
+    }, 'name price tags rating viewCount').limit(20).lean()
+
+    places.sort((a, b) => {
+      const aTags = (a.tags || []).map(normalizeText)
+      const bTags = (b.tags || []).map(normalizeText)
+      const score = (place, tags) => {
+        let total = 0
+        if (tags.includes('gan ha noi')) total += 100
+        if (tags.includes('cong vien nuoc')) total += 50
+        total += Number(place.rating || 0)
+        total += Math.min(Number(place.viewCount || 0), 1000) / 1000
+        return total
+      }
+      return score(b, bTags) - score(a, aTags)
+    })
+
+    const linkedPlaces = places.slice(0, 3).map(placeLinkPayload).filter(Boolean)
+    if (linkedPlaces.length === 0) return { answer: NO_DATA_RESPONSE, places: [] }
+
+    const names = linkedPlaces.map(p => p.name).join(', ')
+    return {
+      answer: `Bạn có thể đi bơi ở ${names}. Đây là các địa điểm có hoạt động bơi lội hoặc công viên nước.`,
+      places: linkedPlaces
+    }
+  }
+
+  if (!/(^|\s)(mien phi|free|khong mat phi)(\s|$)/.test(q)) return null
+
+  const places = await Place.find({
+    $or: [
+      { price: { $regex: 'miễn phí', $options: 'i' } },
+      { price: { $regex: '^\\s*free\\s*$', $options: 'i' } },
+      { price: { $regex: '^\\s*0\\s*(đ|vnd)?\\s*$', $options: 'i' } }
+    ]
+  }, 'name price tags rating viewCount').sort({ rating: -1, viewCount: -1 }).limit(3).lean()
+
+  const linkedPlaces = places.map(placeLinkPayload).filter(Boolean)
+  if (linkedPlaces.length === 0) return { answer: NO_DATA_RESPONSE, places: [] }
+
+  const names = linkedPlaces.map(p => p.name).join(', ')
+  return {
+    answer: `Bạn có thể tham khảo các địa điểm miễn phí như ${names}.`,
+    places: linkedPlaces
+  }
+}
+
 const rewriteQueryIfNeeded = async ({
   chat,
   PromptTemplate,
@@ -579,11 +856,46 @@ const answerQuestion = async (question, conversationId, userLocation) => {
   if (!sanitized) return { answer: NO_DATA_RESPONSE, conversationId: cid }
 
   const session = getSession(cid)
+  const smallTalkAnswer = getSmallTalkAnswer(sanitized)
+  if (smallTalkAnswer) {
+    pushSessionMessage(session, 'user', sanitized)
+    pushSessionMessage(session, 'assistant', smallTalkAnswer)
+    return { answer: smallTalkAnswer, conversationId: cid, places: [] }
+  }
+
   const historyText = formatHistoryForPrompt(session.messages)
   const focusPlaces = Array.isArray(session.focusPlaces) ? session.focusPlaces : []
 
   const mentionedFocusIds = getMentionedFocusPlaceMongoIds(sanitized, focusPlaces)
   const ambiguous = isAmbiguousFollowUp(sanitized, focusPlaces, mentionedFocusIds)
+
+  const directPlace = await findDirectPlace(sanitized, focusPlaces, mentionedFocusIds, ambiguous)
+  const directAnswer = getDirectPlaceAnswer(directPlace, sanitized)
+  if (directAnswer) {
+    pushSessionMessage(session, 'user', sanitized)
+    pushSessionMessage(session, 'assistant', directAnswer)
+    const linkedPlace = placeLinkPayload(directPlace)
+    if (directAnswer !== NO_DATA_RESPONSE) {
+      session.focusPlaces = placeToFocus(directPlace)
+    }
+    return { answer: directAnswer, conversationId: cid, places: linkedPlace ? [linkedPlace] : [] }
+  }
+
+  const directRecommendation = await getDirectRecommendation(sanitized)
+  if (directRecommendation) {
+    const places = Array.isArray(directRecommendation.places) ? directRecommendation.places : []
+    pushSessionMessage(session, 'user', sanitized)
+    pushSessionMessage(session, 'assistant', directRecommendation.answer)
+    if (places.length > 0) {
+      session.focusPlaces = places.map(place => ({
+        placeMongoId: place.id,
+        placeName: place.name,
+        nameNorm: normalizeText(place.name),
+        count: 1
+      }))
+    }
+    return { answer: directRecommendation.answer, conversationId: cid, places }
+  }
 
   const store = await getVectorStore()
   if (!store) {
@@ -594,7 +906,7 @@ const answerQuestion = async (question, conversationId, userLocation) => {
 
   const { ChatOllama, PromptTemplate, SystemMessage, HumanMessage } = await loadLangchain()
 
-  const baseUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434'
+  const baseUrl = getOllamaBaseUrl()
   const requestedModel = process.env.OLLAMA_MODEL || 'llama3'
   const resolvedModel = await resolveOllamaModel(baseUrl, requestedModel)
 
@@ -622,7 +934,7 @@ const answerQuestion = async (question, conversationId, userLocation) => {
   const focusMentioned = mentionedFocusIds.length > 0
   let shouldReset = false
   if (!isFollowUp) shouldReset = true
-  if (focusPlaces.length > 0 && !focusMentioned) shouldReset = true
+  if (!isFollowUp && focusPlaces.length > 0 && !focusMentioned) shouldReset = true
 
   if (shouldReset) {
     session.messages = []
@@ -690,6 +1002,13 @@ const answerQuestion = async (question, conversationId, userLocation) => {
   const retriever = store.asRetriever({ k: topK, filter: filterFn })
   let docs = await retriever.invoke(rewrittenQuestion)
   if (!docs || docs.length === 0) {
+    pushSessionMessage(session, 'user', sanitized)
+    pushSessionMessage(session, 'assistant', NO_DATA_RESPONSE)
+    return { answer: NO_DATA_RESPONSE, conversationId: cid }
+  }
+
+  const hasHardFilter = filterSet.size > 0 || tagFilterSet.size > 0 || (ambiguous && isFollowUp)
+  if (!hasRelevantContext(rewrittenQuestion, docs, { hasHardFilter })) {
     pushSessionMessage(session, 'user', sanitized)
     pushSessionMessage(session, 'assistant', NO_DATA_RESPONSE)
     return { answer: NO_DATA_RESPONSE, conversationId: cid }
@@ -815,7 +1134,9 @@ const answerQuestion = async (question, conversationId, userLocation) => {
     session.focusPlaces = nextFocus
   }
 
-  return { answer: finalAnswer, conversationId: cid }
+  const linkedPlaces = finalAnswer !== NO_DATA_RESPONSE ? getLinkedPlacesFromDocs(docs, finalAnswer) : []
+
+  return { answer: finalAnswer, conversationId: cid, places: linkedPlaces }
 }
 
 module.exports = {

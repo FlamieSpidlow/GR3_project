@@ -64,6 +64,8 @@
 import PlaceCard from '../components/PlaceCard.vue'
 import { getPlaceById } from '../api/places'
 import { getProfile, updateLocation } from '../api/auth'
+import { assetUrl } from '../utils/apiBase'
+import { getAuthToken } from '../utils/authSession'
 
 export default {
   name: 'FavourPage',
@@ -110,7 +112,7 @@ export default {
       }
     },
     async loadUserLocationFromProfile() {
-      const token = localStorage.getItem('authToken')
+      const token = getAuthToken()
       if (!token) return
       try {
         const res = await getProfile()
@@ -188,9 +190,8 @@ export default {
       this.$router.push(`/place/${placeId}`)
     },
     getImageUrl(imagePath) {
-      if (!imagePath) return '/default.jpg'
-      if (imagePath.startsWith('http')) return imagePath
-      return `http://localhost:3000${imagePath}`
+      if (!imagePath) return '/Playground.jpg'
+      return assetUrl(imagePath)
     },
     getUserLocation() {
       if (!('geolocation' in navigator)) {
@@ -205,7 +206,7 @@ export default {
 
           // Optionally persist to server for future sessions
           try {
-            const token = localStorage.getItem('authToken')
+            const token = getAuthToken()
             if (token) {
               await updateLocation({ lat: this.userLocation.lat, lng: this.userLocation.lng })
             }

@@ -1,6 +1,5 @@
 const express = require('express')
 const router = express.Router()
-const { searchPlacesByQuery, searchPlacesByQueryWithDistance, searchNearbyPlaygrounds, getPlaceDetails, reverseGeocode } = require('../services/goongService')
 const Place = require('../models/Place')
 const Tag = require('../models/Tag')
 const PlaceImageSubmission = require('../models/PlaceImageSubmission')
@@ -152,17 +151,20 @@ router.get('/random', async (req, res) => {
   }
 })
 
-// Search places by name or keyword (kết hợp database và Goong API)
+// Search places by name or keyword from database only.
+// Public result cards navigate by local Mongo _id.
 router.get('/search', async (req, res) => {
   try {
-    const { query, limit = 10, age } = req.query
-    if (!query) {
+    const { limit = 10, age } = req.query
+    const rawQuery = String(req.query.query || '').trim()
+    if (!rawQuery) {
       return res.status(400).json({ success: false, error: 'Query parameter is required' })
     }
 
     const { lat, lng } = req.query
-    const limitNum = parseInt(limit)
-    const ageFromParam = age ? parseInt(age) : null
+    const parsedLimit = parseInt(limit, 10)
+    const limitNum = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 100) : 10
+    const ageFromParam = age !== undefined && age !== '' ? parseInt(age, 10) : null
 
     // =========================
     // Refactor search pipeline
@@ -186,6 +188,13 @@ router.get('/search', async (req, res) => {
 
     const escapeRegex = (s) => String(s || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
+    const hasNormalizedPhrase = (text, phrase) => {
+      const normalizedPhrase = normalizeText(phrase)
+      if (!normalizedPhrase) return false
+      const pattern = new RegExp(`(^|\\s)${escapeRegex(normalizedPhrase)}(\\s|$)`)
+      return pattern.test(text)
+    }
+
     const extractAgeFromText = (normalized) => {
       // Examples: "5 tuoi", "tuoi 5", "5t"
       const m1 = normalized.match(/\b(\d{1,2})\s*(tuoi|t)\b/)
@@ -195,12 +204,24 @@ router.get('/search', async (req, res) => {
       return null
     }
 
-    const rawQuery = String(query || '').trim()
     const normalizedQuery = normalizeText(rawQuery)
+    const isWaterParkQuery = /(^|\s)(cong vien nuoc|water park|waterpark|vinwonders water|cong vien bang phao)(\s|$)/.test(normalizedQuery) ||
+      (/(^|\s)cong vien(\s|$)/.test(normalizedQuery) && /(^|\s)(nuoc|bang phao|water)(\s|$)/.test(normalizedQuery))
+    const isIndoorPlayQuery = /(^|\s)(khu vui choi trong nha|nha bong|indoor playground|playground trong nha)(\s|$)/.test(normalizedQuery)
+    const isBallPitQuery = /(^|\s)(nha bong|ball pit|ballpool|ball pool)(\s|$)/.test(normalizedQuery)
+    const isFreeQuery = /(^|\s)(mien phi|free|khong mat phi)(\s|$)/.test(normalizedQuery)
+    const isZooQuery = /(^|\s)(so thu|vuon thu|zoo)(\s|$)/.test(normalizedQuery)
 
     // age priority: explicit param > extracted from query text
     const extractedAge = extractAgeFromText(normalizedQuery)
     const ageFilter = Number.isFinite(ageFromParam) ? ageFromParam : extractedAge
+    const queryWithoutAge = normalizedQuery
+      .replace(/\b\d{1,2}\s*(tuoi|t)\b/g, ' ')
+      .replace(/\btuoi\s*\d{1,2}\b/g, ' ')
+      .replace(/\b(cho|be|tre|em|phu hop|dia diem|khu vui choi|choi|di choi|diem)\b/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+    const isAgeOnlyQuery = Number.isFinite(extractedAge) && queryWithoutAge === ''
 
     const userLat = lat != null ? parseFloat(lat) : null
     const userLng = lng != null ? parseFloat(lng) : null
@@ -240,7 +261,6 @@ router.get('/search', async (req, res) => {
       // Động vật / Thú / Sở thú
       'động vật': 'Động vật', 'dong vat': 'Động vật',
       'animal': 'Động vật', 'animals': 'Động vật',
-      'thú': 'Chăm sóc thú', 'thu': 'Chăm sóc thú',
       'sở thú': 'Chăm sóc thú', 'so thu': 'Chăm sóc thú', 'zoo': 'Chăm sóc thú',
       'pet': 'Chăm sóc thú', 'pets': 'Chăm sóc thú',
 
@@ -255,87 +275,273 @@ router.get('/search', async (req, res) => {
       ,
       // Lịch sử / Văn hóa
       'lịch sử': 'Lịch sử', 'lich su': 'Lịch sử', 'history': 'Lịch sử',
-      'văn hóa': 'Văn hóa', 'van hoa': 'Văn hóa', 'culture': 'Văn hóa', 'cultural': 'Văn hóa'
+      'văn hóa': 'Văn hóa', 'van hoa': 'Văn hóa', 'culture': 'Văn hóa', 'cultural': 'Văn hóa',
+      // Bảo tàng / Khám phá
+      'bảo tàng': 'Bảo tàng', 'bao tang': 'Bảo tàng', 'museum': 'Bảo tàng',
+      // Tâm linh / di tích
+      'tâm linh': 'Tâm linh', 'tam linh': 'Tâm linh', 'di tích': 'Di tích', 'di tich': 'Di tích'
     }
     // Tìm tag từ keyword trong query (dựa trên normalizedQuery để bỏ dấu)
     let matchedTags = []
     for (const [keyword, tag] of Object.entries(keywordToTag)) {
-      if (normalizedQuery.includes(normalizeText(keyword))) {
+      if (hasNormalizedPhrase(normalizedQuery, keyword)) {
         if (!matchedTags.includes(tag)) matchedTags.push(tag)
       }
     }
 
-    if (matchedTags.length > 0) {
-      const tagDocs = await Tag.find({}, { name: 1, nameNorm: 1 }).lean()
-      const allowed = new Set(tagDocs.map(t => normalizeText(t.name)))
-      matchedTags = matchedTags.filter(t => allowed.has(normalizeText(t)))
+    const tagDocs = await Tag.find({}, { name: 1, nameNorm: 1 }).lean()
+    const tagByNorm = new Map()
+    for (const tagDoc of tagDocs) {
+      const tagName = String(tagDoc.name || '').trim()
+      const tagNorm = normalizeText(tagDoc.nameNorm || tagName)
+      if (!tagName || !tagNorm) continue
+      tagByNorm.set(tagNorm, tagName)
+      if (hasNormalizedPhrase(normalizedQuery, tagNorm) && !matchedTags.includes(tagName)) {
+        matchedTags.push(tagName)
+      }
     }
+    matchedTags = matchedTags
+      .map(tag => tagByNorm.get(normalizeText(tag)) || tag)
+      .filter(Boolean)
+      .filter((tag, index, arr) => arr.indexOf(tag) === index)
+    if (isWaterParkQuery) {
+      matchedTags = matchedTags.filter(tag => normalizeText(tag) !== 'cong vien')
+    }
+    const strictIdentityTerms = ['chua', 'den', 'nha tho']
+    const strictIdentityQuery = strictIdentityTerms.some(term => {
+      const termPattern = new RegExp(`(^|\\s)${escapeRegex(term)}(\\s|$)`)
+      return termPattern.test(normalizedQuery)
+    })
 
-    // FILTER TRƯỚC trong Mongo query
-    // Lưu ý: schema hiện tại lưu tuổi dưới dạng ageRange (vd: "3-10").
-    // Để đáp ứng yêu cầu "filter trước" mà không thay đổi schema, dùng $expr để parse ageRange.
+    // Build a fast Mongo candidate query first. Age is filtered safely in JS below
+    // because ageRange can contain dirty strings that would make $toInt fail.
     const andClauses = []
-    if (Number.isFinite(ageFilter)) {
-      andClauses.push({
-        $or: [
-          { ageRange: { $exists: false } },
-          { ageRange: null },
-          { ageRange: '' },
-          {
-            $expr: {
-              $let: {
-                vars: {
-                  parts: {
-                    $split: [
-                      { $ifNull: ['$ageRange', ''] },
-                      '-'
-                    ]
-                  }
-                },
-                in: {
-                  $and: [
-                    { $gte: [{ $size: '$$parts' }, 2] },
-                    {
-                      $lte: [
-                        { $toInt: { $trim: { input: { $arrayElemAt: ['$$parts', 0] } } } },
-                        ageFilter
-                      ]
-                    },
-                    {
-                      $gte: [
-                        { $toInt: { $trim: { input: { $arrayElemAt: ['$$parts', 1] } } } },
-                        ageFilter
-                      ]
-                    }
-                  ]
-                }
-              }
-            }
-          }
-        ]
-      })
-    }
 
-    // 1 query MongoDB duy nhất với $or theo spec
+    // Accent-sensitive Mongo query first, then accent-insensitive fallback below.
     const safeRegex = escapeRegex(rawQuery)
-    const orClauses = [
+    const identityOrClauses = [
       { name: { $regex: safeRegex, $options: 'i' } },
+      { types: { $regex: safeRegex, $options: 'i' } },
+      { tags: { $regex: safeRegex, $options: 'i' } }
+    ]
+    const primaryOrClauses = [
+      ...identityOrClauses,
       { address: { $regex: safeRegex, $options: 'i' } },
+      { price: { $regex: safeRegex, $options: 'i' } }
+    ]
+    const broadOrClauses = [
+      ...primaryOrClauses,
       { description: { $regex: safeRegex, $options: 'i' } }
     ]
 
-    if (matchedTags.length > 0) {
-      andClauses.push({ tags: { $in: matchedTags } })
-      andClauses.push({ $or: orClauses })
+    if (strictIdentityQuery) {
+      andClauses.push({ $or: identityOrClauses })
+    } else if (matchedTags.length > 0) {
+      andClauses.push({ $or: [...primaryOrClauses, { tags: { $in: matchedTags } }] })
     } else {
-      andClauses.push({ $or: [...orClauses, { tags: { $in: matchedTags } }] })
+      andClauses.push({ $or: broadOrClauses })
     }
     const mongoFilter = andClauses.length > 1 ? { $and: andClauses } : andClauses[0]
 
-    const dbPlaces = await Place.find(mongoFilter).lean()
-    console.log(`Database search for "${rawQuery}" (age=${ageFilter ?? 'n/a'}, tags=${matchedTags.join(', ') || 'n/a'}): found ${dbPlaces.length} places`)
-
     const matchedTagsNorm = matchedTags.map(t => normalizeText(t))
+
+    const parseAgeRange = (ageRange) => {
+      const match = String(ageRange || '').match(/(\d{1,2})\s*-\s*(\d{1,2})/)
+      if (!match) return null
+      const min = parseInt(match[1], 10)
+      const max = parseInt(match[2], 10)
+      if (!Number.isFinite(min) || !Number.isFinite(max)) return null
+      return { min, max }
+    }
+
+    const matchesAge = (place) => {
+      if (!Number.isFinite(ageFilter)) return true
+      const range = parseAgeRange(place.ageRange)
+      if (!range) return true
+      return range.min <= ageFilter && range.max >= ageFilter
+    }
+
+    const matchesWaterParkIntent = (place) => {
+      if (!isWaterParkQuery) return true
+      const strongFields = [
+        place.name,
+        ...(place.types || []),
+        ...(place.tags || [])
+      ].map(normalizeText).filter(Boolean)
+      const strongJoined = strongFields.join(' ')
+      const descriptionNorm = normalizeText(place.description)
+      const fields = [
+        place.address,
+        descriptionNorm
+      ].map(normalizeText).filter(Boolean)
+      const joined = fields.join(' ')
+      const waterParkTerms = [
+        'cong vien nuoc',
+        'water park',
+        'waterpark',
+        'vinwonders water',
+        'waterfun',
+        'wave park',
+        'bang phao'
+      ]
+      if (waterParkTerms.some(term => strongJoined.includes(term))) return true
+
+      const mentionsNearbyWaterPark = /(sat ben|gan|canh)\s+cong vien nuoc/.test(descriptionNorm)
+      return !mentionsNearbyWaterPark && waterParkTerms.some(term => joined.includes(term))
+    }
+
+    const matchesIndoorPlayIntent = (place) => {
+      if (!isIndoorPlayQuery) return true
+      const fields = [
+        place.name,
+        place.address,
+        place.description,
+        ...(place.types || []),
+        ...(place.tags || [])
+      ].map(normalizeText).filter(Boolean)
+      const joined = fields.join(' ')
+      const ballPitTerms = [
+        'nha bong',
+        'playtime',
+        'tiniworld',
+        'kidzooona',
+        'kidzania',
+        'wolfoo',
+        'funny land',
+        'kolorado',
+        'vinke'
+      ]
+      const indoorPlayTerms = [
+        ...ballPitTerms,
+        'khu vui choi tre em',
+        'kids club',
+        'jump arena',
+        'vietclimb',
+        'children playground',
+        'indoor playground'
+      ]
+      const specificTerms = isBallPitQuery ? ballPitTerms : indoorPlayTerms
+      if (specificTerms.some(term => joined.includes(term))) return true
+      if (isBallPitQuery) return false
+
+      const tagNorms = (place.tags || []).map(normalizeText)
+      const hasIndoor = tagNorms.includes('trong nha')
+      const hasPlayTag = tagNorms.some(tag => ['giai tri', 'van dong'].includes(tag))
+      const excludedGeneric = [
+        'bao tang',
+        'chua',
+        'thuy cung',
+        'aquarium',
+        'trung tam thuong mai',
+        'mall',
+        'lotte',
+        'vincom',
+        'aeon',
+        'royal city',
+        'rap xiec',
+        'bieu dien'
+      ].some(term => joined.includes(term))
+
+      return hasIndoor && hasPlayTag && !excludedGeneric
+    }
+
+    const matchesFreeIntent = (place) => {
+      if (!isFreeQuery) return true
+      const priceNorm = normalizeText(place.price)
+      if (!priceNorm) return true
+      if (priceNorm.includes('mien phi') || priceNorm.includes('free')) return true
+      const digits = priceNorm.replace(/[^\d]/g, '')
+      return digits !== '' && Number.parseInt(digits, 10) === 0
+    }
+
+    const matchesZooIntent = (place) => {
+      if (!isZooQuery) return true
+      const fields = [
+        place.name,
+        place.address,
+        place.description,
+        ...(place.types || []),
+        ...(place.tags || [])
+      ].map(normalizeText).filter(Boolean)
+      const joined = fields.join(' ')
+      const tagNorms = (place.tags || []).map(normalizeText)
+      return [
+        'so thu',
+        'vuon thu',
+        'cham soc thu',
+        'thu le'
+      ].some(term => joined.includes(term)) || tagNorms.includes('dong vat')
+    }
+
+    const matchesSpecialExpansion = (place) =>
+      (isWaterParkQuery && matchesWaterParkIntent(place)) ||
+      (isIndoorPlayQuery && matchesIndoorPlayIntent(place)) ||
+      (isFreeQuery && matchesFreeIntent(place)) ||
+      (isZooQuery && matchesZooIntent(place))
+
+    const matchesNormalizedQuery = (place) => {
+      if (isAgeOnlyQuery) return true
+
+      const identityFields = [
+        place.name,
+        ...(place.types || []),
+        ...(place.tags || [])
+      ].map(normalizeText).filter(Boolean)
+      const primaryFields = [
+        ...identityFields,
+        place.address,
+        place.price
+      ].map(normalizeText).filter(Boolean)
+      const allFields = [
+        ...primaryFields,
+        place.description
+      ].map(normalizeText).filter(Boolean)
+      const queryTokens = normalizedQuery.split(' ').filter(token => token.length > 1)
+      const phrasePattern = new RegExp(`(^|\\s)${escapeRegex(normalizedQuery)}(\\s|$)`)
+      const identityPhraseMatched = identityFields.some(field => phrasePattern.test(field))
+      const primaryPhraseMatched = primaryFields.some(field => phrasePattern.test(field))
+      const exactTextMatched = allFields.some(field => phrasePattern.test(field))
+      const looseTextMatched = matchedTagsNorm.length === 0 &&
+        queryTokens.length > 1 &&
+        queryTokens.every(token => {
+          const tokenPattern = new RegExp(`(^|\\s)${escapeRegex(token)}(\\s|$)`)
+          return primaryFields.some(field => tokenPattern.test(field))
+        })
+      const tagMatched = matchedTagsNorm.length > 0 &&
+        matchedTagsNorm.some(tag => identityFields.includes(tag))
+      if (strictIdentityQuery) {
+        return identityPhraseMatched
+      }
+      if (matchedTagsNorm.length > 0) {
+        return tagMatched || identityPhraseMatched
+      }
+      return exactTextMatched || looseTextMatched
+    }
+
+    const matchesSearchCandidate = (place) => matchesNormalizedQuery(place) || matchesSpecialExpansion(place)
+
+    let dbPlaces = await Place.find(mongoFilter).lean()
+    const seenPlaceIds = new Set(dbPlaces.map(place => String(place._id)))
+
+    if (normalizedQuery) {
+      const fallbackPlaces = await Place.find({}).lean()
+      for (const place of fallbackPlaces) {
+        const id = String(place._id)
+        if (seenPlaceIds.has(id) || !matchesSearchCandidate(place)) continue
+        seenPlaceIds.add(id)
+        dbPlaces.push(place)
+      }
+    }
+
+    dbPlaces = dbPlaces.filter(place =>
+      matchesAge(place) &&
+      matchesSearchCandidate(place) &&
+      matchesWaterParkIntent(place) &&
+      matchesIndoorPlayIntent(place) &&
+      matchesFreeIntent(place) &&
+      matchesZooIntent(place)
+    )
+    console.log(`Database search for "${rawQuery}" (age=${ageFilter ?? 'n/a'}, tags=${matchedTags.join(', ') || 'n/a'}): found ${dbPlaces.length} places`)
 
     const calculateScore = (place, ctx) => {
       // +5 nếu match tag
@@ -431,53 +637,62 @@ function calculateDistance(lat1, lng1, lat2, lng2) {
   return R * c // Khoảng cách tính bằng mét
 }
 
-// Get nearby playgrounds/amusement parks by location (kết hợp database và Goong)
+// Get nearby places from database only
 router.get('/nearby', async (req, res) => {
   try {
-    const { lat, lng, limit = 12 } = req.query
+    const { lat, lng, radius = 3000, limit = 12 } = req.query
     if (!lat || !lng) {
       return res.status(400).json({ success: false, error: 'Latitude and longitude are required' })
     }
 
-    // 1. Lấy từ Goong API
-    const goongPlaces = await searchNearbyPlaygrounds(parseFloat(lat), parseFloat(lng), 3000, limit)
-    
-    if (goongPlaces.length === 0) {
-      return res.json({ success: true, data: [], message: 'Không tìm thấy địa điểm vui chơi gần bạn' })
+    const userLat = parseFloat(lat)
+    const userLng = parseFloat(lng)
+    const radiusNum = parseFloat(radius)
+    const parsedLimit = parseInt(limit, 10)
+    const limitNum = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 100) : 12
+
+    if (!Number.isFinite(userLat) || !Number.isFinite(userLng)) {
+      return res.status(400).json({ success: false, error: 'Invalid latitude or longitude' })
     }
 
-    // 2. Lấy placeIds từ kết quả Goong
-    const placeIds = goongPlaces.map(p => p.placeId || p.id).filter(Boolean)
-    
-    // 3. Tìm các địa điểm này trong database (để lấy ảnh upload nếu có)
-    const dbPlacesMap = new Map()
-    if (placeIds.length > 0) {
-      const dbPlaces = await Place.find({ placeId: { $in: placeIds } })
-      dbPlaces.forEach(p => {
-        dbPlacesMap.set(p.placeId, p)
-      })
-    }
+    const maxDistance = Number.isFinite(radiusNum) && radiusNum > 0 ? radiusNum : 3000
+    const places = await Place.find({
+      lat: { $type: 'number' },
+      lng: { $type: 'number' }
+    }).lean()
 
-    // 4. Kết hợp: Nếu địa điểm có trong database, dùng ảnh từ database
-    const enrichedPlaces = goongPlaces.map(goongPlace => {
-      const dbPlace = dbPlacesMap.get(goongPlace.placeId || goongPlace.id)
-      if (dbPlace) {
-        // Ưu tiên dữ liệu từ database (đặc biệt là ảnh, ageRange, price)
+    const results = places
+      .map(place => {
+        const distance = calculateDistance(userLat, userLng, place.lat, place.lng)
         return {
-          ...goongPlace,
-          image: dbPlace.images && dbPlace.images.length > 0 ? dbPlace.images[0] : (dbPlace.image || goongPlace.image),
-          images: dbPlace.images || (dbPlace.image ? [dbPlace.image] : []),
-          description: dbPlace.description || goongPlace.description,
-          rating: dbPlace.rating || goongPlace.rating,
-          ageRange: dbPlace.ageRange,
-          price: dbPlace.price,
-          openingHours: dbPlace.openingHours || goongPlace.openingHours
+          id: place._id.toString(),
+          placeId: place.placeId,
+          name: place.name,
+          mainText: place.name,
+          secondaryText: place.address || '',
+          address: place.address,
+          lat: place.lat,
+          lng: place.lng,
+          rating: place.rating,
+          image: place.images && place.images.length > 0 ? place.images[0] : place.image,
+          images: place.images || (place.image ? [place.image] : []),
+          ageRange: place.ageRange,
+          price: place.price,
+          description: place.description,
+          openingHours: place.openingHours,
+          parking: place.parking,
+          food: place.food,
+          facilities: place.facilities,
+          tags: place.tags || [],
+          source: 'database',
+          distance
         }
-      }
-      return goongPlace
-    })
+      })
+      .filter(place => place.distance <= maxDistance)
+      .sort((a, b) => a.distance - b.distance)
+      .slice(0, limitNum)
 
-    res.json({ success: true, data: enrichedPlaces })
+    res.json({ success: true, data: results })
   } catch (err) {
     console.error('Nearby places error:', err)
     res.status(500).json({ success: false, error: 'Lỗi tìm địa điểm gần đây', details: err.message })
@@ -492,72 +707,42 @@ router.get('/details/:placeId', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Place ID is required' })
     }
 
-    // 1. Kiểm tra trong database trước
-    const existingPlace = await Place.findOne({ placeId })
-    
-    // 2. Lấy chi tiết từ Goong API
-    const details = await getPlaceDetails(placeId)
-    
-    // 3. Lưu hoặc cập nhật place vào database
-    let finalData = details
-    try {
-      if (existingPlace) {
-        // Cập nhật viewCount và thông tin mới nhất (nhưng giữ ảnh upload)
-        existingPlace.viewCount += 1
-        existingPlace.name = details.name || existingPlace.name
-        existingPlace.address = details.address || existingPlace.address
-        existingPlace.lat = details.lat || existingPlace.lat
-        existingPlace.lng = details.lng || existingPlace.lng
-        existingPlace.rating = details.rating || existingPlace.rating
-        existingPlace.phone = details.phone || existingPlace.phone
-        existingPlace.website = details.website || existingPlace.website
-        existingPlace.openingHours = details.openingHours || existingPlace.openingHours
-        existingPlace.description = details.description || existingPlace.description
-        // Giữ ảnh từ database nếu đã có (ảnh upload)
-        if (!existingPlace.images || existingPlace.images.length === 0) {
-          if (!existingPlace.image) {
-            existingPlace.image = details.image
-          }
-        }
-        existingPlace.types = details.types || existingPlace.types
-        await existingPlace.save()
-        
-        // Trả về dữ liệu từ database (có ảnh upload, ageRange, price)
-        finalData = {
-          ...details,
-          image: existingPlace.images && existingPlace.images.length > 0 ? existingPlace.images[0] : (existingPlace.image || details.image),
-          images: existingPlace.images || (existingPlace.image ? [existingPlace.image] : []),
-          description: existingPlace.description || details.description,
-          viewCount: existingPlace.viewCount,
-          ageRange: existingPlace.ageRange,
-          price: existingPlace.price,
-          openingHours: existingPlace.openingHours || details.openingHours
-        }
-      } else {
-        // Tạo mới place
-        const newPlace = new Place({
-          placeId,
-          name: details.name,
-          address: details.address,
-          lat: details.lat,
-          lng: details.lng,
-          rating: details.rating,
-          phone: details.phone,
-          website: details.website,
-          openingHours: details.openingHours,
-          description: details.description,
-          image: details.image,
-          types: details.types,
-          viewCount: 1
-        })
-        await newPlace.save()
-      }
-    } catch (dbError) {
-      console.error('Database save error:', dbError)
-      // Không return error, vẫn trả về details cho người dùng
+    const place = await Place.findOne({ placeId })
+    if (!place) {
+      return res.status(404).json({ success: false, error: 'Không tìm thấy địa điểm trong database' })
     }
-    
-    res.json({ success: true, data: finalData })
+
+    place.viewCount = (place.viewCount || 0) + 1
+    await place.save()
+
+    res.json({
+      success: true,
+      data: {
+        _id: place._id.toString(),
+        id: place._id.toString(),
+        placeId: place.placeId,
+        name: place.name,
+        address: place.address,
+        lat: place.lat,
+        lng: place.lng,
+        rating: place.rating,
+        phone: place.phone,
+        website: place.website,
+        openingHours: place.openingHours,
+        description: place.description,
+        image: place.images && place.images.length > 0 ? place.images[0] : place.image,
+        images: place.images || (place.image ? [place.image] : []),
+        ageRange: place.ageRange,
+        price: place.price,
+        types: place.types,
+        viewCount: place.viewCount,
+        parking: place.parking,
+        food: place.food,
+        facilities: place.facilities,
+        tags: place.tags || [],
+        source: 'database'
+      }
+    })
   } catch (err) {
     console.error('Place details error:', err)
     res.status(500).json({ success: false, error: 'Lỗi lấy chi tiết địa điểm', details: err.message })
@@ -614,13 +799,31 @@ router.get('/place/:id', async (req, res) => {
   }
 })
 
-// Reverse geocode (lat,lng -> address)
+// Approximate reverse geocode from nearest database place
 router.get('/reverse', async (req, res) => {
   try {
     const { lat, lng } = req.query
     if (!lat || !lng) return res.status(400).json({ success: false, error: 'Latitude and longitude are required' })
-    const address = await reverseGeocode(parseFloat(lat), parseFloat(lng))
-    res.json({ success: true, data: address })
+    const userLat = parseFloat(lat)
+    const userLng = parseFloat(lng)
+    if (!Number.isFinite(userLat) || !Number.isFinite(userLng)) {
+      return res.status(400).json({ success: false, error: 'Invalid latitude or longitude' })
+    }
+
+    const places = await Place.find({
+      lat: { $type: 'number' },
+      lng: { $type: 'number' },
+      address: { $exists: true, $ne: '' }
+    }, { address: 1, lat: 1, lng: 1 }).lean()
+
+    const nearest = places
+      .map(place => ({
+        address: place.address,
+        distance: calculateDistance(userLat, userLng, place.lat, place.lng)
+      }))
+      .sort((a, b) => a.distance - b.distance)[0]
+
+    res.json({ success: true, data: nearest ? nearest.address : null })
   } catch (err) {
     console.error('Reverse geocode error:', err)
     res.status(500).json({ success: false, error: 'Lỗi reverse geocode', details: err.message })

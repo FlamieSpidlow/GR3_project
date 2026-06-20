@@ -1,13 +1,17 @@
-const API_URL = 'http://localhost:3000/api/places'
+import { apiUrl } from '../utils/apiBase'
+import { getAuthToken } from '../utils/authSession'
+
+const API_URL = apiUrl('/places')
 
 const getAuthHeader = () => {
-  const token = localStorage.getItem('authToken')
+  const token = getAuthToken()
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
 export async function searchPlaces(query, limit = 10, lat = null, lng = null, age = null) {
   try {
-    let url = `${API_URL}/search?query=${encodeURIComponent(query)}&limit=${limit}`
+    const trimmedQuery = String(query || '').trim()
+    let url = `${API_URL}/search?query=${encodeURIComponent(trimmedQuery)}&limit=${encodeURIComponent(limit)}`
     if (lat != null && lng != null) {
       url += `&lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}`
     }

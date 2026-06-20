@@ -11,11 +11,23 @@
               type="text"
               v-model="keyword"
               placeholder="VD: công viên, khu vui chơi trong nhà, miễn phí..."
-              @keyup.enter="performSearch"
+              @keyup.enter="runSearchFromControls"
             />
-            <button class="tw-btn tw-btn-primary" @click="performSearch" :disabled="isLoading">
+            <button class="tw-btn tw-btn-primary" @click="runSearchFromControls" :disabled="isLoading">
               {{ isLoading ? 'Đang tìm kiếm...' : 'Tìm kiếm' }}
             </button>
+          </div>
+
+          <div class="search-age">
+            <label>Độ tuổi phù hợp: <strong>{{ ageFilter }}</strong></label>
+            <input
+              v-model.number="ageFilter"
+              type="range"
+              min="1"
+              max="12"
+              step="1"
+              aria-label="Chọn độ tuổi của bé"
+            />
           </div>
         </div>
       </section>
@@ -26,14 +38,14 @@
         <!-- Filters Sidebar -->
         <aside class="filters-sidebar">
           <div class="filters-header">
-            <h3>🔍 Bộ lọc</h3>
+            <h3>Bộ lọc</h3>
             <button v-if="hasActiveFilters" class="clear-filters-btn" @click="clearFilters">
               Xóa tất cả
             </button>
           </div>
           
           <div class="filter-group">
-            <label class="filter-label">📏 Khoảng cách</label>
+            <label class="filter-label">Khoảng cách</label>
             <div class="filter-options">
               <button 
                 :class="['filter-btn', { active: filters.distance === '' }]"
@@ -59,7 +71,7 @@
           </div>
           
           <div class="filter-group">
-            <label class="filter-label">⭐ Đánh giá</label>
+            <label class="filter-label">Đánh giá</label>
             <div class="filter-options">
               <button 
                 :class="['filter-btn', { active: filters.rating === '' }]"
@@ -81,7 +93,7 @@
           </div>
           
           <div class="filter-group">
-            <label class="filter-label">💰 Giá tiền</label>
+            <label class="filter-label">Giá tiền</label>
             <div class="filter-options">
               <button 
                 :class="['filter-btn', { active: filters.price === '' }]"
@@ -111,7 +123,7 @@
           </div>
           
           <div class="filter-group">
-            <label class="filter-label">🏷️ Loại hình</label>
+            <label class="filter-label">Loại hình</label>
             <div class="filter-options">
               <button 
                 :class="['filter-btn', { active: filters.indoor === '' }]"
@@ -168,7 +180,7 @@
         <div class="pagination-container">
           <button class="pagination-btn" @click="prevPage" :disabled="currentPage === 1">← Trước</button>
           <div class="page-info">
-            Trang {{ currentPage }} / {{ totalPages }} ({{ results.length }} kết quả)
+            Trang {{ currentPage }} / {{ totalPages }} ({{ filteredResults.length }} kết quả)
           </div>
           <button class="pagination-btn" @click="nextPage" :disabled="currentPage === totalPages">Tiếp →</button>
         </div>
@@ -182,7 +194,9 @@
 <script>
 import { searchPlaces } from '../api/places'
 import { saveSearchHistory } from '../api/auth'
+import { clearAuthSession, getAuthToken } from '../utils/authSession'
 import PlaceCard from '../components/PlaceCard.vue'
+import { formatPrice, parsePriceValue } from '../utils/priceFormatter'
 
 export default {
   name: 'SearchResults',
@@ -193,12 +207,13 @@ export default {
       initialKeyword: '',
       results: [],
       isLoading: false,
+      searchRequestId: 0,
       hasSearched: false,
       errorMessage: '',
       currentPage: 1,
       itemsPerPage: 10,
       userLocation: null,
-      ageFilter: null,
+      ageFilter: 3,
       filters: {
         distance: '',
         rating: '',
@@ -211,7 +226,7 @@ export default {
     const query = this.$route.query.q
     const age = this.$route.query.age
     if (age) {
-      this.ageFilter = parseInt(age)
+      this.ageFilter = this.normalizeAge(age)
     }
     if (query) {
       this.keyword = query
@@ -260,29 +275,78 @@ export default {
         )
       })
     },
-    async performSearch() {
-      if (!this.keyword.trim()) {
-        this.errorMessage = 'Vui lòng nhập từ khóa tìm kiếm'
+    normalizeText(value) {
+      return String(value || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/đ/g, 'd')
+        .replace(/[^a-z0-9\s-]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+    },
+    normalizeAge(value) {
+      const parsed = parseInt(value, 10)
+      if (!Number.isFinite(parsed)) return 3
+      return Math.min(12, Math.max(1, parsed))
+    },
+    runSearchFromControls() {
+      const query = this.keyword.trim()
+      if (!query) {
+        this.performSearch()
         return
       }
 
+      this.ageFilter = this.normalizeAge(this.ageFilter)
+      const nextQuery = {
+        ...this.$route.query,
+        q: query,
+        age: String(this.ageFilter)
+      }
+      const currentQ = this.$route.query.q != null ? String(this.$route.query.q).trim() : ''
+      const currentAge = this.$route.query.age != null ? String(this.$route.query.age) : ''
+
+      if (currentQ === query && currentAge === nextQuery.age) {
+        this.performSearch()
+        return
+      }
+
+      this.$router.push({ path: '/search', query: nextQuery })
+    },
+    async performSearch() {
+      const query = this.keyword.trim()
+      if (!query) {
+        this.errorMessage = 'Vui lòng nhập từ khóa tìm kiếm'
+        this.results = []
+        return
+      }
+
+      const requestId = ++this.searchRequestId
       this.isLoading = true
       this.hasSearched = true
       this.errorMessage = ''
       this.results = []
       this.currentPage = 1
-      this.initialKeyword = this.keyword
+      this.initialKeyword = query
 
       // Save search history if user is logged in
-      const token = localStorage.getItem('authToken')
+      const token = getAuthToken()
       if (token) {
-        saveSearchHistory(this.keyword.trim()).catch(err => console.warn('Failed to save search history:', err))
+        saveSearchHistory(query)
+          .then(res => {
+            if (res && res.status === 401) {
+              clearAuthSession()
+            }
+          })
+          .catch(err => console.warn('Failed to save search history:', err))
       }
 
-      const res = await searchPlaces(this.keyword, 100, this.userLocation?.lat || null, this.userLocation?.lng || null, this.ageFilter)
+      this.ageFilter = this.normalizeAge(this.ageFilter)
+      const res = await searchPlaces(query, 100, this.userLocation?.lat || null, this.userLocation?.lng || null, this.ageFilter)
+      if (requestId !== this.searchRequestId) return
       
       if (res.success && res.data) {
-        // Map the results - lấy đầy đủ thông tin từ database
+        // Map full place data from database.
         this.results = res.data.map((place, idx) => {
           let placeName = place.mainText || place.name || ''
           let placeAddress = place.secondaryText || place.address || ''
@@ -293,13 +357,13 @@ export default {
             placeAddress = parts.slice(1).join(', ')
           }
           
-          // Sử dụng distance từ backend nếu có, nếu không thì tự tính
+          // Use backend distance when available, otherwise calculate locally.
           let distance = place.distance !== undefined ? place.distance : null
           if (distance === null && this.userLocation && place.lat && place.lng) {
             distance = this.calculateDistance(
               this.userLocation.lat, this.userLocation.lng,
               place.lat, place.lng
-            ) * 1000 // Convert km to meters để đồng bộ với backend
+            ) * 1000 // Convert km to meters to match backend.
           }
           
           return {
@@ -311,7 +375,7 @@ export default {
             images: place.images,
             ageRange: place.ageRange || '0-12',
             rating: place.rating || 0,
-            price: place.price || 'Miễn phí',
+            price: formatPrice(place.price),
             lat: place.lat,
             lng: place.lng,
             distance: distance,
@@ -336,10 +400,7 @@ export default {
       return R * c
     },
     parsePrice(priceStr) {
-      if (!priceStr || priceStr === 'Miễn phí') return 0
-      // Extract number from price string like "50,000đ" or "50.000đ"
-      const numStr = priceStr.replace(/[^\d]/g, '')
-      return parseInt(numStr) || 0
+      return parsePriceValue(priceStr)
     },
     viewDetails(placeId) {
       this.$router.push(`/place/${placeId}`)
@@ -391,9 +452,7 @@ export default {
         filtered = filtered.filter(p => {
           if (p.distance === null || p.distance === undefined) return false
           const distanceKm = p.distance / 1000 // Convert meters to km
-          // Cho filter 0-5: bao gồm 0 đến dưới 5 (0 <= d < 5)
-          // Cho filter 5-10: bao gồm 5 đến dưới 10
-          // Cho filter 20+: bao gồm >= 20
+          // 0-5 includes [0,5), 5-10 includes [5,10), 20+ includes >= 20.
           if (max === Infinity) {
             return distanceKm >= min
           }
@@ -425,11 +484,11 @@ export default {
       // Filter by indoor/outdoor
       if (this.filters.indoor) {
         filtered = filtered.filter(p => {
-          const tags = p.tags || []
+          const tags = (p.tags || []).map(this.normalizeText)
           if (this.filters.indoor === 'indoor') {
-            return tags.some(t => t.toLowerCase().includes('trong nhà') || t.toLowerCase().includes('indoor'))
+            return tags.some(t => t.includes('trong nha') || t.includes('indoor'))
           } else if (this.filters.indoor === 'outdoor') {
-            return tags.some(t => t.toLowerCase().includes('ngoài trời') || t.toLowerCase().includes('outdoor'))
+            return tags.some(t => t.includes('ngoai troi') || t.includes('outdoor'))
           }
           return true
         })
@@ -456,16 +515,15 @@ export default {
     '$route.query': {
       deep: true,
       handler(newQuery, oldQuery) {
-        const nextQ = newQuery && newQuery.q != null ? String(newQuery.q) : ''
-        const prevQ = oldQuery && oldQuery.q != null ? String(oldQuery.q) : ''
+        const nextQ = newQuery && newQuery.q != null ? String(newQuery.q).trim() : ''
+        const prevQ = oldQuery && oldQuery.q != null ? String(oldQuery.q).trim() : ''
+        const nextAgeParam = newQuery && newQuery.age != null ? String(newQuery.age) : ''
+        const prevAgeParam = oldQuery && oldQuery.age != null ? String(oldQuery.age) : ''
 
-        const nextAgeRaw = newQuery && newQuery.age != null && newQuery.age !== '' ? parseInt(newQuery.age) : null
-        const prevAgeRaw = oldQuery && oldQuery.age != null && oldQuery.age !== '' ? parseInt(oldQuery.age) : null
+        const nextAge = newQuery && newQuery.age != null && newQuery.age !== '' ? this.normalizeAge(newQuery.age) : 3
+        const prevAge = oldQuery && oldQuery.age != null && oldQuery.age !== '' ? this.normalizeAge(oldQuery.age) : 3
 
-        const nextAge = Number.isFinite(nextAgeRaw) ? nextAgeRaw : null
-        const prevAge = Number.isFinite(prevAgeRaw) ? prevAgeRaw : null
-
-        if (nextQ && (nextQ !== prevQ || nextAge !== prevAge)) {
+        if (nextQ && (nextQ !== prevQ || nextAge !== prevAge || nextAgeParam !== prevAgeParam)) {
           this.keyword = nextQ
           this.initialKeyword = nextQ
           this.ageFilter = nextAge
@@ -523,15 +581,16 @@ export default {
 .search-title {
   margin: 0 0 8px 0;
   font-size: 2rem;
-  font-weight: 900;
-  letter-spacing: -0.03em;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.25;
 }
 
 .search-subtitle {
   margin: 0 0 16px 0;
   color: rgba(255, 255, 255, 0.88);
-  font-weight: 600;
-  line-height: 1.5;
+  font-weight: 500;
+  line-height: 1.55;
 }
 
 .search-bar-container {
@@ -561,6 +620,30 @@ export default {
 
 .search-bar-container input::placeholder {
   color: #9ca3af;
+}
+
+.search-age {
+  margin: 14px auto 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: min(680px, 100%);
+  flex-wrap: wrap;
+}
+
+.search-age label {
+  color: #ffffff;
+  font-weight: 800;
+}
+
+.search-age input[type="range"] {
+  flex: 1 1 420px;
+  min-width: 320px;
+  max-width: 560px;
+  width: 100%;
+  accent-color: var(--tw-primary);
+  cursor: pointer;
 }
 
 /* button uses global tw-btn */
@@ -854,7 +937,7 @@ export default {
 }
 
 .rating {
-  color: #f57c00;
+  color: #f59e0b;
   font-weight: 500;
 }
 
@@ -981,6 +1064,15 @@ export default {
 
   .search-bar-container input {
     width: 100%;
+  }
+
+  .search-age {
+    align-items: flex-start;
+  }
+
+  .search-age input[type="range"] {
+    min-width: 100%;
+    max-width: 100%;
   }
 }
 </style>

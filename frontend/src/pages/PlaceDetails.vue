@@ -21,10 +21,17 @@
                 :alt="place.name" 
                 class="main-image" 
               />
-              <div class="zoom-hint">🔍 Click để phóng to</div>
               <div v-if="place.images && place.images.length > 1" class="image-nav">
-                <button @click.stop="previousImage" class="nav-btn prev">‹</button>
-                <button @click.stop="nextImage" class="nav-btn next">›</button>
+                <button @click.stop="previousImage" class="nav-btn prev" aria-label="Ảnh trước">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M15 18 9 12l6-6" />
+                  </svg>
+                </button>
+                <button @click.stop="nextImage" class="nav-btn next" aria-label="Ảnh tiếp theo">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="m9 18 6-6-6-6" />
+                  </svg>
+                </button>
               </div>
             </div>
             <div v-if="place.images && place.images.length > 1" class="thumbnails">
@@ -65,7 +72,7 @@
               </div>
               <div class="info-badge">
                 <span class="badge-icon">💰</span>
-                <span>{{ place.price || 'Miễn phí' }}</span>
+                <span>{{ formatPrice(place.price) }}</span>
               </div>
             </div>
 
@@ -114,6 +121,18 @@
             </div>
 
             <div class="action-row">
+              <button class="btn-ticket-action" @click="openTicketModal">
+                Đặt vé
+              </button>
+              <a
+                v-if="canOpenMap"
+                class="btn-map-action"
+                :href="mapDirectionsUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Ch&#7881; &#273;&#432;&#7901;ng
+              </a>
               <button 
                 class="btn-favorite" 
                 :class="{ active: isFavorited }" 
@@ -136,6 +155,16 @@
           </div>
         </div>
 
+        <section v-if="canOpenMap" class="map-section">
+          <iframe
+            class="map-frame"
+            :src="mapEmbedUrl"
+            :title="`Ban do ${place.name}`"
+            loading="lazy"
+            referrerpolicy="no-referrer-when-downgrade"
+          ></iframe>
+        </section>
+
         <!-- Description Section -->
         <div v-if="place.description" class="description-section">
           <h2>Giới thiệu</h2>
@@ -146,7 +175,7 @@
         <div class="reviews-section">
           <div class="reviews-header">
             <div class="reviews-title-section">
-              <h2>💬 Bình luận</h2>
+              <h2>Bình luận</h2>
             </div>
           </div>
 
@@ -160,11 +189,11 @@
               </div>
             </div>
             <button @click="showReviewModal = true" class="write-review-btn">
-              ✍️ Viết đánh giá
+              Viết đánh giá
             </button>
           </div>
           <div v-else class="login-to-review">
-            <p>💡 <router-link to="/login">Đăng nhập</router-link> để chia sẻ trải nghiệm của bạn!</p>
+            <p><router-link to="/login">Đăng nhập</router-link> để chia sẻ trải nghiệm của bạn.</p>
           </div>
 
           <!-- Danh sách đánh giá -->
@@ -174,9 +203,8 @@
               <p>Đang tải bình luận...</p>
             </div>
             <div v-else-if="reviews.length === 0" class="no-reviews">
-              <div class="no-reviews-icon">📝</div>
               <h3>Chưa có bình luận nào</h3>
-              <p>Hãy là người đầu tiên chia sẻ trải nghiệm của bạn!</p>
+              <p>Hãy là người đầu tiên chia sẻ trải nghiệm của bạn.</p>
             </div>
             <div v-else class="reviews-container">
               <div v-for="review in reviews" :key="review._id" class="review-card">
@@ -239,7 +267,7 @@
                     >
                       <img :src="getImageUrl(img)" alt="Review image" />
                       <div class="image-overlay">
-                        <span>🔍</span>
+                        <span>Xem ảnh</span>
                       </div>
                     </div>
                   </div>
@@ -247,10 +275,10 @@
 
                 <div class="review-footer" v-if="canDeleteReview(review)">
                   <button @click="editReviewItem(review)" class="review-action-btn edit">
-                    <span>✏️</span> Chỉnh sửa
+                    Chỉnh sửa
                   </button>
                   <button @click="deleteReviewItem(review._id)" class="review-action-btn delete">
-                    <span>🗑️</span> Xóa
+                    Xóa
                   </button>
                 </div>
               </div>
@@ -327,12 +355,116 @@
 
     <!-- Lightbox Modal -->
     <div v-if="showLightbox" class="lightbox-overlay" @click.self="closeLightbox">
-      <button class="lightbox-close" @click="closeLightbox">×</button>
-      <button class="lightbox-nav prev" @click="prevLightboxImage" v-if="allImages.length > 1">‹</button>
+      <button class="lightbox-close" @click="closeLightbox" aria-label="Đóng">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M18 6 6 18" />
+          <path d="m6 6 12 12" />
+        </svg>
+      </button>
+      <button class="lightbox-nav prev" @click="prevLightboxImage" v-if="allImages.length > 1" aria-label="Ảnh trước">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M15 18 9 12l6-6" />
+        </svg>
+      </button>
       <img :src="getImageUrl(allImages[lightboxIndex])" class="lightbox-image" />
-      <button class="lightbox-nav next" @click="nextLightboxImage" v-if="allImages.length > 1">›</button>
+      <button class="lightbox-nav next" @click="nextLightboxImage" v-if="allImages.length > 1" aria-label="Ảnh tiếp theo">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="m9 18 6-6-6-6" />
+        </svg>
+      </button>
       <div class="lightbox-counter" v-if="allImages.length > 1">
         {{ lightboxIndex + 1 }} / {{ allImages.length }}
+      </div>
+    </div>
+
+    <div v-if="showTicketModal" class="ticket-modal-overlay" @click.self="closeTicketModal">
+      <div class="ticket-modal">
+        <div class="modal-header">
+          <h3>Đặt vé</h3>
+          <button v-if="!ticketPaymentCompleted" @click="closeTicketModal" class="close-modal-btn">×</button>
+        </div>
+        <form v-if="!createdTicketOrder" class="ticket-form" @submit.prevent="submitTicketOrder">
+          <div class="ticket-place">
+            <strong>{{ place.name }}</strong>
+            <span>{{ cleanAddress(place.address, place.name) || 'Địa chỉ không rõ' }}</span>
+          </div>
+
+          <div class="form-group">
+            <label>Ngày đi *</label>
+            <input v-model="ticketForm.visitDate" type="date" :min="minVisitDate" required />
+          </div>
+
+          <div class="ticket-quantity-grid">
+            <div class="form-group">
+              <label>Vé người lớn</label>
+              <input v-model.number="ticketForm.adultQuantity" type="number" min="0" max="50" />
+            </div>
+            <div class="form-group">
+              <label>Vé trẻ em</label>
+              <input v-model.number="ticketForm.childQuantity" type="number" min="0" max="50" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Ghi chú</label>
+            <textarea v-model="ticketForm.note" rows="3" placeholder="Ví dụ: cần hỗ trợ thêm, đi theo nhóm..."></textarea>
+          </div>
+
+          <div class="ticket-summary">
+            <div>
+              <span>Đơn giá tham khảo</span>
+              <strong>{{ formatPrice(ticketUnitPrice) }}</strong>
+            </div>
+            <div>
+              <span>Tổng tiền</span>
+              <strong>{{ formatPrice(ticketTotalPrice) }}</strong>
+            </div>
+          </div>
+
+          <div v-if="ticketError" class="ticket-error">{{ ticketError }}</div>
+          <div v-if="ticketSuccess" class="ticket-success">{{ ticketSuccess }}</div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn-cancel" @click="closeTicketModal">Hủy</button>
+            <button type="submit" class="btn-submit" :disabled="ticketSubmitting">
+              {{ ticketSubmitting ? 'Đang gửi...' : 'Gửi yêu cầu' }}
+            </button>
+          </div>
+        </form>
+        <div v-else class="ticket-payment">
+          <div class="ticket-place">
+            <strong>{{ place.name }}</strong>
+            <span>{{ cleanAddress(place.address, place.name) || 'Địa chỉ không rõ' }}</span>
+          </div>
+
+          <div class="payment-summary">
+            <div>
+              <span>Mã đơn</span>
+              <strong>{{ createdTicketOrder._id }}</strong>
+            </div>
+            <div>
+              <span>Tổng tiền</span>
+              <strong>{{ formatPrice(createdTicketOrder.totalPrice) }}</strong>
+            </div>
+          </div>
+
+          <div v-if="!ticketPaymentCompleted" class="payment-qr-wrap">
+            <img v-if="paymentQrImage" :src="paymentQrImage" class="payment-qr-image" alt="Mã QR thanh toán" />
+          </div>
+
+          <div v-if="ticketError" class="ticket-error">{{ ticketError }}</div>
+          <div v-if="ticketSuccess" class="ticket-success">{{ ticketSuccess }}</div>
+
+          <div v-if="ticketPaymentCompleted" class="modal-footer centered">
+            <button
+              type="button"
+              class="btn-submit"
+              @click="goHomeAfterPayment"
+            >
+              Quay lại trang chủ
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -439,6 +571,14 @@
 <script>
 import { getPlaceById, getAllPlaces } from '../api/places'
 import { getReviews, createReview, updateReview, deleteReview, getMyReviewImageSubmissions, reactToReview } from '../api/reviews'
+import { getProfile, updateLocation } from '../api/auth'
+import { createTicketOrder, getTicketPaymentOrigin, getTicketPaymentStatus } from '../api/tickets'
+import QRCode from 'qrcode'
+import { formatPrice, parsePriceValue } from '../utils/priceFormatter'
+import { cleanAddress } from '../utils/addressFormatter'
+import { assetUrl } from '../utils/apiBase'
+import { buildMapsDirectionsUrl, buildMapsEmbedUrl, hasMapTarget } from '../utils/mapLinks'
+import { getAuthToken, getAuthUserRaw } from '../utils/authSession'
 
 export default {
   name: 'PlaceDetails',
@@ -478,15 +618,30 @@ export default {
       reviewError: '',
       hasReviewed: false,
       isFavorited: false,
-      editingReviewId: null
+      editingReviewId: null,
+      showTicketModal: false,
+      ticketSubmitting: false,
+      ticketError: '',
+      ticketSuccess: '',
+      createdTicketOrder: null,
+      paymentQrImage: '',
+      paymentOrigin: '',
+      paymentStatusTimer: null,
+      ticketPaymentCompleted: false,
+      ticketForm: {
+        visitDate: '',
+        adultQuantity: 1,
+        childQuantity: 0,
+        note: ''
+      }
     }
   },
   computed: {
     isLoggedIn() {
-      return !!localStorage.getItem('token') || !!localStorage.getItem('authToken')
+      return !!getAuthToken()
     },
     currentUserId() {
-      const user = localStorage.getItem('user')
+      const user = getAuthUserRaw()
       if (user) {
         try {
           const parsed = JSON.parse(user)
@@ -498,7 +653,7 @@ export default {
       return null
     },
     currentUserRole() {
-      const user = localStorage.getItem('user')
+      const user = getAuthUserRaw()
       if (user) {
         try {
           return JSON.parse(user).role
@@ -509,7 +664,7 @@ export default {
       return 'user'
     },
     currentUserAvatar() {
-      const user = localStorage.getItem('user')
+      const user = getAuthUserRaw()
       if (user) {
         try {
           return JSON.parse(user).avatar || ''
@@ -520,7 +675,7 @@ export default {
       return ''
     },
     currentUserName() {
-      const user = localStorage.getItem('user')
+      const user = getAuthUserRaw()
       if (user) {
         try {
           const parsed = JSON.parse(user)
@@ -537,6 +692,28 @@ export default {
         return this.place.images
       }
       return this.place.image ? [this.place.image] : []
+    },
+    minVisitDate() {
+      const now = new Date()
+      const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+      return localDate.toISOString().slice(0, 10)
+    },
+    ticketUnitPrice() {
+      return parsePriceValue(this.place && this.place.price)
+    },
+    ticketTotalPrice() {
+      const adult = Number.parseInt(this.ticketForm.adultQuantity, 10) || 0
+      const child = Number.parseInt(this.ticketForm.childQuantity, 10) || 0
+      return this.ticketUnitPrice * Math.max(0, adult + child)
+    },
+    canOpenMap() {
+      return hasMapTarget(this.place)
+    },
+    mapDirectionsUrl() {
+      return buildMapsDirectionsUrl(this.place)
+    },
+    mapEmbedUrl() {
+      return buildMapsEmbedUrl(this.place)
     }
   },
   watch: {
@@ -561,7 +738,134 @@ export default {
     this.getUserLocation()
     this.checkFavorite()
   },
+  beforeUnmount() {
+    this.stopPaymentStatusWatcher()
+  },
   methods: {
+    resetTicketModalState() {
+      this.ticketError = ''
+      this.ticketSuccess = ''
+      this.createdTicketOrder = null
+      this.paymentQrImage = ''
+      this.paymentOrigin = ''
+      this.ticketPaymentCompleted = false
+    },
+    openTicketModal() {
+      if (!this.isLoggedIn) {
+        alert('Vui lòng đăng nhập để đặt vé')
+        this.$router.push('/login')
+        return
+      }
+      this.resetTicketModalState()
+      this.ticketForm = {
+        visitDate: this.minVisitDate,
+        adultQuantity: 1,
+        childQuantity: 0,
+        note: ''
+      }
+      this.showTicketModal = true
+    },
+    closeTicketModal() {
+      if (this.ticketSubmitting) return
+      if (this.ticketPaymentCompleted) return
+      this.stopPaymentStatusWatcher()
+      this.showTicketModal = false
+      this.resetTicketModalState()
+    },
+    async submitTicketOrder() {
+      if (!this.place) return
+      const adult = Number.parseInt(this.ticketForm.adultQuantity, 10) || 0
+      const child = Number.parseInt(this.ticketForm.childQuantity, 10) || 0
+      if (adult + child <= 0) {
+        this.ticketError = 'Vui lòng chọn ít nhất 1 vé'
+        return
+      }
+      if (!this.ticketForm.visitDate || this.ticketForm.visitDate < this.minVisitDate) {
+        this.ticketError = 'Vui lòng chọn ngày đi từ hôm nay trở đi'
+        this.ticketForm.visitDate = this.minVisitDate
+        return
+      }
+
+      this.ticketSubmitting = true
+      this.ticketError = ''
+      this.ticketSuccess = ''
+
+      const res = await createTicketOrder({
+        placeId: this.place._id || this.place.id,
+        visitDate: this.ticketForm.visitDate,
+        adultQuantity: adult,
+        childQuantity: child,
+        note: this.ticketForm.note
+      })
+
+      this.ticketSubmitting = false
+      if (res.success) {
+        this.ticketSuccess = 'Đã gửi yêu cầu đặt vé. Bạn có thể xem trạng thái trong mục Vé của tôi.'
+        this.createdTicketOrder = res.data
+        await this.createPaymentQr(res.data)
+        this.startPaymentStatusWatcher(res.data)
+        this.ticketSuccess = 'Đã tạo đơn vé. Vui lòng quét QR để thanh toán.'
+      } else {
+        this.ticketError = res.error || 'Không thể gửi yêu cầu đặt vé'
+      }
+    },
+    getPaymentUrl(order) {
+      const id = order?._id || ''
+      const token = order?.paymentToken || ''
+      if (!id || !token) return ''
+      const origin = this.paymentOrigin || window.location.origin
+      return `${origin}/ticket-payment/${encodeURIComponent(id)}?token=${encodeURIComponent(token)}`
+    },
+    async createPaymentQr(order) {
+      if (!this.paymentOrigin) {
+        const originRes = await getTicketPaymentOrigin()
+        if (originRes.success && originRes.origin) {
+          this.paymentOrigin = String(originRes.origin).replace(/\/$/, '')
+        }
+      }
+      const url = this.getPaymentUrl(order)
+      if (!url) {
+        this.paymentQrImage = ''
+        return
+      }
+      this.paymentQrImage = await QRCode.toDataURL(url, {
+        width: 240,
+        margin: 2,
+        color: {
+          dark: '#0f172a',
+          light: '#ffffff'
+        }
+      })
+    },
+    startPaymentStatusWatcher(order) {
+      this.stopPaymentStatusWatcher()
+      if (!order?._id) return
+
+      this.paymentStatusTimer = window.setInterval(async () => {
+        const res = await getTicketPaymentStatus(order._id)
+        if (!res.success || !res.data) return
+
+        const isPaid = res.data.paymentStatus === 'paid' || res.data.status !== 'unpaid'
+        if (!isPaid) return
+
+        this.stopPaymentStatusWatcher()
+        this.createdTicketOrder = res.data
+        this.ticketError = ''
+        this.ticketPaymentCompleted = true
+        this.ticketSuccess = 'Thanh toán thành công. Vé của bạn đang chờ quản trị viên xác nhận.'
+      }, 2000)
+    },
+    stopPaymentStatusWatcher() {
+      if (!this.paymentStatusTimer) return
+      window.clearInterval(this.paymentStatusTimer)
+      this.paymentStatusTimer = null
+    },
+    goHomeAfterPayment() {
+      this.stopPaymentStatusWatcher()
+      this.showTicketModal = false
+      this.resetTicketModalState()
+      this.$router.push('/')
+    },
     openReviewImagePicker() {
       const total = (this.editingReviewId ? (this.existingReviewImages || []).length : 0) + (this.reviewImageFiles || []).length
       if (total >= 3) return
@@ -642,47 +946,99 @@ export default {
         console.error('Error toggling favorite:', e)
       }
     },
-    getUserLocation() {
-      // Try to get from localStorage first
+    coerceNumber(value) {
+      if (value === null || value === undefined || value === '') return null
+      const n = typeof value === 'number' ? value : parseFloat(value)
+      return Number.isFinite(n) ? n : null
+    },
+    setUserLocation(lat, lng, { persist = true } = {}) {
+      const latNum = this.coerceNumber(lat)
+      const lngNum = this.coerceNumber(lng)
+      if (latNum === null || lngNum === null) return false
+      this.userLocation = { lat: latNum, lng: lngNum }
+      if (persist) {
+        localStorage.setItem('userLocation', JSON.stringify(this.userLocation))
+      }
+      this.calculateUserDistance()
+      if (this.place) this.loadNearbyPlaces()
+      return true
+    },
+    loadUserLocationFromStorage() {
       try {
-        const userData = localStorage.getItem('user')
+        const cached = localStorage.getItem('userLocation')
+        if (cached) {
+          const parsed = JSON.parse(cached)
+          if (this.setUserLocation(parsed?.lat, parsed?.lng, { persist: false })) return
+        }
+
+        const userData = getAuthUserRaw()
         if (userData) {
           const parsed = JSON.parse(userData)
-          if (parsed.lat && parsed.lng) {
-            this.userLocation = { lat: parsed.lat, lng: parsed.lng }
-            return
-          }
+          this.setUserLocation(parsed?.lat, parsed?.lng, { persist: false })
         }
       } catch (e) {
         console.warn('Failed to get user location from storage', e)
       }
-      
-      // Fallback to geolocation
+    },
+    async loadUserLocationFromProfile() {
+      const token = getAuthToken()
+      if (!token) return
+      try {
+        const res = await getProfile()
+        if (res?.success && res.user) {
+          this.setUserLocation(res.user.lat, res.user.lng)
+        }
+      } catch (e) {
+        console.warn('Failed to get user location from profile', e)
+      }
+    },
+    async getUserLocation() {
+      this.loadUserLocationFromStorage()
+      await this.loadUserLocationFromProfile()
+
       if ('geolocation' in navigator) {
-        navigator.geolocation.getCurrentPosition((pos) => {
-          this.userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude }
-          this.calculateUserDistance()
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+          this.setUserLocation(pos.coords.latitude, pos.coords.longitude)
+          try {
+            const token = getAuthToken()
+            if (token) {
+              await updateLocation({
+                lat: this.userLocation.lat,
+                lng: this.userLocation.lng
+              })
+            }
+          } catch (e) {
+            console.warn('Failed to persist user location', e)
+          }
         }, () => {}, { timeout: 5000 })
       }
     },
     calculateUserDistance() {
-      if (this.userLocation && this.place?.lat && this.place?.lng) {
+      const placeLat = this.coerceNumber(this.place?.lat)
+      const placeLng = this.coerceNumber(this.place?.lng)
+      if (this.userLocation && placeLat !== null && placeLng !== null) {
         this.userDistance = this.calculateDistance(
           this.userLocation.lat,
           this.userLocation.lng,
-          this.place.lat,
-          this.place.lng
+          placeLat,
+          placeLng
         )
+      } else {
+        this.userDistance = null
       }
     },
     calculateDistance(lat1, lng1, lat2, lng2) {
-      if (lat2 == null || lng2 == null) return null
+      const aLat = this.coerceNumber(lat1)
+      const aLng = this.coerceNumber(lng1)
+      const bLat = this.coerceNumber(lat2)
+      const bLng = this.coerceNumber(lng2)
+      if (aLat === null || aLng === null || bLat === null || bLng === null) return null
       const toRad = (v) => (v * Math.PI) / 180
       const R = 6371000 // Earth radius in meters
-      const dLat = toRad(lat2 - lat1)
-      const dLng = toRad(lng2 - lng1)
+      const dLat = toRad(bLat - aLat)
+      const dLng = toRad(bLng - aLng)
       const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+        Math.cos(toRad(aLat)) * Math.cos(toRad(bLat)) *
         Math.sin(dLng / 2) * Math.sin(dLng / 2)
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
       return R * c // distance in meters
@@ -690,10 +1046,11 @@ export default {
     formatDistance(meters) {
       if (meters === null || meters === undefined) return ''
       if (meters < 1000) {
-        return `Cách bạn ${Math.round(meters)} m`
+        return `Cách bạn khoảng ${Math.round(meters)} m`
       }
-      return `Cách bạn ${(meters / 1000).toFixed(1)} km`
+      return `Cách bạn khoảng ${(meters / 1000).toFixed(1)} km`
     },
+    formatPrice,
     async loadPlaceDetails() {
       this.isLoading = true
       this.errorMessage = ''
@@ -729,35 +1086,33 @@ export default {
         const res = await getAllPlaces()
         if (res.success && res.data) {
           const currentId = this.place._id || this.$route.params.id
-          const currentTags = this.place.tags || []
+          const normalizeTag = (tag) => String(tag || '').trim().toLowerCase()
+          const currentTagSet = new Set((this.place.tags || []).map(normalizeTag).filter(Boolean))
           
-          // Filter places with at least 1 matching tag, exclude current place
+          // Pick the three places with the most matching tags. Distance is only a tie-breaker.
           let places = res.data
-            .filter(p => {
-              const pId = p._id || p.id
-              if (pId === currentId) return false
-              
-              // Count matching tags
-              const pTags = p.tags || []
-              const matchingTags = pTags.filter(tag => currentTags.includes(tag))
-              return matchingTags.length >= 1
-            })
             .map(p => {
-              const pTags = p.tags || []
-              const matchingTags = pTags.filter(tag => currentTags.includes(tag))
+              const pTags = new Set((p.tags || []).map(normalizeTag).filter(Boolean))
+              const matchingTagCount = [...pTags].filter(tag => currentTagSet.has(tag)).length
               
               let distance = null
-              if (this.place.lat && this.place.lng && p.lat && p.lng) {
+              const pLat = this.coerceNumber(p.lat)
+              const pLng = this.coerceNumber(p.lng)
+              if (this.userLocation && pLat !== null && pLng !== null) {
                 distance = this.calculateDistance(
-                  this.place.lat,
-                  this.place.lng,
-                  p.lat,
-                  p.lng
+                  this.userLocation.lat,
+                  this.userLocation.lng,
+                  pLat,
+                  pLng
                 )
               }
-              return { ...p, distance, matchingTagCount: matchingTags.length }
+              return { ...p, distance, matchingTagCount }
             })
-            // Sort by matching tag count (desc), then by distance (asc)
+            .filter(p => {
+              const pId = p._id || p.id
+              return pId !== currentId && p.matchingTagCount > 0
+            })
+            // Sort by matching tags first. Keep the current distance logic as tie-breaker.
             .sort((a, b) => {
               if (b.matchingTagCount !== a.matchingTagCount) {
                 return b.matchingTagCount - a.matchingTagCount
@@ -966,9 +1321,7 @@ export default {
     },
     getAvatarUrl(avatar) {
       if (!avatar) return 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="%23e5e7eb"/><circle cx="50" cy="40" r="18" fill="%239ca3af"/><ellipse cx="50" cy="85" rx="30" ry="25" fill="%239ca3af"/></svg>'
-      if (avatar.startsWith('http')) return avatar
-      if (avatar.startsWith('/')) return `http://localhost:3000${avatar}`
-      return `http://localhost:3000/${avatar}`
+      return assetUrl(avatar)
     },
     handleAvatarError(e) {
       e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="%23e5e7eb"/><circle cx="50" cy="40" r="18" fill="%239ca3af"/><ellipse cx="50" cy="85" rx="30" ry="25" fill="%239ca3af"/></svg>'
@@ -985,17 +1338,10 @@ export default {
       if (!hours || hours.length === 0) return 'Chưa cập nhật'
       return hours[0] || 'Chưa cập nhật'
     },
-    cleanAddress(address, placeName) {
-      if (!address) return ''
-      if (placeName && address.startsWith(placeName + ',')) {
-        return address.substring(placeName.length + 1).trim()
-      }
-      return address
-    },
+    cleanAddress,
     getImageUrl(imagePath) {
-      if (!imagePath) return '/default.jpg'
-      if (imagePath.startsWith('http')) return imagePath
-      return `http://localhost:3000${imagePath}`
+      if (!imagePath) return '/Playground.jpg'
+      return assetUrl(imagePath)
     },
     nextImage() {
       if (this.place.images && this.place.images.length > 0) {
@@ -1031,11 +1377,12 @@ export default {
   margin: 0 auto;
 }
 
-/* Two Column Layout */
+/* Main place layout */
 .place-layout {
   display: grid;
-  grid-template-columns: 1fr 400px;
-  gap: 32px;
+  grid-template-columns: 1fr;
+  gap: 18px;
+  align-items: start;
   margin-bottom: 32px;
 }
 
@@ -1045,11 +1392,13 @@ export default {
   border-radius: 16px;
   overflow: hidden;
   box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  align-self: start;
 }
 
 .main-image-wrapper {
   position: relative;
-  aspect-ratio: 4/3;
+  aspect-ratio: 16/9;
+  max-height: 640px;
   background: #f1f5f9;
 }
 
@@ -1073,11 +1422,26 @@ export default {
   box-shadow: 0 2px 8px rgba(0,0,0,0.15);
   transition: all 0.2s;
   color: #374151;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
 }
 
 .image-nav .nav-btn:hover {
   background: #fff;
   transform: translateY(-50%) scale(1.1);
+}
+
+.image-nav .nav-btn svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .image-nav .prev { left: 12px; }
@@ -1086,7 +1450,7 @@ export default {
 .thumbnails {
   display: flex;
   gap: 8px;
-  padding: 12px;
+  padding: 10px 12px 12px;
   background: #fff;
   overflow-x: auto;
 }
@@ -1245,24 +1609,6 @@ export default {
   font-weight: 400;
 }
 
-/* Zoom hint */
-.zoom-hint {
-  position: absolute;
-  bottom: 12px;
-  left: 12px;
-  background: rgba(0,0,0,0.6);
-  color: white;
-  padding: 6px 12px;
-  border-radius: 20px;
-  font-size: 0.8rem;
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-
-.main-image-wrapper:hover .zoom-hint {
-  opacity: 1;
-}
-
 .main-image-wrapper {
   cursor: pointer;
 }
@@ -1272,8 +1618,6 @@ export default {
   flex-direction: column;
   gap: 14px;
   padding: 20px 0;
-  border-top: 1px solid #e5e7eb;
-  border-bottom: 1px solid #e5e7eb;
   margin-bottom: 20px;
 }
 
@@ -1307,24 +1651,28 @@ export default {
 }
 
 .action-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .btn-favorite {
+  grid-column: 1 / -1;
   background: #f3f4f6;
   color: #374151;
   border: 1px solid #e5e7eb;
-  padding: 14px 24px;
+  min-height: 50px;
+  padding: 12px 14px;
   border-radius: 10px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
+  width: 100%;
+  font-size: 0.95rem;
 }
 
 .btn-favorite .favorite-icon {
@@ -1347,6 +1695,38 @@ export default {
   background: #fee2e2;
   color: #dc2626;
   border-color: #fca5a5;
+}
+
+.btn-ticket-action,
+.btn-map-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #6366f1;
+  color: #ffffff;
+  border: 1px solid #6366f1;
+  min-height: 50px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s;
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 0.95rem;
+  white-space: nowrap;
+}
+
+.btn-ticket-action {
+  cursor: pointer;
+}
+
+.btn-ticket-action:hover,
+.btn-map-action:hover {
+  background: #4f46e5;
+  border-color: #4f46e5;
+  transform: translateY(-1px);
 }
 
 .btn-primary {
@@ -1385,6 +1765,192 @@ export default {
 .login-hint a {
   color: #6366f1;
   font-weight: 600;
+}
+
+.map-section {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 32px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.map-frame {
+  width: 100%;
+  height: 360px;
+  border: 0;
+  border-radius: 12px;
+  background: #f1f5f9;
+  display: block;
+}
+
+.ticket-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.58);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+}
+
+.ticket-modal {
+  width: min(520px, 100%);
+  max-height: 92vh;
+  overflow-y: auto;
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.25);
+}
+
+.ticket-form,
+.ticket-payment {
+  padding: 24px;
+}
+
+.ticket-place {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px;
+  margin-bottom: 18px;
+  background: #f8fafc;
+  border: 1px solid var(--tw-border);
+  border-radius: 12px;
+}
+
+.ticket-place strong {
+  color: var(--tw-text);
+}
+
+.ticket-place span {
+  color: var(--tw-muted);
+  line-height: 1.5;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--tw-text);
+  font-weight: 700;
+}
+
+.form-group input,
+.form-group textarea {
+  width: 100%;
+  border: 1px solid var(--tw-border);
+  border-radius: 10px;
+  padding: 11px 12px;
+  font: inherit;
+  box-sizing: border-box;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.14);
+}
+
+.ticket-quantity-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.ticket-summary {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin: 18px 0;
+}
+
+.ticket-summary div {
+  padding: 14px;
+  background: #f8fafc;
+  border: 1px solid var(--tw-border);
+  border-radius: 12px;
+}
+
+.ticket-summary span {
+  display: block;
+  color: var(--tw-muted);
+  font-size: 0.86rem;
+  margin-bottom: 6px;
+}
+
+.ticket-summary strong {
+  color: var(--tw-text);
+  font-size: 1.05rem;
+}
+
+.payment-summary {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.payment-summary div {
+  min-width: 0;
+  padding: 14px;
+  background: #f8fafc;
+  border: 1px solid var(--tw-border);
+  border-radius: 12px;
+}
+
+.payment-summary span {
+  display: block;
+  color: var(--tw-muted);
+  font-size: 0.86rem;
+  margin-bottom: 6px;
+}
+
+.payment-summary strong {
+  display: block;
+  color: var(--tw-text);
+  overflow-wrap: anywhere;
+}
+
+.payment-qr-wrap {
+  display: flex;
+  justify-content: center;
+  margin: 16px 0;
+}
+
+.payment-qr-image {
+  width: 240px;
+  height: 240px;
+  background: #ffffff;
+  border: 1px solid var(--tw-border);
+  border-radius: 12px;
+  padding: 10px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+.ticket-error,
+.ticket-success {
+  padding: 11px 12px;
+  border-radius: 10px;
+  margin-bottom: 14px;
+  font-weight: 700;
+}
+
+.ticket-error {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.ticket-success {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #bbf7d0;
 }
 
 /* Description Section */
@@ -1469,8 +2035,6 @@ export default {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
-  padding-bottom: 16px;
-  border-bottom: 2px solid #f1f5f9;
 }
 
 .reviews-title-section {
@@ -1763,7 +2327,6 @@ export default {
   padding-left: 64px;
   margin-top: 16px;
   padding-top: 16px;
-  border-top: 1px solid #f1f5f9;
 }
 
 .review-action-btn {
@@ -1849,7 +2412,6 @@ export default {
   gap: 20px;
   margin-top: 32px;
   padding-top: 24px;
-  border-top: 1px solid #f1f5f9;
 }
 
 .pagination-btn {
@@ -1905,7 +2467,6 @@ export default {
 
 .review-item {
   padding: 20px 0;
-  border-bottom: 1px solid #f1f5f9;
 }
 
 .review-item:last-child {
@@ -2014,7 +2575,6 @@ export default {
   gap: 16px;
   margin-top: 24px;
   padding-top: 20px;
-  border-top: 1px solid #f1f5f9;
 }
 
 .reviews-pagination button {
@@ -2045,7 +2605,6 @@ export default {
   color: #6b7280;
   background: #fff;
   padding: 14px 16px;
-  border-top: 1px solid var(--tw-border);
 }
 
 /* Loading & Error */
@@ -2081,11 +2640,7 @@ export default {
 @media (max-width: 900px) {
   .place-layout {
     grid-template-columns: 1fr;
-    gap: 20px;
-  }
-  
-  .info-section {
-    order: -1;
+    gap: 18px;
   }
   
   .main-image-wrapper {
@@ -2106,6 +2661,26 @@ export default {
   .info-badge {
     width: 100%;
     justify-content: center;
+  }
+
+  .action-row {
+    width: 100%;
+    grid-template-columns: 1fr;
+  }
+
+  .btn-map-action,
+  .btn-ticket-action,
+  .btn-favorite {
+    width: 100%;
+  }
+
+  .map-frame {
+    height: 280px;
+  }
+
+  .ticket-quantity-grid,
+  .ticket-summary {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -2155,7 +2730,6 @@ export default {
 .review-form-section {
   margin-bottom: 32px;
   padding-bottom: 24px;
-  border-bottom: 1px solid #e5e7eb;
 }
 
 .login-prompt, .already-reviewed {
@@ -2200,7 +2774,7 @@ export default {
 
 .star-rating .star {
   font-size: 2rem;
-  color: #d1d5db;
+  color: #f59e0b;
   cursor: pointer;
   transition: color 0.2s;
 }
@@ -2210,7 +2784,7 @@ export default {
 }
 
 .star-rating .star:hover {
-  color: #fbbf24;
+  color: #f59e0b;
 }
 
 .comment-input {
@@ -2410,7 +2984,6 @@ export default {
 
 .review-item {
   padding: 20px 0;
-  border-bottom: 1px solid #e5e7eb;
 }
 
 .review-item:last-child {
@@ -2644,7 +3217,6 @@ export default {
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px;
-  border-bottom: 1px solid #e5e7eb;
   background: #f9fafb;
   border-radius: 16px 16px 0 0;
 }
@@ -2703,7 +3275,7 @@ export default {
 
 .star-rating-large .star {
   font-size: 2.8rem;
-  color: #d1d5db;
+  color: #f59e0b;
   cursor: pointer;
   transition: all 0.15s ease;
   user-select: none;
@@ -2715,7 +3287,7 @@ export default {
 
 .star-rating-large .star:hover {
   transform: scale(1.2);
-  color: #fbbf24;
+  color: #f59e0b;
 }
 
 .rating-label {
@@ -2777,9 +3349,12 @@ export default {
   justify-content: flex-end;
   gap: 12px;
   padding: 20px 24px;
-  border-top: 1px solid #e5e7eb;
   background: #f9fafb;
   border-radius: 0 0 16px 16px;
+}
+
+.modal-footer.centered {
+  justify-content: center;
 }
 
 .btn-cancel {
@@ -2888,11 +3463,22 @@ export default {
   justify-content: center;
   transition: all 0.2s;
   line-height: 1;
+  padding: 0;
 }
 
 .lightbox-close:hover {
   background: rgba(255,255,255,0.3);
   transform: scale(1.1);
+}
+
+.lightbox-close svg {
+  width: 30px;
+  height: 30px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .lightbox-nav {
@@ -2911,10 +3497,22 @@ export default {
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
+  padding: 0;
+  line-height: 1;
 }
 
 .lightbox-nav:hover {
   background: rgba(255,255,255,0.3);
+}
+
+.lightbox-nav svg {
+  width: 34px;
+  height: 34px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .lightbox-nav.prev { left: 20px; }
@@ -3054,5 +3652,216 @@ export default {
 .login-hint a {
   color: #6366f1;
   font-weight: 600;
+}
+
+/* Reviews: final normalized UI */
+.reviews-section {
+  background: var(--tw-surface);
+  border: 1px solid var(--tw-border);
+  border-radius: var(--tw-radius-md);
+  box-shadow: var(--tw-shadow-sm);
+  padding: 24px;
+}
+
+.reviews-header {
+  margin-bottom: 18px;
+}
+
+.reviews-title-section h2,
+.reviews-header h2 {
+  margin: 0;
+  color: var(--tw-text);
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.write-review-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: #f8fafc;
+  border: 1px solid var(--tw-border);
+  border-radius: var(--tw-radius-md);
+  padding: 16px;
+  margin-bottom: 22px;
+}
+
+.write-review-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.write-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  border: 1px solid var(--tw-border);
+  box-shadow: none;
+}
+
+.write-prompt {
+  min-width: 0;
+}
+
+.write-name {
+  color: var(--tw-text);
+  font-weight: 700;
+}
+
+.write-hint {
+  color: var(--tw-muted);
+}
+
+.write-review-btn {
+  background: var(--tw-primary);
+  color: #fff;
+  border: 1px solid var(--tw-primary);
+  border-radius: var(--tw-radius-md);
+  box-shadow: none;
+  padding: 11px 18px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.write-review-btn:hover {
+  background: var(--tw-primary-600);
+  transform: none;
+  box-shadow: none;
+}
+
+.login-to-review {
+  background: #f8fafc;
+  border: 1px solid var(--tw-border);
+  border-radius: var(--tw-radius-md);
+  margin-bottom: 22px;
+  padding: 14px 16px;
+}
+
+.login-to-review p {
+  color: var(--tw-muted);
+}
+
+.login-to-review a {
+  color: var(--tw-primary-600);
+}
+
+.no-reviews {
+  background: #f8fafc;
+  border: 1px solid var(--tw-border);
+  border-radius: var(--tw-radius-md);
+  padding: 44px 20px;
+}
+
+.no-reviews-icon {
+  display: none;
+}
+
+.no-reviews h3 {
+  color: var(--tw-text);
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.no-reviews p {
+  color: var(--tw-muted);
+}
+
+.reviews-container {
+  gap: 12px;
+}
+
+.review-card {
+  border: 1px solid var(--tw-border);
+  border-radius: var(--tw-radius-md);
+  box-shadow: none;
+  padding: 18px;
+}
+
+.review-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: none;
+}
+
+.reviewer-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  background: #f1f5f9;
+  border: 1px solid var(--tw-border);
+}
+
+.reviewer-name {
+  color: var(--tw-text);
+  font-weight: 700;
+}
+
+.review-date,
+.review-meta {
+  color: var(--tw-muted);
+}
+
+.stars-display {
+  color: #f59e0b;
+  letter-spacing: 1px;
+}
+
+.review-body,
+.review-footer {
+  padding-left: 56px;
+}
+
+.review-text {
+  color: #334155;
+  line-height: 1.65;
+}
+
+.review-image-wrapper {
+  width: 88px;
+  height: 88px;
+  border-radius: 8px;
+}
+
+.image-overlay {
+  background: rgba(15, 23, 42, 0.52);
+}
+
+.image-overlay span {
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.review-like-btn,
+.review-action-btn {
+  border-radius: var(--tw-radius-sm);
+  box-shadow: none;
+}
+
+.review-action-btn {
+  padding: 7px 12px;
+}
+
+@media (max-width: 640px) {
+  .reviews-section {
+    padding: 18px;
+  }
+
+  .write-review-box {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .write-review-btn {
+    width: 100%;
+  }
+
+  .review-body,
+  .review-footer {
+    padding-left: 0;
+  }
 }
 </style>

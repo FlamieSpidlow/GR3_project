@@ -1,9 +1,12 @@
-const API_URL = 'http://localhost:3000/api/reviews'
+import { apiUrl } from '../utils/apiBase'
+import { getAuthToken } from '../utils/authSession'
+
+const API_URL = apiUrl('/reviews')
 
 // Lấy danh sách đánh giá của một địa điểm
 export async function getReviews(placeId, page = 1, limit = 10) {
   try {
-    const token = localStorage.getItem('authToken') || localStorage.getItem('token')
+    const token = getAuthToken()
     const res = await fetch(`${API_URL}/place/${placeId}?page=${page}&limit=${limit}`, {
       headers: token ? { 'Authorization': `Bearer ${token}` } : undefined
     })
@@ -18,7 +21,7 @@ export async function getReviews(placeId, page = 1, limit = 10) {
 // Tạo đánh giá mới
 export async function createReview(placeId, rating, comment, images = []) {
   try {
-    const token = localStorage.getItem('authToken') || localStorage.getItem('token')
+    const token = getAuthToken()
     if (!token) {
       return { success: false, error: 'Vui lòng đăng nhập để đánh giá' }
     }
@@ -53,7 +56,7 @@ export async function createReview(placeId, rating, comment, images = []) {
 // Cập nhật đánh giá
 export async function updateReview(reviewId, rating, comment, images = [], keepImages = []) {
   try {
-    const token = localStorage.getItem('authToken') || localStorage.getItem('token')
+    const token = getAuthToken()
     if (!token) {
       return { success: false, error: 'Vui lòng đăng nhập' }
     }
@@ -94,7 +97,7 @@ export async function updateReview(reviewId, rating, comment, images = [], keepI
 // Lấy danh sách ảnh review mà user hiện tại đã gửi (pending/approved/rejected)
 export async function getMyReviewImageSubmissions(reviewId) {
   try {
-    const token = localStorage.getItem('authToken') || localStorage.getItem('token')
+    const token = getAuthToken()
     if (!token) {
       return { success: false, error: 'Vui lòng đăng nhập' }
     }
@@ -115,7 +118,7 @@ export async function getMyReviewImageSubmissions(reviewId) {
 // Xóa đánh giá
 export async function deleteReview(reviewId) {
   try {
-    const token = localStorage.getItem('authToken') || localStorage.getItem('token')
+    const token = getAuthToken()
     if (!token) {
       return { success: false, error: 'Vui lòng đăng nhập' }
     }
@@ -137,7 +140,7 @@ export async function deleteReview(reviewId) {
 // Like/Dislike một đánh giá
 export async function reactToReview(reviewId, action) {
   try {
-    const token = localStorage.getItem('authToken') || localStorage.getItem('token')
+    const token = getAuthToken()
     if (!token) {
       return { success: false, error: 'Vui lòng đăng nhập' }
     }

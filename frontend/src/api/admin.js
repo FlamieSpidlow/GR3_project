@@ -1,10 +1,12 @@
 import axios from 'axios'
+import { API_BASE_URL, apiUrl } from '../utils/apiBase'
+import { getAuthToken } from '../utils/authSession'
 
-const API_URL = 'http://localhost:3000/api/admin'
+const API_URL = apiUrl('/admin')
 
 // Helper để lấy token
 const getAuthHeader = () => {
-  const token = localStorage.getItem('authToken') || localStorage.getItem('token')
+  const token = getAuthToken()
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
@@ -84,6 +86,16 @@ export const getAllPlaces = async () => {
   }
 }
 
+export const getAllTags = async () => {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/tags`)
+    return response.data
+  } catch (error) {
+    console.error('Get all tags error:', error)
+    return { success: false, error: error.response?.data?.error || error.message }
+  }
+}
+
 export const getPlaceById = async (id) => {
   try {
     const response = await axios.get(`${API_URL}/places/${id}`, {
@@ -136,7 +148,8 @@ export const deletePlace = async (id) => {
 
 export const searchGoongPlaces = async (query) => {
   try {
-    const response = await axios.get(`${API_URL}/search-goong?query=${encodeURIComponent(query)}`, {
+    const trimmedQuery = String(query || '').trim()
+    const response = await axios.get(`${API_URL}/search-goong?query=${encodeURIComponent(trimmedQuery)}`, {
       headers: getAuthHeader()
     })
     return response.data
