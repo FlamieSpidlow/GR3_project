@@ -56,9 +56,6 @@
               </button>
               <div>
                 <p>Quét QR để thanh toán đơn vé.</p>
-                <button class="pay-btn" :disabled="payingOrderId === order._id" @click="payOrder(order)">
-                  {{ payingOrderId === order._id ? 'Đang xử lý...' : 'Tôi đã quét QR' }}
-                </button>
               </div>
             </div>
 
@@ -79,16 +76,13 @@
         <h2>Quét QR thanh toán</h2>
         <p>{{ previewOrder.place?.name || 'Đơn vé' }}</p>
         <img :src="paymentQrImages[previewOrder._id]" class="qr-large" alt="Mã QR thanh toán" />
-        <button class="pay-btn wide" :disabled="payingOrderId === previewOrder._id" @click="payOrder(previewOrder)">
-          {{ payingOrderId === previewOrder._id ? 'Đang xử lý...' : 'Tôi đã quét QR' }}
-        </button>
       </div>
     </div>
   </div>
 </template>
 
 <script>
-import { getMyTicketOrders, simulateTicketPayment, getTicketPaymentOrigin } from '../api/tickets'
+import { getMyTicketOrders, getTicketPaymentOrigin } from '../api/tickets'
 import QRCode from 'qrcode'
 import { formatVnd } from '../utils/priceFormatter'
 import { getAuthToken } from '../utils/authSession'
@@ -99,7 +93,6 @@ export default {
     return {
       orders: [],
       isLoading: false,
-      payingOrderId: '',
       paymentQrImages: {},
       paymentOrigin: '',
       previewOrder: null,
@@ -171,19 +164,6 @@ export default {
     },
     closeQrPreview() {
       this.previewOrder = null
-    },
-    async payOrder(order) {
-      if (!order?._id) return
-      this.payingOrderId = order._id
-      const res = await simulateTicketPayment(order._id)
-      this.payingOrderId = ''
-      if (res.success) {
-        this.closeQrPreview()
-        await this.loadOrders()
-        this.$notify({ type: 'success', title: 'Thanh toán thành công', message: 'Vé đang chờ quản trị viên xác nhận.', persist: false })
-      } else {
-        this.$notify({ type: 'error', title: 'Không thể thanh toán', message: res.error || 'Không thể thanh toán đơn vé.' })
-      }
     },
     totalQuantity(order) {
       return (Number(order.adultQuantity) || 0) + (Number(order.childQuantity) || 0)
