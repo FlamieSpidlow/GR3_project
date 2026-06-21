@@ -176,45 +176,6 @@ export const addPlaceFromGoong = async (placeData) => {
   }
 }
 
-// ============ DUYỆT ẢNH ĐỊA ĐIỂM (USER SUBMISSIONS) ============
-
-export const getPlaceImageSubmissions = async (status = 'pending', limit = 50) => {
-  try {
-    const response = await axios.get(`${API_URL}/place-image-submissions?status=${encodeURIComponent(status)}&limit=${encodeURIComponent(limit)}`, {
-      headers: getAuthHeader()
-    })
-    return response.data
-  } catch (error) {
-    console.error('Get place image submissions error:', error)
-    return { success: false, error: error.response?.data?.error || error.message }
-  }
-}
-
-export const approvePlaceImageSubmission = async (submissionId) => {
-  try {
-    const response = await axios.post(`${API_URL}/place-image-submissions/${encodeURIComponent(submissionId)}/approve`, {}, {
-      headers: getAuthHeader()
-    })
-    if (response.data && response.data.success) clearAllPlacesCache()
-    return response.data
-  } catch (error) {
-    console.error('Approve place image submission error:', error)
-    return { success: false, error: error.response?.data?.error || error.message }
-  }
-}
-
-export const rejectPlaceImageSubmission = async (submissionId, reason = '') => {
-  try {
-    const response = await axios.post(`${API_URL}/place-image-submissions/${encodeURIComponent(submissionId)}/reject`, { reason }, {
-      headers: getAuthHeader()
-    })
-    return response.data
-  } catch (error) {
-    console.error('Reject place image submission error:', error)
-    return { success: false, error: error.response?.data?.error || error.message }
-  }
-}
-
 // ============ DUYỆT ẢNH ĐÁNH GIÁ (REVIEW IMAGE SUBMISSIONS) ============
 
 export const getReviewImageSubmissions = async (status = 'pending', limit = 50) => {

@@ -4,7 +4,6 @@ const User = require('../models/User')
 const Place = require('../models/Place')
 const Review = require('../models/Review')
 const Tag = require('../models/Tag')
-const PlaceImageSubmission = require('../models/PlaceImageSubmission')
 const ReviewImageSubmission = require('../models/ReviewImageSubmission')
 const bcrypt = require('bcrypt')
 const multer = require('multer')
@@ -334,96 +333,6 @@ router.put('/places/:id', async (req, res) => {
   } catch (err) {
     console.error('Update place error:', err)
     res.status(400).json({ success: false, error: 'Lỗi cập nhật địa điểm', details: err.message })
-  }
-})
-
-// ============== DUYỆT ẢNH ĐỊA ĐIỂM (USER SUBMISSIONS) ==============
-
-// List image submissions (default: pending)
-router.get('/place-image-submissions', async (req, res) => {
-  try {
-    const { status = 'pending', limit = 50 } = req.query
-    const query = {}
-    if (status) query.status = status
-
-    const submissions = await PlaceImageSubmission.find(query)
-      .populate('place', 'name address')
-      .populate('submittedBy', 'username email parentName')
-      .sort({ createdAt: -1 })
-      .limit(Math.min(parseInt(limit) || 50, 200))
-
-    res.json({ success: true, data: submissions })
-  } catch (err) {
-    console.error('Get place image submissions error:', err)
-    res.status(500).json({ success: false, error: 'Lỗi lấy danh sách ảnh chờ duyệt', details: err.message })
-  }
-})
-
-// Approve a submission: mark approved + add to Place.images
-router.post('/place-image-submissions/:id/approve', async (req, res) => {
-  try {
-    const { id } = req.params
-    const submission = await PlaceImageSubmission.findById(id)
-    if (!submission) return res.status(404).json({ success: false, error: 'Không tìm thấy ảnh chờ duyệt' })
-    if (submission.status !== 'pending') {
-      return res.status(400).json({ success: false, error: 'Ảnh này đã được xử lý trước đó' })
-    }
-
-    const place = await Place.findById(submission.place)
-    if (!place) return res.status(404).json({ success: false, error: 'Không tìm thấy địa điểm' })
-
-    if (!Array.isArray(place.images)) place.images = []
-    if (!place.images.includes(submission.imageUrl)) {
-      place.images.push(submission.imageUrl)
-    }
-    await place.save()
-
-    submission.status = 'approved'
-    submission.rejectionReason = ''
-    submission.reviewedBy = req.user._id
-    submission.reviewedAt = new Date()
-    await submission.save()
-
-    res.json({ success: true, message: 'Đã phê duyệt ảnh', data: submission })
-  } catch (err) {
-    console.error('Approve submission error:', err)
-    res.status(500).json({ success: false, error: 'Lỗi phê duyệt ảnh', details: err.message })
-  }
-})
-
-// Reject a submission
-router.post('/place-image-submissions/:id/reject', async (req, res) => {
-  try {
-    const { id } = req.params
-    const { reason = '' } = req.body || {}
-
-    const submission = await PlaceImageSubmission.findById(id)
-    if (!submission) return res.status(404).json({ success: false, error: 'Không tìm thấy ảnh chờ duyệt' })
-    if (submission.status !== 'pending') {
-      return res.status(400).json({ success: false, error: 'Ảnh này đã được xử lý trước đó' })
-    }
-
-    submission.status = 'rejected'
-    submission.rejectionReason = String(reason || '')
-    submission.reviewedBy = req.user._id
-    submission.reviewedAt = new Date()
-    await submission.save()
-
-    // Best-effort delete file from disk to avoid accumulating rejected uploads
-    try {
-      const filename = path.basename(submission.imageUrl || '')
-      if (filename) {
-        const filePath = path.join(__dirname, '..', 'uploads', filename)
-        await fs.promises.unlink(filePath)
-      }
-    } catch (e) {
-      // Ignore unlink errors (file may not exist / already removed)
-    }
-
-    res.json({ success: true, message: 'Đã từ chối ảnh', data: submission })
-  } catch (err) {
-    console.error('Reject submission error:', err)
-    res.status(500).json({ success: false, error: 'Lỗi từ chối ảnh', details: err.message })
   }
 })
 

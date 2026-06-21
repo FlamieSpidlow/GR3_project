@@ -1,6 +1,4 @@
 import { apiUrl } from '../utils/apiBase'
-import { getAuthToken } from '../utils/authSession'
-
 const API_URL = apiUrl('/places')
 const CACHE_TTL_MS = 5 * 60 * 1000
 let allPlacesCache = null
@@ -9,11 +7,6 @@ let allPlacesPromise = null
 export function clearAllPlacesCache() {
   allPlacesCache = null
   allPlacesPromise = null
-}
-
-const getAuthHeader = () => {
-  const token = getAuthToken()
-  return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
 export async function searchPlaces(query, limit = 10, lat = null, lng = null, age = null) {
@@ -114,40 +107,3 @@ export async function getAllPlaces({ force = false } = {}) {
   }
 }
 
-export async function submitPlaceImages(placeId, files) {
-  try {
-    const form = new FormData()
-    ;(files || []).forEach(f => form.append('images', f))
-
-    const res = await fetch(`${API_URL}/${encodeURIComponent(placeId)}/images/submissions`, {
-      method: 'POST',
-      headers: {
-        ...getAuthHeader()
-      },
-      body: form
-    })
-
-    const data = await res.json()
-    return data
-  } catch (err) {
-    console.error('Submit place images error:', err)
-    return { success: false, error: 'Lỗi gửi ảnh địa điểm', details: err.message }
-  }
-}
-
-export async function getMyPlaceImageSubmissions(placeId) {
-  try {
-    const res = await fetch(`${API_URL}/${encodeURIComponent(placeId)}/images/submissions/me`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        ...getAuthHeader()
-      }
-    })
-    const data = await res.json()
-    return data
-  } catch (err) {
-    console.error('Get my place image submissions error:', err)
-    return { success: false, error: 'Lỗi lấy danh sách ảnh đã gửi', details: err.message }
-  }
-}

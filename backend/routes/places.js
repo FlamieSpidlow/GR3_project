@@ -2,32 +2,6 @@ const express = require('express')
 const router = express.Router()
 const Place = require('../models/Place')
 const Tag = require('../models/Tag')
-const PlaceImageSubmission = require('../models/PlaceImageSubmission')
-const { authenticate } = require('../middleware/auth')
-const multer = require('multer')
-const path = require('path')
-
-// Upload config for user-submitted place images (pending approval)
-const submissionStorage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, 'uploads/'),
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
-    const placeId = (req.params && req.params.id) ? String(req.params.id) : 'unknown'
-    cb(null, `submission-${placeId}-${uniqueSuffix}${path.extname(file.originalname)}`)
-  }
-})
-
-const submissionUpload = multer({
-  storage: submissionStorage,
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|gif|webp/
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase())
-    const mimetype = allowedTypes.test(file.mimetype)
-    if (extname && mimetype) return cb(null, true)
-    cb(new Error('Chỉ chấp nhận file ảnh (jpeg, jpg, png, gif, webp)'))
-  }
-})
 
 // Lấy tất cả địa điểm từ database
 router.get('/all', async (req, res) => {
@@ -59,55 +33,6 @@ router.get('/all', async (req, res) => {
   } catch (err) {
     console.error('Get all places error:', err)
     res.status(500).json({ success: false, error: 'Lỗi lấy danh sách địa điểm', details: err.message })
-  }
-})
-
-// ============== USER SUBMITTED PLACE IMAGES (PENDING APPROVAL) ==============
-
-// User submits images for a place (admin must approve)
-router.post('/:id/images/submissions', authenticate, submissionUpload.array('images', 5), async (req, res) => {
-  try {
-    const { id } = req.params
-    if (!id) return res.status(400).json({ success: false, error: 'Place id is required' })
-    if (!req.files || req.files.length === 0) {
-      return res.status(400).json({ success: false, error: 'Không có file được upload' })
-    }
-
-    const place = await Place.findById(id)
-    if (!place) return res.status(404).json({ success: false, error: 'Không tìm thấy địa điểm' })
-
-    const created = await PlaceImageSubmission.insertMany(
-      req.files.map(file => ({
-        place: place._id,
-        submittedBy: req.user._id,
-        imageUrl: `/uploads/${file.filename}`,
-        originalName: file.originalname || ''
-      }))
-    )
-
-    res.json({ success: true, message: 'Đã gửi ảnh, chờ quản trị viên phê duyệt', data: created })
-  } catch (err) {
-    console.error('Submit place images error:', err)
-    res.status(500).json({ success: false, error: 'Lỗi gửi ảnh địa điểm', details: err.message })
-  }
-})
-
-// Get my submissions for a place (optional UX)
-router.get('/:id/images/submissions/me', authenticate, async (req, res) => {
-  try {
-    const { id } = req.params
-    const place = await Place.findById(id).select('_id')
-    if (!place) return res.status(404).json({ success: false, error: 'Không tìm thấy địa điểm' })
-
-    const submissions = await PlaceImageSubmission.find({
-      place: place._id,
-      submittedBy: req.user._id
-    }).sort({ createdAt: -1 })
-
-    res.json({ success: true, data: submissions })
-  } catch (err) {
-    console.error('Get my submissions error:', err)
-    res.status(500).json({ success: false, error: 'Lỗi lấy danh sách ảnh đã gửi', details: err.message })
   }
 })
 
