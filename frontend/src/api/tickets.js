@@ -86,6 +86,17 @@ export async function getMyTicketOrders() {
   }
 }
 
+export async function cancelTicketOrder(orderId) {
+  try {
+    return await requestJson(`${API_URL}/${encodeURIComponent(orderId)}/cancel`, {
+      method: 'PATCH'
+    })
+  } catch (err) {
+    console.error('Cancel ticket order error:', err)
+    return { success: false, error: 'Lỗi hủy vé', details: err.message }
+  }
+}
+
 export async function getAdminTicketOrders(status = '') {
   try {
     const query = status ? `?status=${encodeURIComponent(status)}` : ''

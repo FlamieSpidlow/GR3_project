@@ -22,22 +22,22 @@ import { getAuthUser } from '../utils/authSession'
 const routes = [
   { path: '/', component: HomePage, meta: { userOnly: true } },
   { path: '/login', component: LoginPage },
-  { path: '/register', component: RegisterPage }
-  ,{ path: '/forgot', component: ForgotPassword }
-  ,{ path: '/reset', component: ResetPassword }
-  ,{ path: '/profile/edit', component: EditProfile }
-  ,{ path: '/profile/change-password', component: ChangePassword }
-  ,{ path: '/search', component: SearchResults }
-  ,{ path: '/place/:id', component: PlaceDetails }
-  ,{ path: '/suggest', component: SuggestPage, meta: { userOnly: true } }
-  ,{ path: '/favour', component: FavourPage, meta: { userOnly: true } }
-  ,{ path: '/tickets', component: MyTickets, meta: { userOnly: true } }
-  ,{ path: '/ticket-payment/:orderId', component: TicketPayment }
-  ,{ path: '/about', component: AboutPage }
-  ,{ path: '/admin', component: AdminDashboard, meta: { adminOnly: true } }
-  ,{ path: '/admin/users', component: AdminUsers, meta: { adminOnly: true } }
-  ,{ path: '/admin/places', component: AdminPlaces, meta: { adminOnly: true } }
-  ,{ path: '/admin/tickets', component: AdminTickets, meta: { adminOnly: true } }
+  { path: '/register', component: RegisterPage },
+  { path: '/forgot', component: ForgotPassword },
+  { path: '/reset', component: ResetPassword },
+  { path: '/profile/edit', component: EditProfile },
+  { path: '/profile/change-password', component: ChangePassword },
+  { path: '/search', component: SearchResults },
+  { path: '/place/:id', component: PlaceDetails },
+  { path: '/suggest', component: SuggestPage, meta: { userOnly: true } },
+  { path: '/favour', component: FavourPage, meta: { userOnly: true } },
+  { path: '/tickets', component: MyTickets, meta: { userOnly: true } },
+  { path: '/ticket-payment/:orderId', component: TicketPayment },
+  { path: '/about', component: AboutPage },
+  { path: '/admin', component: AdminDashboard, meta: { adminOnly: true } },
+  { path: '/admin/users', component: AdminUsers, meta: { adminOnly: true } },
+  { path: '/admin/places', component: AdminPlaces, meta: { adminOnly: true } },
+  { path: '/admin/tickets', component: AdminTickets, meta: { adminOnly: true } }
 ]
 
 const router = createRouter({

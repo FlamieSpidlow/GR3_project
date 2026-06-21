@@ -12,12 +12,12 @@ const ticketsRoutes = require('./routes/tickets')
 const notificationsRoutes = require('./routes/notifications')
 const cors = require('cors')
 
-// Debug: Check if Goong API key is loaded
+// Check if Goong API key is loaded
 const GOONG_API_KEY = process.env.GOONG_API_KEY
 if (GOONG_API_KEY) {
-  console.log('âœ… Goong API Key loaded: ' + GOONG_API_KEY.substring(0, 10) + '...')
+  console.log('Goong API Key loaded: ' + GOONG_API_KEY.substring(0, 10) + '...')
 } else {
-  console.warn('âŒ Goong API Key NOT configured - set GOONG_API_KEY in .env')
+  console.warn('Goong API Key NOT configured - set GOONG_API_KEY in .env')
 }
 
 const app = express()
@@ -50,13 +50,13 @@ if (!MONGO_URI) {
 }
 
 mongoose.connect(MONGO_URI)
-.then(() => console.log('âœ… Káº¿t ná»‘i MongoDB thÃ nh cÃ´ng'))
-.catch(err => console.error('âŒ Lá»—i káº¿t ná»‘i MongoDB:', err))
+.then(() => console.log('MongoDB connected successfully'))
+.catch(err => console.error('MongoDB connection error:', err))
 
-// TÄƒng giá»›i háº¡n header size Ä‘á»ƒ trÃ¡nh lá»—i 431
+// Increase header size limit to avoid 431 errors with large auth/session headers.
 const http = require('http')
 const server = http.createServer({
-  maxHeaderSize: 65536 // 64KB thay vÃ¬ máº·c Ä‘á»‹nh 16KB
+  maxHeaderSize: 65536
 }, app)
 
 const PORT = process.env.PORT || 3000

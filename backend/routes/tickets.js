@@ -254,6 +254,39 @@ router.get('/:id/payment-status', authenticate, async (req, res) => {
   }
 })
 
+router.patch('/:id/cancel', authenticate, async (req, res) => {
+  try {
+    const order = await TicketOrder.findOne({ _id: req.params.id, user: req.user._id })
+    if (!order) return res.status(404).json({ success: false, error: 'Không tìm thấy đơn vé' })
+
+    if (order.status === 'cancelled') {
+      return res.status(400).json({ success: false, error: 'Đơn vé đã được hủy trước đó' })
+    }
+    if (order.status === 'confirmed') {
+      return res.status(400).json({ success: false, error: 'Vé đã xác nhận, vui lòng liên hệ quản trị viên để được hỗ trợ' })
+    }
+    if (order.status === 'used') {
+      return res.status(400).json({ success: false, error: 'Vé đã sử dụng, không thể hủy' })
+    }
+
+    order.status = 'cancelled'
+    order.cancelledAt = new Date()
+    await order.save()
+
+    const populated = await populateOrder(TicketOrder.findById(order._id))
+    await createUserNotification(order.user, {
+      type: 'warning',
+      title: 'Bạn đã hủy vé',
+      message: `Đơn vé tại ${populated.place?.name || 'địa điểm'} đã được hủy.`
+    })
+
+    res.json({ success: true, message: 'Đã hủy vé', data: populated })
+  } catch (err) {
+    console.error('Cancel ticket order error:', err)
+    res.status(500).json({ success: false, error: 'Lỗi hủy vé', details: err.message })
+  }
+})
+
 router.get('/my', authenticate, async (req, res) => {
   try {
     const orders = await populateOrder(

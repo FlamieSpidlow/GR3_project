@@ -2,7 +2,6 @@ const path = require('path')
 const mongoose = require('mongoose')
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') })
 
-const User = require('../models/User')
 const Tag = require('../models/Tag')
 
 const normalizeText = (input) => String(input || '')
@@ -36,11 +35,6 @@ async function main() {
 
   await mongoose.connect(mongoUri)
 
-  const userResult = await User.updateMany(
-    { numberOfKids: { $exists: true } },
-    { $unset: { numberOfKids: '' } }
-  )
-
   for (const [index, activity] of activities.entries()) {
     const nameNorm = normalizeText(activity.name)
     await Tag.updateOne(
@@ -61,7 +55,6 @@ async function main() {
     )
   }
 
-  console.log(`Removed numberOfKids from ${userResult.modifiedCount || 0} user(s).`)
   console.log(`Upserted ${activities.length} featured activity tag(s).`)
 
   await mongoose.disconnect()

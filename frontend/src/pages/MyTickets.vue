@@ -65,6 +65,17 @@
             </div>
 
             <p v-if="order.note" class="ticket-note">Ghi chú: {{ order.note }}</p>
+
+            <div v-if="canCancel(order)" class="ticket-actions">
+              <button
+                type="button"
+                class="cancel-ticket-btn"
+                :disabled="cancellingOrderId === order._id"
+                @click="cancelOrder(order)"
+              >
+                {{ cancellingOrderId === order._id ? 'Đang hủy...' : 'Hủy vé' }}
+              </button>
+            </div>
           </article>
         </div>
       </section>
@@ -82,10 +93,11 @@
 </template>
 
 <script>
-import { getMyTicketOrders, getTicketPaymentOrigin } from '../api/tickets'
+import { cancelTicketOrder, getMyTicketOrders, getTicketPaymentOrigin } from '../api/tickets'
 import QRCode from 'qrcode'
 import { formatVnd } from '../utils/priceFormatter'
 import { getAuthToken } from '../utils/authSession'
+import { loadNotifications, notify, requestConfirmation } from '../utils/notifications'
 
 export default {
   name: 'MyTickets',
@@ -96,7 +108,8 @@ export default {
       paymentQrImages: {},
       paymentOrigin: '',
       previewOrder: null,
-      errorMessage: ''
+      errorMessage: '',
+      cancellingOrderId: ''
     }
   },
   mounted() {
@@ -164,6 +177,33 @@ export default {
     },
     closeQrPreview() {
       this.previewOrder = null
+    },
+    canCancel(order) {
+      return ['unpaid', 'pending'].includes(order?.status)
+    },
+    async cancelOrder(order) {
+      if (!order || !this.canCancel(order)) return
+      const ok = await requestConfirmation({
+        title: 'Hủy vé',
+        message: `Bạn có chắc muốn hủy vé tại ${order.place?.name || 'địa điểm này'} không?`,
+        confirmText: 'Hủy vé',
+        cancelText: 'Giữ vé',
+        tone: 'danger'
+      })
+      if (!ok) return
+
+      this.cancellingOrderId = order._id
+      const res = await cancelTicketOrder(order._id)
+      if (res.success) {
+        const updated = res.data
+        this.orders = this.orders.map(item => item._id === updated._id ? updated : item)
+        await this.createPaymentQrs()
+        await loadNotifications()
+        notify({ title: 'Đã hủy vé', message: res.message || 'Đơn vé đã được hủy.', type: 'success', persist: false })
+      } else {
+        notify({ title: 'Không thể hủy vé', message: res.error || 'Vui lòng thử lại sau.', type: 'error', persist: false })
+      }
+      this.cancellingOrderId = ''
     },
     totalQuantity(order) {
       return (Number(order.adultQuantity) || 0) + (Number(order.childQuantity) || 0)
@@ -445,6 +485,31 @@ export default {
 
 .ticket-note {
   margin-top: 14px;
+}
+
+.ticket-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.cancel-ticket-btn {
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 9px 13px;
+  background: #fef2f2;
+  color: #991b1b;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.cancel-ticket-btn:hover:not(:disabled) {
+  background: #fee2e2;
+}
+
+.cancel-ticket-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
 }
 
 @media (max-width: 780px) {
