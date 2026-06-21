@@ -137,6 +137,13 @@ router.post('/', authenticate, async (req, res) => {
     }
 
     const unitPrice = parsePriceValue(place.price)
+    if (unitPrice <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Địa điểm miễn phí không cần đặt vé'
+      })
+    }
+
     let paymentToken = generatePaymentToken()
     while (await TicketOrder.exists({ paymentToken })) {
       paymentToken = generatePaymentToken()

@@ -121,7 +121,10 @@
             </div>
 
             <div class="action-row">
-              <button class="btn-ticket-action" @click="openTicketModal">
+              <div v-if="isFreePlace" class="free-entry-note">
+                Miễn phí, không cần đặt vé
+              </div>
+              <button v-else class="btn-ticket-action" @click="openTicketModal">
                 Đặt vé
               </button>
               <a
@@ -702,6 +705,9 @@ export default {
     ticketUnitPrice() {
       return parsePriceValue(this.place && this.place.price)
     },
+    isFreePlace() {
+      return this.ticketUnitPrice <= 0
+    },
     ticketTotalPrice() {
       const adult = Number.parseInt(this.ticketForm.adultQuantity, 10) || 0
       const child = Number.parseInt(this.ticketForm.childQuantity, 10) || 0
@@ -752,6 +758,10 @@ export default {
       this.ticketPaymentCompleted = false
     },
     openTicketModal() {
+      if (this.isFreePlace) {
+        this.$notify({ type: 'info', title: 'Địa điểm miễn phí', message: 'Địa điểm này miễn phí nên không cần đặt vé.' })
+        return
+      }
       if (!this.isLoggedIn) {
         this.$notify({ type: 'warning', title: 'Cần đăng nhập', message: 'Vui lòng đăng nhập để đặt vé.' })
         this.$router.push('/login')
@@ -775,6 +785,10 @@ export default {
     },
     async submitTicketOrder() {
       if (!this.place) return
+      if (this.isFreePlace) {
+        this.ticketError = 'Địa điểm miễn phí không cần đặt vé'
+        return
+      }
       const adult = Number.parseInt(this.ticketForm.adultQuantity, 10) || 0
       const child = Number.parseInt(this.ticketForm.childQuantity, 10) || 0
       if (adult + child <= 0) {
@@ -1785,6 +1799,23 @@ export default {
 
 .btn-ticket-action {
   cursor: pointer;
+}
+
+.free-entry-note {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 50px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  width: 100%;
+  box-sizing: border-box;
+  background: #dcfce7;
+  border: 1px solid #86efac;
+  color: #166534;
+  font-weight: 700;
+  font-size: 0.95rem;
+  text-align: center;
 }
 
 .btn-ticket-action:hover,

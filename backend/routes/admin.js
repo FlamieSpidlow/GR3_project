@@ -4,7 +4,9 @@ const User = require('../models/User')
 const Place = require('../models/Place')
 const Review = require('../models/Review')
 const Tag = require('../models/Tag')
+const Activity = require('../models/Activity')
 const ReviewImageSubmission = require('../models/ReviewImageSubmission')
+const DEFAULT_ACTIVITIES = require('../data/defaultActivities')
 const bcrypt = require('bcrypt')
 const multer = require('multer')
 const path = require('path')
@@ -37,6 +39,8 @@ const normalizeTag = (input) => {
     .trim()
 }
 
+const normalizeActivity = normalizeTag
+
 const upsertTags = async (tags) => {
   const list = Array.isArray(tags) ? tags : []
   if (list.length === 0) return
@@ -55,6 +59,20 @@ const upsertTags = async (tags) => {
     })
   }
   if (ops.length > 0) await Tag.bulkWrite(ops, { ordered: false })
+}
+
+const seedDefaultActivitiesIfEmpty = async () => {
+  const count = await Activity.countDocuments()
+  if (count > 0) return
+
+  await Activity.insertMany(DEFAULT_ACTIVITIES.map(activity => ({
+    name: activity.name,
+    nameNorm: normalizeActivity(activity.name),
+    image: activity.image,
+    description: '',
+    active: true,
+    sortOrder: activity.sortOrder
+  })))
 }
 
 // Cấu hình multer để upload ảnh
@@ -208,6 +226,100 @@ router.delete('/users/:id', async (req, res) => {
 })
 
 // ============== QUẢN LÝ ĐỊA ĐIỂM ==============
+
+// ============== QUẢN LÝ HOẠT ĐỘNG THÚ VỊ ==============
+
+router.get('/activities', async (req, res) => {
+  try {
+    await seedDefaultActivitiesIfEmpty()
+    const activities = await Activity.find({}).sort({ sortOrder: 1, name: 1 })
+    res.json({ success: true, data: activities })
+  } catch (err) {
+    console.error('Get activities error:', err)
+    res.status(500).json({ success: false, error: 'Lỗi lấy danh sách hoạt động', details: err.message })
+  }
+})
+
+router.post('/activities', async (req, res) => {
+  try {
+    const { name, description = '', image = '', active = true, sortOrder = 0 } = req.body || {}
+    const trimmedName = String(name || '').trim()
+    const nameNorm = normalizeActivity(trimmedName)
+    if (!trimmedName || !nameNorm) {
+      return res.status(400).json({ success: false, error: 'Tên hoạt động là bắt buộc' })
+    }
+
+    const existing = await Activity.findOne({ nameNorm })
+    if (existing) {
+      return res.status(400).json({ success: false, error: 'Hoạt động này đã tồn tại' })
+    }
+
+    const activity = new Activity({
+      name: trimmedName,
+      nameNorm,
+      description: String(description || '').trim(),
+      image: String(image || '').trim(),
+      active: Boolean(active),
+      sortOrder: Number.isFinite(Number(sortOrder)) ? Number(sortOrder) : 0
+    })
+
+    await activity.save()
+    res.status(201).json({ success: true, message: 'Thêm hoạt động thành công', data: activity })
+  } catch (err) {
+    console.error('Create activity error:', err)
+    res.status(400).json({ success: false, error: 'Lỗi thêm hoạt động', details: err.message })
+  }
+})
+
+router.put('/activities/:id', async (req, res) => {
+  try {
+    const activity = await Activity.findById(req.params.id)
+    if (!activity) {
+      return res.status(404).json({ success: false, error: 'Không tìm thấy hoạt động' })
+    }
+
+    const { name, description, image, active, sortOrder } = req.body || {}
+    if (name !== undefined) {
+      const trimmedName = String(name || '').trim()
+      const nameNorm = normalizeActivity(trimmedName)
+      if (!trimmedName || !nameNorm) {
+        return res.status(400).json({ success: false, error: 'Tên hoạt động là bắt buộc' })
+      }
+      const duplicate = await Activity.findOne({ nameNorm, _id: { $ne: activity._id } })
+      if (duplicate) {
+        return res.status(400).json({ success: false, error: 'Hoạt động này đã tồn tại' })
+      }
+      activity.name = trimmedName
+      activity.nameNorm = nameNorm
+    }
+    if (description !== undefined) activity.description = String(description || '').trim()
+    if (image !== undefined) activity.image = String(image || '').trim()
+    if (active !== undefined) activity.active = Boolean(active)
+    if (sortOrder !== undefined) {
+      const order = Number(sortOrder)
+      activity.sortOrder = Number.isFinite(order) ? order : 0
+    }
+
+    await activity.save()
+    res.json({ success: true, message: 'Cập nhật hoạt động thành công', data: activity })
+  } catch (err) {
+    console.error('Update activity error:', err)
+    res.status(400).json({ success: false, error: 'Lỗi cập nhật hoạt động', details: err.message })
+  }
+})
+
+router.delete('/activities/:id', async (req, res) => {
+  try {
+    const activity = await Activity.findByIdAndDelete(req.params.id)
+    if (!activity) {
+      return res.status(404).json({ success: false, error: 'Không tìm thấy hoạt động' })
+    }
+    res.json({ success: true, message: 'Xóa hoạt động thành công' })
+  } catch (err) {
+    console.error('Delete activity error:', err)
+    res.status(500).json({ success: false, error: 'Lỗi xóa hoạt động', details: err.message })
+  }
+})
 
 // Upload ảnh địa điểm (hỗ trợ nhiều ảnh)
 router.post('/places/upload-image', upload.array('images', 10), async (req, res) => {
@@ -411,13 +523,6 @@ router.post('/review-image-submissions/:id/reject', async (req, res) => {
     submission.reviewedBy = req.user._id
     submission.reviewedAt = new Date()
     await submission.save()
-
-    // Remove from review.images so it disappears from UI
-    try {
-      await Review.findByIdAndUpdate(submission.review, { $pull: { images: submission.imageUrl } })
-    } catch (e) {
-      // ignore
-    }
 
     // Best-effort delete file from disk
     try {

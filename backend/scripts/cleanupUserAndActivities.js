@@ -2,7 +2,9 @@ const path = require('path')
 const mongoose = require('mongoose')
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') })
 
+const Activity = require('../models/Activity')
 const Tag = require('../models/Tag')
+const activities = require('../data/defaultActivities')
 
 const normalizeText = (input) => String(input || '')
   .toLowerCase()
@@ -14,21 +16,6 @@ const normalizeText = (input) => String(input || '')
   .replace(/\s+/g, ' ')
   .trim()
 
-const activities = [
-  { name: 'Bơi lội', image: '/activities/swimming.jpg' },
-  { name: 'Leo núi nhân tạo', image: '/activities/climbing.jpg' },
-  { name: 'Chăm sóc thú', image: '/activities/animal-care.jpg' },
-  { name: 'Cảm giác mạnh', image: '/activities/thrill.jpg' },
-  { name: 'Lịch sử', image: '/activities/history.jpg' },
-  { name: 'Picnic', image: '/activities/picnic.jpg' },
-  { name: 'Nông trại', image: '/activities/farm.jpg' },
-  { name: 'Bảo tàng', image: '/activities/museum-explore.jpg' },
-  { name: 'Làng nghề & thủ công', image: '/activities/craft-village.jpg' },
-  { name: 'Đi bộ & check-in', image: '/activities/walking-checkin.jpg' },
-  { name: 'Biểu diễn nghệ thuật', image: '/activities/performance.jpg' },
-  { name: 'Thiên nhiên', image: '/activities/nature-explore.jpg' }
-]
-
 async function main() {
   const mongoUri = process.env.MONGO_URI
   if (!mongoUri) throw new Error('MONGO_URI is required')
@@ -37,15 +24,15 @@ async function main() {
 
   for (const [index, activity] of activities.entries()) {
     const nameNorm = normalizeText(activity.name)
-    await Tag.updateOne(
+    await Activity.updateOne(
       { nameNorm },
       {
         $set: {
           name: activity.name,
           nameNorm,
           image: activity.image,
-          featured: true,
-          sortOrder: index + 1
+          active: true,
+          sortOrder: activity.sortOrder || index + 1
         },
         $setOnInsert: {
           description: ''
@@ -55,7 +42,12 @@ async function main() {
     )
   }
 
-  console.log(`Upserted ${activities.length} featured activity tag(s).`)
+  await Tag.updateMany(
+    {},
+    { $unset: { description: '', image: '', featured: '', sortOrder: '' } }
+  )
+
+  console.log(`Upserted ${activities.length} featured activity record(s).`)
 
   await mongoose.disconnect()
 }

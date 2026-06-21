@@ -1,5 +1,7 @@
 const express = require('express')
 const Tag = require('../models/Tag')
+const Activity = require('../models/Activity')
+const DEFAULT_ACTIVITY_SEEDS = require('../data/defaultActivities')
 
 const router = express.Router()
 
@@ -18,6 +20,30 @@ const DEFAULT_ACTIVITIES = [
   { id: 'nature-explore', label: 'Thiên nhiên', description: '', image: '/activities/nature-explore.jpg', sortOrder: 12 }
 ]
 
+const normalizeText = (input) => String(input || '')
+  .toLowerCase()
+  .trim()
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .replace(/đ/g, 'd')
+  .replace(/[^a-z0-9\s-]/g, ' ')
+  .replace(/\s+/g, ' ')
+  .trim()
+
+async function seedDefaultActivitiesIfEmpty() {
+  const count = await Activity.countDocuments()
+  if (count > 0) return
+
+  await Activity.insertMany(DEFAULT_ACTIVITY_SEEDS.map(activity => ({
+    name: activity.name,
+    nameNorm: normalizeText(activity.name),
+    image: activity.image,
+    description: '',
+    active: true,
+    sortOrder: activity.sortOrder
+  })))
+}
+
 router.get('/', async (req, res) => {
   try {
     const tags = await Tag.find({}).sort({ name: 1 })
@@ -30,22 +56,24 @@ router.get('/', async (req, res) => {
 
 router.get('/activities', async (req, res) => {
   try {
-    const tags = await Tag.find({ featured: true })
+    await seedDefaultActivitiesIfEmpty()
+
+    const activities = await Activity.find({ active: true })
       .sort({ sortOrder: 1, name: 1 })
       .select('name description image sortOrder')
       .lean()
 
-    const data = tags.map(tag => ({
-      id: tag._id.toString(),
-      label: tag.name,
-      description: tag.description || '',
-      image: tag.image || '/Playground.jpg',
-      sortOrder: tag.sortOrder || 0
+    const data = activities.map(activity => ({
+      id: activity._id.toString(),
+      label: activity.name,
+      description: activity.description || '',
+      image: activity.image || '/Playground.jpg',
+      sortOrder: activity.sortOrder || 0
     }))
 
     res.json({ success: true, data: data.length > 0 ? data : DEFAULT_ACTIVITIES })
   } catch (err) {
-    console.error('Get activity tags error:', err)
+    console.error('Get activities error:', err)
     res.status(500).json({ success: false, error: 'Loi lay danh sach hoat dong', details: err.message })
   }
 })

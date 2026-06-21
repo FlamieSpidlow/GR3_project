@@ -5,6 +5,11 @@ const CACHE_TTL_MS = 10 * 60 * 1000
 let featuredActivitiesCache = null
 let featuredActivitiesPromise = null
 
+export function clearFeaturedActivitiesCache() {
+  featuredActivitiesCache = null
+  featuredActivitiesPromise = null
+}
+
 export const DEFAULT_ACTIVITIES = [
   { id: 'swimming', label: 'Bơi lội', description: '', image: '/activities/swimming.jpg', sortOrder: 1 },
   { id: 'climbing', label: 'Leo núi nhân tạo', description: '', image: '/activities/climbing.jpg', sortOrder: 2 },

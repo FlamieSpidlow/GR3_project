@@ -128,16 +128,13 @@ router.post('/', authenticate, upload.array('images', 3), async (req, res) => {
       return res.status(404).json({ success: false, error: 'Không tìm thấy địa điểm' })
     }
 
-    // Ảnh upload: hiển thị ngay trong review, nhưng vẫn tạo submission để admin có thể từ chối
-    const images = req.files ? req.files.map(f => `/uploads/reviews/${f.filename}`) : []
-
     // Tạo review mới
     const review = new Review({
       place: placeId,
       user: userId,
       rating: parseInt(rating),
       comment,
-      images,
+      images: [],
       likedBy: [],
       dislikedBy: []
     })
@@ -222,21 +219,18 @@ router.put('/:reviewId', authenticate, upload.array('images', 3), async (req, re
         .slice(0, 3)
     }
 
-    // Ảnh mới: hiển thị ngay trong review.images (tối đa 3) và tạo submission chờ duyệt
+    // Ảnh mới chỉ tạo submission chờ duyệt; Review.images chỉ chứa ảnh đã duyệt.
     if (req.files && req.files.length > 0) {
-      const newUrls = req.files.map(f => `/uploads/reviews/${f.filename}`)
-      const currentUrls = Array.isArray(review.images) ? review.images : []
-      const remaining = Math.max(0, 3 - currentUrls.length)
-      review.images = currentUrls.concat(newUrls.slice(0, remaining)).slice(0, 3)
-
+      const currentApproved = Array.isArray(review.images) ? review.images.length : 0
+      const remaining = Math.max(0, 3 - currentApproved)
       const submissions = req.files.map(f => ({
         review: review._id,
         place: review.place,
         submittedBy: review.user,
         imageUrl: `/uploads/reviews/${f.filename}`,
         originalName: f.originalname || ''
-      }))
-      await ReviewImageSubmission.insertMany(submissions)
+      })).slice(0, remaining)
+      if (submissions.length > 0) await ReviewImageSubmission.insertMany(submissions)
     }
     await review.save()
 

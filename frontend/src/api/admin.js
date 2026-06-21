@@ -2,6 +2,7 @@ import axios from 'axios'
 import { API_BASE_URL, apiUrl } from '../utils/apiBase'
 import { getAuthToken } from '../utils/authSession'
 import { clearAllPlacesCache } from './places'
+import { clearFeaturedActivitiesCache } from './tags'
 
 const API_URL = apiUrl('/admin')
 
@@ -172,6 +173,59 @@ export const addPlaceFromGoong = async (placeData) => {
     return response.data
   } catch (error) {
     console.error('Add place from Goong error:', error)
+    return { success: false, error: error.response?.data?.error || error.message }
+  }
+}
+
+// ============ QUẢN LÝ HOẠT ĐỘNG THÚ VỊ ============
+
+export const getAllActivities = async () => {
+  try {
+    const response = await axios.get(`${API_URL}/activities`, {
+      headers: getAuthHeader()
+    })
+    return response.data
+  } catch (error) {
+    console.error('Get activities error:', error)
+    return { success: false, error: error.response?.data?.error || error.message }
+  }
+}
+
+export const createActivity = async (activityData) => {
+  try {
+    const response = await axios.post(`${API_URL}/activities`, activityData, {
+      headers: getAuthHeader()
+    })
+    if (response.data && response.data.success) clearFeaturedActivitiesCache()
+    return response.data
+  } catch (error) {
+    console.error('Create activity error:', error)
+    return { success: false, error: error.response?.data?.error || error.message }
+  }
+}
+
+export const updateActivity = async (id, activityData) => {
+  try {
+    const response = await axios.put(`${API_URL}/activities/${encodeURIComponent(id)}`, activityData, {
+      headers: getAuthHeader()
+    })
+    if (response.data && response.data.success) clearFeaturedActivitiesCache()
+    return response.data
+  } catch (error) {
+    console.error('Update activity error:', error)
+    return { success: false, error: error.response?.data?.error || error.message }
+  }
+}
+
+export const deleteActivity = async (id) => {
+  try {
+    const response = await axios.delete(`${API_URL}/activities/${encodeURIComponent(id)}`, {
+      headers: getAuthHeader()
+    })
+    if (response.data && response.data.success) clearFeaturedActivitiesCache()
+    return response.data
+  } catch (error) {
+    console.error('Delete activity error:', error)
     return { success: false, error: error.response?.data?.error || error.message }
   }
 }
