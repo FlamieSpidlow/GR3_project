@@ -12,16 +12,23 @@
         <div class="tw-container-wide">
           <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
 
-          <div v-if="categoryOptions.length > 1" class="category-tabs" aria-label="Phân loại địa điểm">
-            <button
-              v-for="category in categoryOptions"
-              :key="category.id"
-              type="button"
-              :class="['category-tab', { active: activeCategory === category.id }]"
-              @click="activeCategory = category.id"
-            >
-              {{ category.label }}
-            </button>
+          <div v-if="categoryOptions.length > 1" class="category-filter">
+            <div class="filter-heading">
+              <h2>Phân loại địa điểm</h2>
+              <span>{{ filteredPlaces.length }} địa điểm</span>
+            </div>
+            <div class="category-tabs" aria-label="Phân loại địa điểm">
+              <button
+                v-for="category in categoryOptions"
+                :key="category.id"
+                type="button"
+                :class="['category-tab', { active: activeCategory === category.id }]"
+                @click="activeCategory = category.id"
+              >
+                <span>{{ category.label }}</span>
+                <span class="category-count">{{ category.count }}</span>
+              </button>
+            </div>
           </div>
 
           <div v-if="loading" class="loading">Đang tải...</div>
@@ -46,7 +53,7 @@
 import PlaceCard from '../components/PlaceCard.vue'
 import { getAllPlaces } from '../api/places'
 import { getCategories } from '../api/categories'
-import { filterPlacesByCategory, getCategoryOptions } from '../utils/placeFilters'
+import { filterPlacesByCategory, getCategoryId, getCategoryLabel } from '../utils/placeFilters'
 
 export default {
   name: 'AllPlaces',
@@ -65,7 +72,24 @@ export default {
       return filterPlacesByCategory(this.places, this.activeCategory)
     },
     categoryOptions() {
-      return getCategoryOptions(this.places, this.categories)
+      const counts = this.places.reduce((acc, place) => {
+        const id = getCategoryId(place.category)
+        if (id) acc[id] = (acc[id] || 0) + 1
+        return acc
+      }, {})
+
+      const categoryItems = this.categories
+        .map(category => ({
+          id: getCategoryId(category),
+          label: getCategoryLabel(category),
+          count: counts[getCategoryId(category)] || 0
+        }))
+        .filter(category => category.id && category.label)
+
+      return [
+        { id: 'all', label: 'Tất cả', count: this.places.length },
+        ...categoryItems
+      ]
     }
   },
   mounted() {
@@ -171,11 +195,37 @@ export default {
   padding: 26px 0 46px;
 }
 
+.category-filter {
+  margin-bottom: 20px;
+}
+
+.filter-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.filter-heading h2 {
+  margin: 0;
+  color: var(--tw-text);
+  font-size: 1.15rem;
+  line-height: 1.35;
+  font-weight: 850;
+}
+
+.filter-heading span {
+  color: var(--tw-muted);
+  font-size: 0.92rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .category-tabs {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-bottom: 18px;
 }
 
 .category-tab {
@@ -188,6 +238,9 @@ export default {
   cursor: pointer;
   font-weight: 850;
   font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .category-tab:hover {
@@ -198,6 +251,25 @@ export default {
 .category-tab.active {
   background: var(--tw-primary);
   border-color: var(--tw-primary);
+  color: #ffffff;
+}
+
+.category-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 0.78rem;
+  line-height: 1;
+}
+
+.category-tab.active .category-count {
+  background: rgba(255, 255, 255, 0.22);
   color: #ffffff;
 }
 
@@ -229,6 +301,11 @@ export default {
 }
 
 @media (max-width: 640px) {
+  .filter-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .grid { grid-template-columns: 1fr; }
 }
 </style>
