@@ -12,8 +12,8 @@ const ticketSchema = new mongoose.Schema({
   itemIndex: { type: Number, required: true },
   status: {
     type: String,
-    enum: ['paid', 'expired', 'cancelled', 'refunded', 'used'],
-    default: 'paid',
+    enum: ['valid', 'paid', 'expired', 'cancelled', 'refunded', 'used'],
+    default: 'valid',
     index: true
   },
   qrPayload: { type: String, required: true },

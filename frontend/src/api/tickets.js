@@ -151,6 +151,18 @@ export async function confirmVietQrPayment(payload) {
   }
 }
 
+export async function rejectVietQrPayment(payload) {
+  try {
+    return await requestJson(`${API_URL}/admin/vietqr/reject`, {
+      method: 'POST',
+      body: JSON.stringify(payload || {})
+    })
+  } catch (err) {
+    console.error('Reject VietQR error:', err)
+    return { success: false, error: 'Loi tu choi VietQR', details: err.message }
+  }
+}
+
 export async function checkInTicket(payload) {
   try {
     return await requestJson(`${API_URL}/staff/check-in`, {

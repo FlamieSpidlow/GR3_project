@@ -126,7 +126,17 @@
                 <td>{{ formatVnd(payment.amount) }}</td>
                 <td><span :class="['status-badge', payment.status]">{{ statusLabel(payment.status) }}</span></td>
                 <td>{{ payment.providerTransactionId || '-' }}</td>
-                <td>{{ formatDateTime(payment.createdAt) }}</td>
+                <td>
+                  {{ formatDateTime(payment.createdAt) }}
+                  <button
+                    v-if="payment.provider === 'vietqr' && ['pending','pending_review'].includes(payment.status)"
+                    type="button"
+                    class="reject-payment-btn"
+                    @click="rejectVietQr(payment)"
+                  >
+                    Tu choi
+                  </button>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -142,6 +152,7 @@ import {
   confirmVietQrPayment,
   getAdminPayments,
   getAdminTicketOrders,
+  rejectVietQrPayment,
   updateTicketOrderStatus
 } from '../api/tickets'
 import { formatVnd } from '../utils/priceFormatter'
@@ -211,6 +222,18 @@ export default {
         this.$notify({ type: 'error', title: 'Khong the xac nhan', message: res.error || 'VietQR khong hop le' })
       }
     },
+    async rejectVietQr(payment) {
+      if (!payment?.orderRef) return
+      const reason = window.prompt('Ly do tu choi VietQR?', 'Khong tim thay giao dich phu hop')
+      if (reason === null) return
+      const res = await rejectVietQrPayment({ orderRef: payment.orderRef, reason })
+      if (res.success) {
+        this.$notify({ type: 'success', title: 'Da tu choi VietQR', message: 'Payment da duoc danh dau that bai.' })
+        await this.loadAll()
+      } else {
+        this.$notify({ type: 'error', title: 'Khong the tu choi', message: res.error || 'Vui long thu lai' })
+      }
+    },
     async checkIn() {
       this.checkingIn = true
       this.checkInMessage = ''
@@ -232,7 +255,10 @@ export default {
     statusLabel(status) {
       const labels = {
         pending: 'Cho thanh toan',
+        pending_review: 'Cho doi soat',
         paid: 'Da thanh toan',
+        success: 'Da thanh toan',
+        valid: 'Con hieu luc',
         expired: 'Da het han',
         cancelled: 'Da huy',
         refunded: 'Da hoan tien',
@@ -379,7 +405,10 @@ td span {
 }
 
 .status-badge.pending { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
-.status-badge.paid { background: #dcfce7; color: #166534; border-color: #86efac; }
+.status-badge.pending_review { background: #ffedd5; color: #9a3412; border-color: #fdba74; }
+.status-badge.paid,
+.status-badge.success,
+.status-badge.valid { background: #dcfce7; color: #166534; border-color: #86efac; }
 .status-badge.used { background: #ede9fe; color: #5b21b6; border-color: #c4b5fd; }
 .status-badge.cancelled,
 .status-badge.failed { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
@@ -414,6 +443,18 @@ td span {
 .action-btn.cancel { background: #fee2e2; color: #991b1b; }
 .action-btn.refund { background: #e0f2fe; color: #075985; }
 .action-btn.expire { background: #f1f5f9; color: #475569; }
+
+.reject-payment-btn {
+  display: inline-flex;
+  margin-top: 8px;
+  border: none;
+  border-radius: 7px;
+  padding: 6px 9px;
+  background: #fee2e2;
+  color: #991b1b;
+  font-weight: 800;
+  cursor: pointer;
+}
 
 .state-box,
 .empty-cell {

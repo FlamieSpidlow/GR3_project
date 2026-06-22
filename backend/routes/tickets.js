@@ -12,7 +12,8 @@ const {
   ensureDefaultTicketTypes,
   getPublicOrigin,
   handleVnpayPayload,
-  populateBooking
+  populateBooking,
+  rejectVietQr
 } = require('../services/ticketingService')
 
 const statusToLegacyPayment = (status) => status === 'paid' || status === 'used' ? 'paid' : 'unpaid'
@@ -167,6 +168,23 @@ router.post('/admin/vietqr/confirm', authenticate, requireAdmin, async (req, res
   }
 })
 
+router.post('/admin/vietqr/reject', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { orderRef, reason = '', payload = {} } = req.body || {}
+    if (!orderRef) return res.status(400).json({ success: false, error: 'Thiếu mã thanh toán' })
+    const booking = await rejectVietQr({
+      orderRef,
+      reason,
+      payload: { ...payload, orderRef, reason },
+      actor: req.user
+    })
+    res.json({ success: true, message: 'Đã từ chối thanh toán VietQR', data: addLegacyFields(booking) })
+  } catch (err) {
+    console.error('Admin reject VietQR error:', err)
+    res.status(err.statusCode || 500).json({ success: false, error: err.message || 'Lỗi từ chối VietQR' })
+  }
+})
+
 router.post('/vietqr/webhook', async (req, res) => {
   try {
     const secret = process.env.VIETQR_WEBHOOK_SECRET
@@ -248,7 +266,7 @@ router.patch('/:id/cancel', authenticate, async (req, res) => {
     booking.status = 'cancelled'
     booking.cancelledAt = new Date()
     await booking.save()
-    await Payment.updateOne({ booking: booking._id, status: 'pending' }, { status: 'cancelled' })
+    await Payment.updateOne({ booking: booking._id, status: { $in: ['pending', 'pending_review'] } }, { status: 'cancelled' })
     await Ticket.updateMany({ booking: booking._id }, { status: 'cancelled' })
     const populated = await populateBooking(Booking.findById(booking._id))
     res.json({ success: true, message: 'Đã hủy vé', data: addLegacyFields(populated) })
@@ -295,26 +313,38 @@ router.post('/staff/check-in', authenticate, requireStaffOrAdmin, async (req, re
         code = String(qrPayload || '')
       }
     }
-    if (!code) return res.status(400).json({ success: false, error: 'Thiếu mã vé' })
+    if (!code) return res.status(400).json({ success: false, error: 'Thi?u m? v?' })
+
     const ticket = await Ticket.findOne({ code })
       .populate('booking')
       .populate('place', 'name address')
       .populate('user', 'username email parentName phone')
-    if (!ticket) return res.status(404).json({ success: false, error: 'Không tìm thấy vé' })
-    if (ticket.status === 'used') return res.status(409).json({ success: false, error: 'Vé đã được check-in trước đó', data: ticket })
-    if (ticket.status !== 'paid') return res.status(400).json({ success: false, error: `Vé không hợp lệ ở trạng thái ${ticket.status}` })
+    if (!ticket) return res.status(404).json({ success: false, error: 'Kh?ng t?m th?y v?' })
+    if (ticket.status === 'used') return res.status(409).json({ success: false, error: 'V? ?? ???c check-in tr??c ??', data: ticket })
+    if (!['valid', 'paid'].includes(ticket.status)) return res.status(400).json({ success: false, error: `V? kh?ng h?p l? ? tr?ng th?i ${ticket.status}` })
+
+    const visitDay = new Date(ticket.visitDate)
+    visitDay.setHours(0, 0, 0, 0)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    if (visitDay < today) {
+      ticket.status = 'expired'
+      await ticket.save()
+      return res.status(400).json({ success: false, error: 'V? ?? h?t h?n', data: ticket })
+    }
+
     ticket.status = 'used'
     ticket.usedAt = new Date()
     ticket.checkedInBy = req.user._id
     await ticket.save()
-    const remaining = await Ticket.countDocuments({ booking: ticket.booking._id, status: 'paid' })
+    const remaining = await Ticket.countDocuments({ booking: ticket.booking._id, status: { $in: ['valid', 'paid'] } })
     if (remaining === 0) {
       await Booking.updateOne({ _id: ticket.booking._id }, { status: 'used', usedAt: new Date() })
     }
-    res.json({ success: true, message: 'Check-in vé thành công', data: ticket })
+    res.json({ success: true, message: 'Check-in v? th?nh c?ng', data: ticket })
   } catch (err) {
     console.error('Check-in ticket error:', err)
-    res.status(500).json({ success: false, error: 'Lỗi check-in vé', details: err.message })
+    res.status(500).json({ success: false, error: 'L?i check-in v?', details: err.message })
   }
 })
 

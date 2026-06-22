@@ -135,7 +135,10 @@ export default {
     statusLabel(status) {
       const labels = {
         pending: 'Cho thanh toan',
+        pending_review: 'Cho doi soat',
         paid: 'Da thanh toan',
+        success: 'Da thanh toan',
+        valid: 'Con hieu luc',
         expired: 'Da het han',
         cancelled: 'Da huy',
         refunded: 'Da hoan tien',
@@ -338,8 +341,11 @@ export default {
 
 .status-badge.unpaid { background: #f1f5f9; color: #334155; border-color: #cbd5e1; }
 .status-badge.pending { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
+.status-badge.pending_review { background: #ffedd5; color: #9a3412; border-color: #fdba74; }
 .status-badge.confirmed { background: #dbeafe; color: #1e40af; border-color: #93c5fd; }
-.status-badge.paid { background: #dcfce7; color: #166534; border-color: #86efac; }
+.status-badge.paid,
+.status-badge.success,
+.status-badge.valid { background: #dcfce7; color: #166534; border-color: #86efac; }
 .status-badge.expired { background: #f1f5f9; color: #475569; border-color: #cbd5e1; }
 .status-badge.refunded { background: #e0f2fe; color: #075985; border-color: #7dd3fc; }
 .status-badge.cancelled { background: #fee2e2; color: #991b1b; border-color: #fecaca; }

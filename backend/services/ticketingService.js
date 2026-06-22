@@ -7,7 +7,7 @@ const Ticket = require('../models/Ticket')
 const TicketType = require('../models/TicketType')
 const { createUserNotification } = require('./notificationService')
 
-const BOOKING_TTL_MINUTES = Number.parseInt(process.env.BOOKING_TTL_MINUTES || '20', 10)
+const BOOKING_TTL_MINUTES = Number.parseInt(process.env.BOOKING_TTL_MINUTES || '15', 10)
 
 const removeVietnameseAccents = (value) => String(value || '')
   .normalize('NFD')
@@ -243,6 +243,46 @@ const buildVietQr = (payment) => {
   }
 }
 
+const isPaymentSuccessful = (payment) => ['success', 'paid'].includes(payment?.status)
+
+const expirePendingBooking = async (booking, payment) => {
+  if (!booking || booking.status !== 'pending' || !booking.expiresAt || booking.expiresAt > new Date()) return false
+  booking.status = 'expired'
+  await booking.save()
+  if (payment && ['pending', 'pending_review'].includes(payment.status)) {
+    payment.status = 'expired'
+    await payment.save()
+  }
+  return true
+}
+
+const assertBookingPayable = async (booking, payment, provider) => {
+  if (!booking) {
+    const err = new Error('Booking not found')
+    err.statusCode = 404
+    throw err
+  }
+
+  await expirePendingBooking(booking, payment)
+  if (booking.status !== 'pending') {
+    const err = new Error(`Booking is not payable in status ${booking.status}`)
+    err.statusCode = 400
+    throw err
+  }
+
+  if (payment && provider && payment.provider !== provider) {
+    const err = new Error('Payment provider mismatch')
+    err.statusCode = 400
+    throw err
+  }
+
+  if (payment && !['pending', 'pending_review'].includes(payment.status) && !isPaymentSuccessful(payment)) {
+    const err = new Error(`Payment is not payable in status ${payment.status}`)
+    err.statusCode = 400
+    throw err
+  }
+}
+
 const populateBooking = (query) => query
   .populate('place', 'name address price images')
   .populate('user', 'username email parentName phone')
@@ -310,6 +350,7 @@ const createBooking = async ({ user, payload, req }) => {
     booking: booking._id,
     user: user._id,
     provider: method,
+    status: method === 'vietqr' ? 'pending_review' : 'pending',
     amount: booking.totalAmount,
     orderRef: await createUniqueCode(Payment, 'orderRef', 'TWPAY'),
     expiresAt,
@@ -326,6 +367,17 @@ const createBooking = async ({ user, payload, req }) => {
   await payment.save()
   booking.payment = payment._id
   await booking.save()
+  await logPaymentEvent({
+    payment,
+    booking,
+    provider: method,
+    event: 'create',
+    idempotencyKey: `${method}:create:${payment.orderRef}`,
+    valid: true,
+    message: method === 'vietqr' ? 'VietQR created, waiting for confirmation' : 'VNPAY payment created',
+    payload: payment.rawRequest,
+    actor: user
+  })
 
   return populateBooking(Booking.findById(booking._id))
 }
@@ -378,7 +430,7 @@ const generateTicketsForBooking = async (booking) => {
             name: item.name,
             lineIndex,
             itemIndex,
-            status: 'paid',
+            status: 'valid',
             qrPayload
           }
         },
@@ -394,7 +446,7 @@ const generateTicketsForBooking = async (booking) => {
 const markPaymentPaid = async ({ payment, payload, providerTransactionId, idempotencyKey, actor, provider }) => {
   const booking = await Booking.findById(payment.booking)
   if (!booking) throw new Error('Booking not found')
-  const duplicate = payment.status === 'paid' || booking.status === 'paid'
+  const duplicate = isPaymentSuccessful(payment) || booking.status === 'paid'
   await logPaymentEvent({
     payment,
     booking,
@@ -408,6 +460,7 @@ const markPaymentPaid = async ({ payment, payload, providerTransactionId, idempo
     actor
   })
   if (duplicate) return populateBooking(Booking.findById(booking._id))
+  await assertBookingPayable(booking, payment, provider)
 
   if (payment.amount !== booking.totalAmount) {
     payment.status = 'failed'
@@ -430,10 +483,14 @@ const markPaymentPaid = async ({ payment, payload, providerTransactionId, idempo
     throw err
   }
 
-  payment.status = 'paid'
+  payment.status = 'success'
   payment.providerTransactionId = providerTransactionId || payment.providerTransactionId
   payment.rawVerifiedPayload = payload
   payment.paidAt = payment.paidAt || new Date()
+  if (actor) {
+    payment.confirmedBy = actor._id || actor
+    payment.confirmedAt = payment.confirmedAt || new Date()
+  }
   await payment.save()
 
   booking.status = 'paid'
@@ -459,6 +516,7 @@ const handleVnpayPayload = async (payload, source = 'return') => {
     return { success: false, code: '01', message: 'Payment not found' }
   }
   const booking = await Booking.findById(payment.booking)
+  await expirePendingBooking(booking, payment)
   const validHash = verifyVnpayPayload(payload)
   if (!validHash) {
     await logPaymentEvent({ payment, booking, provider: 'vnpay', event: source, idempotencyKey, valid: false, message: 'Invalid signature', payload })
@@ -470,6 +528,10 @@ const handleVnpayPayload = async (payload, source = 'return') => {
     return { success: false, code: '04', message: 'Amount mismatch', booking }
   }
   if (payload.vnp_ResponseCode !== '00' || payload.vnp_TransactionStatus !== '00') {
+    if (isPaymentSuccessful(payment) || booking?.status === 'paid') {
+      await logPaymentEvent({ payment, booking, provider: 'vnpay', event: source, idempotencyKey, valid: true, duplicate: true, message: 'Duplicate failed callback ignored after success', payload })
+      return { success: true, code: '00', message: 'Already confirmed', booking }
+    }
     payment.status = 'failed'
     payment.failureReason = `VNPAY response ${payload.vnp_ResponseCode || ''}/${payload.vnp_TransactionStatus || ''}`
     payment.rawVerifiedPayload = payload
@@ -496,8 +558,12 @@ const confirmVietQr = async ({ orderRef, amount, transactionId, payload, actor, 
     err.statusCode = 404
     throw err
   }
+  const booking = await Booking.findById(payment.booking)
+  if (!isPaymentSuccessful(payment) && booking?.status !== 'paid') {
+    await assertBookingPayable(booking, payment, 'vietqr')
+  }
   if (Number(amount) !== payment.amount) {
-    await logPaymentEvent({ payment, booking: payment.booking, provider: 'vietqr', event: source, idempotencyKey, valid: false, message: 'Amount mismatch', payload, actor })
+    await logPaymentEvent({ payment, booking, provider: 'vietqr', event: source, idempotencyKey, valid: false, message: 'Amount mismatch', payload, actor })
     const err = new Error('Số tiền VietQR không khớp')
     err.statusCode = 400
     throw err
@@ -512,11 +578,52 @@ const confirmVietQr = async ({ orderRef, amount, transactionId, payload, actor, 
   })
 }
 
+const rejectVietQr = async ({ orderRef, reason = '', payload, actor }) => {
+  const payment = await Payment.findOne({ orderRef, provider: 'vietqr' })
+  const idempotencyKey = `vietqr:admin-reject:${orderRef}:${Date.now()}`
+  if (!payment) {
+    await logPaymentEvent({ provider: 'vietqr', event: 'manual_reject', idempotencyKey, valid: false, message: 'Payment not found', payload, actor })
+    const err = new Error('Khong tim thay giao dich VietQR')
+    err.statusCode = 404
+    throw err
+  }
+
+  const booking = await Booking.findById(payment.booking)
+  if (isPaymentSuccessful(payment) || booking?.status === 'paid') {
+    await logPaymentEvent({ payment, booking, provider: 'admin', event: 'manual_reject', idempotencyKey, valid: false, duplicate: true, message: 'Cannot reject successful payment', payload, actor })
+    const err = new Error('Khong the tu choi giao dich da thanh cong')
+    err.statusCode = 400
+    throw err
+  }
+
+  payment.status = 'failed'
+  payment.failureReason = String(reason || 'Admin rejected VietQR payment').slice(0, 500)
+  payment.confirmedBy = actor?._id || actor
+  payment.confirmedAt = new Date()
+  await payment.save()
+
+  await logPaymentEvent({
+    payment,
+    booking,
+    provider: 'admin',
+    event: 'manual_reject',
+    idempotencyKey,
+    valid: true,
+    message: payment.failureReason,
+    payload,
+    actor
+  })
+
+  return populateBooking(Booking.findById(booking._id))
+}
+
 module.exports = {
   BOOKING_TTL_MINUTES,
+  buildVnpayPayUrl,
   buildVietQr,
   createBooking,
   confirmVietQr,
+  rejectVietQr,
   ensureDefaultTicketTypes,
   getPublicOrigin,
   handleVnpayPayload,
