@@ -12,25 +12,12 @@
         <div class="tw-container-wide">
           <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
 
-          <div class="category-filter">
-            <div class="filter-heading">
-              <h2>Phân loại địa điểm</h2>
-              <span v-if="!loading">{{ filteredPlaces.length }} địa điểm</span>
-            </div>
-            <div v-if="categoryOptions.length > 1" class="category-tabs" aria-label="Phân loại địa điểm">
-              <button
-                v-for="category in categoryOptions"
-                :key="category.id"
-                type="button"
-                :class="['category-tab', { active: activeCategory === category.id }]"
-                @click="activeCategory = category.id"
-              >
-                <span>{{ category.label }}</span>
-                <span class="category-count">{{ category.count }}</span>
-              </button>
-            </div>
-            <div v-else class="category-loading">Đang tải danh mục...</div>
-          </div>
+          <CategoryFilter
+            :categories="categoryOptions"
+            :active-category="activeCategory"
+            :total-count="places.length"
+            @category-change="setActiveCategory"
+          />
 
           <div v-if="loading" class="loading">Đang tải...</div>
           <div v-else-if="places.length === 0" class="empty">Không có địa điểm.</div>
@@ -52,13 +39,14 @@
 
 <script>
 import PlaceCard from '../components/PlaceCard.vue'
+import CategoryFilter from '../components/CategoryFilter.vue'
 import { getAllPlaces } from '../api/places'
 import { getCategories } from '../api/categories'
 import { getCategoryId, getCategoryLabel, normalizeText } from '../utils/placeFilters'
 
 export default {
   name: 'AllPlaces',
-  components: { PlaceCard },
+  components: { PlaceCard, CategoryFilter },
   data() {
     return {
       places: [],
@@ -148,6 +136,9 @@ export default {
     },
     viewPlaceDetails(place) {
       this.$router.push({ path: `/place/${place._id || place.id}` })
+    },
+    setActiveCategory(categoryId) {
+      this.activeCategory = categoryId
     }
   }
 }
@@ -212,92 +203,6 @@ export default {
   padding: 26px 0 46px;
 }
 
-.category-filter {
-  margin-bottom: 20px;
-}
-
-.filter-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 12px;
-}
-
-.filter-heading h2 {
-  margin: 0;
-  color: var(--tw-text);
-  font-size: 1.15rem;
-  line-height: 1.35;
-  font-weight: 850;
-}
-
-.filter-heading span {
-  color: var(--tw-muted);
-  font-size: 0.92rem;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.category-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.category-tab {
-  border: 1px solid var(--tw-border);
-  background: #ffffff;
-  color: #475569;
-  border-radius: 999px;
-  min-height: 36px;
-  padding: 8px 12px;
-  cursor: pointer;
-  font-weight: 850;
-  font-size: 0.9rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.category-tab:hover {
-  background: #f8fafc;
-  color: #0f172a;
-}
-
-.category-tab.active {
-  background: var(--tw-primary);
-  border-color: var(--tw-primary);
-  color: #ffffff;
-}
-
-.category-count {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 24px;
-  height: 22px;
-  padding: 0 7px;
-  border-radius: 999px;
-  background: #f1f5f9;
-  color: #475569;
-  font-size: 0.78rem;
-  line-height: 1;
-}
-
-.category-tab.active .category-count {
-  background: rgba(255, 255, 255, 0.22);
-  color: #ffffff;
-}
-
-.category-loading {
-  min-height: 38px;
-  display: flex;
-  align-items: center;
-  color: var(--tw-muted);
-  font-weight: 700;
-}
-
 .grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -326,11 +231,6 @@ export default {
 }
 
 @media (max-width: 640px) {
-  .filter-heading {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
   .grid { grid-template-columns: 1fr; }
 }
 </style>
