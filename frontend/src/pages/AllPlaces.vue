@@ -100,6 +100,11 @@ export default {
   mounted() {
     this.loadData()
   },
+  watch: {
+    '$route.query.category'(categoryId) {
+      this.activeCategory = categoryId || 'all'
+    }
+  },
   methods: {
     async loadData() {
       this.loading = true
@@ -133,12 +138,21 @@ export default {
       }
 
       this.loading = false
+      this.applyRouteCategory()
     },
     viewPlaceDetails(place) {
       this.$router.push({ path: `/place/${place._id || place.id}` })
     },
     setActiveCategory(categoryId) {
       this.activeCategory = categoryId
+      this.$router.replace({
+        path: '/places',
+        query: categoryId && categoryId !== 'all' ? { category: categoryId } : {}
+      })
+    },
+    applyRouteCategory() {
+      const categoryId = this.$route.query.category
+      this.activeCategory = typeof categoryId === 'string' && categoryId ? categoryId : 'all'
     }
   }
 }

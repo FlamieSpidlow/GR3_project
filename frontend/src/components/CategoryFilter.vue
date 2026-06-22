@@ -5,16 +5,38 @@
       <span>{{ totalCount }} địa điểm</span>
     </div>
 
-    <div v-if="categories.length" class="category-scroll" aria-label="Phân loại địa điểm">
+    <div v-if="categories.length" class="category-row" aria-label="Phân loại địa điểm">
       <button
-        v-for="category in categories"
-        :key="category.id"
+        v-if="allCategory"
         type="button"
-        :class="['category-pill', { active: activeCategory === category.id }]"
-        @click="$emit('category-change', category.id)"
+        :class="['category-pill', 'fixed-pill', { active: activeCategory === allCategory.id }]"
+        @click="$emit('category-change', allCategory.id)"
       >
-        <span class="category-name">{{ category.label }}</span>
-        <span class="category-count">{{ category.count || 0 }}</span>
+        <span class="category-name">{{ allCategory.label }}</span>
+        <span class="category-count">{{ allCategory.count || 0 }}</span>
+      </button>
+
+      <button type="button" class="nav-btn" :disabled="!canMovePrev" aria-label="Danh mục trước" @click="move(-1)">
+        ‹
+      </button>
+
+      <div class="category-window">
+        <div class="category-track" :style="{ transform: `translateX(-${slideIndex * itemWidth}px)` }">
+          <button
+            v-for="category in slidingCategories"
+            :key="category.id"
+            type="button"
+            :class="['category-pill', { active: activeCategory === category.id }]"
+            @click="$emit('category-change', category.id)"
+          >
+            <span class="category-name">{{ category.label }}</span>
+            <span class="category-count">{{ category.count || 0 }}</span>
+          </button>
+        </div>
+      </div>
+
+      <button type="button" class="nav-btn" :disabled="!canMoveNext" aria-label="Danh mục sau" @click="move(1)">
+        ›
       </button>
     </div>
 
@@ -39,13 +61,62 @@ export default {
       default: 0
     }
   },
-  emits: ['category-change']
+  emits: ['category-change'],
+  data() {
+    return {
+      slideIndex: 0,
+      itemWidth: 196,
+      visibleCount: 5
+    }
+  },
+  computed: {
+    allCategory() {
+      return this.categories.find(category => category.id === 'all') || null
+    },
+    slidingCategories() {
+      return this.categories.filter(category => category.id !== 'all')
+    },
+    maxSlideIndex() {
+      return Math.max(0, this.slidingCategories.length - this.visibleCount)
+    },
+    canMovePrev() {
+      return this.slideIndex > 0
+    },
+    canMoveNext() {
+      return this.slideIndex < this.maxSlideIndex
+    }
+  },
+  watch: {
+    categories() {
+      if (this.slideIndex > this.maxSlideIndex) this.slideIndex = this.maxSlideIndex
+      this.ensureActiveVisible()
+    },
+    activeCategory() {
+      this.ensureActiveVisible()
+    }
+  },
+  methods: {
+    move(direction) {
+      const next = this.slideIndex + direction
+      this.slideIndex = Math.max(0, Math.min(this.maxSlideIndex, next))
+    },
+    ensureActiveVisible() {
+      if (!this.activeCategory || this.activeCategory === 'all') return
+      const index = this.slidingCategories.findIndex(category => category.id === this.activeCategory)
+      if (index < 0) return
+      if (index < this.slideIndex) {
+        this.slideIndex = index
+      } else if (index >= this.slideIndex + this.visibleCount) {
+        this.slideIndex = Math.min(this.maxSlideIndex, index - this.visibleCount + 1)
+      }
+    }
+  }
 }
 </script>
 
 <style scoped>
 .category-filter {
-  margin-bottom: 22px;
+  margin-bottom: 20px;
 }
 
 .filter-heading {
@@ -53,88 +124,132 @@ export default {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .filter-heading h2 {
   margin: 0;
   color: #0f172a;
-  font-size: 1.35rem;
+  font-size: 1.18rem;
   line-height: 1.3;
-  font-weight: 850;
+  font-weight: 750;
   letter-spacing: 0;
 }
 
 .filter-heading span {
   color: #64748b;
-  font-size: 0.96rem;
-  font-weight: 800;
+  font-size: 0.9rem;
+  font-weight: 650;
   white-space: nowrap;
 }
 
-.category-scroll {
+.category-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  align-items: center;
+  gap: 8px;
+}
+
+.category-window {
+  width: calc(5 * 188px + 4 * 8px);
+  overflow: hidden;
+}
+
+.category-track {
+  display: flex;
+  gap: 8px;
+  transition: transform 0.2s ease;
+  will-change: transform;
 }
 
 .category-pill {
-  border: 1px solid #e2e8f0;
+  flex: 0 0 188px;
+  border: 1px solid #e5e7eb;
   background: #ffffff;
-  color: #334155;
-  border-radius: 999px;
-  min-height: 42px;
-  padding: 9px 14px 9px 16px;
+  color: #374151;
+  border-radius: 14px;
+  min-height: 36px;
+  padding: 7px 10px 7px 12px;
   cursor: pointer;
   font-family: inherit;
-  font-weight: 850;
-  font-size: 0.94rem;
+  font-weight: 650;
+  font-size: 0.88rem;
   line-height: 1;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 10px;
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
-  transition: transform 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+  justify-content: space-between;
+  gap: 8px;
+  box-shadow: none;
+  transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+}
+
+.fixed-pill {
+  flex-basis: auto;
+  min-width: 92px;
 }
 
 .category-pill:hover {
-  background: #f8fafc;
-  border-color: #cbd5e1;
+  background: #f9fafb;
+  border-color: #d1d5db;
   color: #111827;
-  transform: translateY(-1px);
-  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.08);
 }
 
 .category-pill.active {
-  background: linear-gradient(135deg, #635bff 0%, #22a6f2 100%);
-  border-color: transparent;
-  color: #ffffff;
-  box-shadow: 0 14px 30px rgba(99, 91, 255, 0.26);
+  background: #eef2ff;
+  border-color: #818cf8;
+  color: #3730a3;
+  box-shadow: none;
 }
 
 .category-name {
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .category-count {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 24px;
-  height: 24px;
-  padding: 0 8px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
   border-radius: 999px;
-  background: #f1f5f9;
-  color: #475569;
-  font-size: 0.78rem;
-  font-weight: 900;
+  background: #f3f4f6;
+  color: #6b7280;
+  font-size: 0.72rem;
+  font-weight: 700;
   line-height: 1;
 }
 
 .category-pill.active .category-count {
-  background: rgba(255, 255, 255, 0.24);
-  color: #ffffff;
+  background: #ffffff;
+  color: #4f46e5;
+}
+
+.nav-btn {
+  width: 34px;
+  height: 34px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #475569;
+  cursor: pointer;
+  font-size: 1.4rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-btn:hover:not(:disabled) {
+  background: #f9fafb;
+  border-color: #d1d5db;
+  color: #111827;
+}
+
+.nav-btn:disabled {
+  opacity: 0.38;
+  cursor: default;
 }
 
 .category-loading {
@@ -153,28 +268,43 @@ export default {
   }
 
   .filter-heading h2 {
-    font-size: 1.18rem;
+    font-size: 1.08rem;
   }
 
-  .category-scroll {
-    flex-wrap: nowrap;
+  .category-row {
+    align-items: stretch;
+  }
+
+  .category-window {
+    flex: 1;
     overflow-x: auto;
-    padding: 2px 2px 10px;
-    margin: 0 -2px;
+    width: auto;
+    padding-bottom: 8px;
     scroll-snap-type: x proximity;
     -webkit-overflow-scrolling: touch;
   }
 
-  .category-scroll::-webkit-scrollbar {
+  .category-window::-webkit-scrollbar {
     height: 0;
   }
 
+  .category-track {
+    transform: none !important;
+  }
+
   .category-pill {
-    flex: 0 0 auto;
+    flex: 0 0 170px;
     scroll-snap-align: start;
-    min-height: 40px;
-    padding: 8px 12px 8px 14px;
-    font-size: 0.9rem;
+    min-height: 36px;
+    font-size: 0.84rem;
+  }
+
+  .fixed-pill {
+    flex: 0 0 auto;
+  }
+
+  .nav-btn {
+    display: none;
   }
 }
 </style>

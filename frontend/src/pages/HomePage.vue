@@ -277,7 +277,10 @@ export default {
       this.locationLoading = false
     },
     selectCategory(categoryId) {
-      this.activeCategory = this.activeCategory === categoryId ? 'all' : categoryId
+      this.$router.push({
+        path: '/places',
+        query: categoryId && categoryId !== 'all' ? { category: categoryId } : {}
+      })
     },
     viewPlaceDetails(place) {
       this.$router.push({ path: `/place/${place._id || place.id}` })

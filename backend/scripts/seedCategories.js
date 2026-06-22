@@ -31,6 +31,11 @@ const categories = [
     sortOrder: 30
   },
   {
+    name: 'Trung tâm thương mại',
+    description: 'Trung tâm thương mại có khu ăn uống, mua sắm và hoạt động giải trí cho gia đình',
+    sortOrder: 35
+  },
+  {
     name: 'Thiên nhiên & sinh thái',
     description: 'Không gian xanh, sinh thái, vườn cây, trải nghiệm thiên nhiên',
     sortOrder: 40
@@ -77,7 +82,7 @@ const rules = [
   },
   {
     category: 'Động vật & sở thú',
-    strong: ['thuy cung', 'aquarium', 'so thu', 'zoo', 'safari'],
+    strong: ['thuy cung', 'aquarium', 'so thu', 'zoo', 'safari', 'bird valley'],
     weak: ['thu le', 'chim', 'bird valley', 'dong vat', 'ao vua']
   },
   {
@@ -87,8 +92,8 @@ const rules = [
   },
   {
     category: 'Bơi lội & công viên nước',
-    strong: ['cong vien nuoc', 'water park', 'waterfun', 'wave park', 'be boi', 'ho boi', 'vinwonders water', 'amazing bay'],
-    weak: ['boi loi', 'boi', 'nuoc ho tay']
+    strong: ['cong vien nuoc', 'cong vien bien', 'water park', 'waterfun', 'wave park', 'be boi', 'ho boi', 'vinwonders water', 'amazing bay'],
+    weak: ['boi loi', 'boi', 'nuoc ho tay', 'bien nhan tao']
   },
   {
     category: 'Văn hóa & di tích',
@@ -122,7 +127,18 @@ const rules = [
   }
 ]
 
+const mallExactRules = [
+  ['lotte mall ho tay', 'Trung tâm thương mại'],
+  ['vincom mega mall ocean park', 'Trung tâm thương mại'],
+  ['aeon mall ha dong', 'Trung tâm thương mại'],
+  ['aeon mall long bien', 'Trung tâm thương mại'],
+  ['vincom mega mall smart city', 'Trung tâm thương mại'],
+  ['royal city', 'Trung tâm thương mại']
+]
+
 const manualRules = [
+  ['cong vien bien', 'Bơi lội & công viên nước'],
+  ['thung nham bird valley', 'Động vật & sở thú'],
   ['bao tang', 'Bảo tàng & giáo dục'],
   ['thu vien', 'Bảo tàng & giáo dục'],
   ['pho sach', 'Bảo tàng & giáo dục'],
@@ -177,6 +193,12 @@ const pickCategory = (place, categoryByNameNorm) => {
     primaryText,
     place.description
   ].map(normalizeText).filter(Boolean).join(' ')
+
+  for (const [name, category] of mallExactRules) {
+    if (nameText === normalizeText(name)) {
+      return categoryByNameNorm.get(normalizeText(category))
+    }
+  }
 
   for (const [phrase, category] of manualRules) {
     if (includesPhrase(nameText, phrase)) {
