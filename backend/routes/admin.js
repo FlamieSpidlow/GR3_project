@@ -82,7 +82,8 @@ const storage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
-    cb(null, 'place-' + uniqueSuffix + path.extname(file.originalname))
+    const prefix = req.path && req.path.includes('/activities/') ? 'activity-' : 'place-'
+    cb(null, prefix + uniqueSuffix + path.extname(file.originalname))
   }
 })
 
@@ -232,7 +233,7 @@ router.delete('/users/:id', async (req, res) => {
 router.get('/activities', async (req, res) => {
   try {
     await seedDefaultActivitiesIfEmpty()
-    const activities = await Activity.find({}).sort({ sortOrder: 1, name: 1 })
+    const activities = await Activity.find({}).sort({ createdAt: -1, name: 1 })
     res.json({ success: true, data: activities })
   } catch (err) {
     console.error('Get activities error:', err)
@@ -242,7 +243,7 @@ router.get('/activities', async (req, res) => {
 
 router.post('/activities', async (req, res) => {
   try {
-    const { name, description = '', image = '', active = true, sortOrder = 0 } = req.body || {}
+    const { name, image = '', active = true } = req.body || {}
     const trimmedName = String(name || '').trim()
     const nameNorm = normalizeActivity(trimmedName)
     if (!trimmedName || !nameNorm) {
@@ -257,10 +258,10 @@ router.post('/activities', async (req, res) => {
     const activity = new Activity({
       name: trimmedName,
       nameNorm,
-      description: String(description || '').trim(),
+      description: '',
       image: String(image || '').trim(),
       active: Boolean(active),
-      sortOrder: Number.isFinite(Number(sortOrder)) ? Number(sortOrder) : 0
+      sortOrder: 0
     })
 
     await activity.save()
@@ -271,6 +272,18 @@ router.post('/activities', async (req, res) => {
   }
 })
 
+router.post('/activities/upload-image', upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'Khong co file duoc upload' })
+    }
+    res.json({ success: true, data: { imageUrl: `/uploads/${req.file.filename}` } })
+  } catch (err) {
+    console.error('Upload activity image error:', err)
+    res.status(500).json({ success: false, error: 'Loi upload anh hoat dong', details: err.message })
+  }
+})
+
 router.put('/activities/:id', async (req, res) => {
   try {
     const activity = await Activity.findById(req.params.id)
@@ -278,7 +291,7 @@ router.put('/activities/:id', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Không tìm thấy hoạt động' })
     }
 
-    const { name, description, image, active, sortOrder } = req.body || {}
+    const { name, image, active } = req.body || {}
     if (name !== undefined) {
       const trimmedName = String(name || '').trim()
       const nameNorm = normalizeActivity(trimmedName)
@@ -292,13 +305,10 @@ router.put('/activities/:id', async (req, res) => {
       activity.name = trimmedName
       activity.nameNorm = nameNorm
     }
-    if (description !== undefined) activity.description = String(description || '').trim()
+    activity.description = ''
     if (image !== undefined) activity.image = String(image || '').trim()
     if (active !== undefined) activity.active = Boolean(active)
-    if (sortOrder !== undefined) {
-      const order = Number(sortOrder)
-      activity.sortOrder = Number.isFinite(order) ? order : 0
-    }
+    activity.sortOrder = 0
 
     await activity.save()
     res.json({ success: true, message: 'Cập nhật hoạt động thành công', data: activity })

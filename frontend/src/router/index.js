@@ -1,23 +1,25 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import HomePage from '../pages/HomePage.vue'
-import LoginPage from '../pages/LoginPage.vue'
-import RegisterPage from '../pages/RegisterPage.vue'
-import ForgotPassword from '../pages/ForgotPassword.vue'
-import ResetPassword from '../pages/ResetPassword.vue'
-import EditProfile from '../pages/EditProfile.vue'
-import ChangePassword from '../pages/ChangePassword.vue'
-import SearchResults from '../pages/SearchResults.vue'
-import PlaceDetails from '../pages/PlaceDetails.vue'
-import SuggestPage from '../pages/SuggestPage.vue'
-import FavourPage from '../pages/FavourPage.vue'
-import AboutPage from '../pages/AboutPage.vue'
-import AdminDashboard from '../pages/AdminDashboard.vue'
-import AdminUsers from '../pages/AdminUsers.vue'
-import AdminPlaces from '../pages/AdminPlaces.vue'
-import AdminTickets from '../pages/AdminTickets.vue'
-import MyTickets from '../pages/MyTickets.vue'
-import TicketPayment from '../pages/TicketPayment.vue'
 import { getAuthToken, getAuthUser } from '../utils/authSession'
+
+const HomePage = () => import('../pages/HomePage.vue')
+const LoginPage = () => import('../pages/LoginPage.vue')
+const RegisterPage = () => import('../pages/RegisterPage.vue')
+const ForgotPassword = () => import('../pages/ForgotPassword.vue')
+const ResetPassword = () => import('../pages/ResetPassword.vue')
+const EditProfile = () => import('../pages/EditProfile.vue')
+const ChangePassword = () => import('../pages/ChangePassword.vue')
+const SearchResults = () => import('../pages/SearchResults.vue')
+const PlaceDetails = () => import('../pages/PlaceDetails.vue')
+const SuggestPage = () => import('../pages/SuggestPage.vue')
+const FavourPage = () => import('../pages/FavourPage.vue')
+const AboutPage = () => import('../pages/AboutPage.vue')
+const AdminDashboard = () => import('../pages/AdminDashboard.vue')
+const AdminUsers = () => import('../pages/AdminUsers.vue')
+const AdminPlaces = () => import('../pages/AdminPlaces.vue')
+const AdminActivities = () => import('../pages/AdminActivities.vue')
+const AdminTickets = () => import('../pages/AdminTickets.vue')
+const MyTickets = () => import('../pages/MyTickets.vue')
+const TicketPayment = () => import('../pages/TicketPayment.vue')
 
 const routes = [
   { path: '/', component: HomePage, meta: { userOnly: true } },
@@ -37,6 +39,7 @@ const routes = [
   { path: '/admin', component: AdminDashboard, meta: { adminOnly: true } },
   { path: '/admin/users', component: AdminUsers, meta: { adminOnly: true } },
   { path: '/admin/places', component: AdminPlaces, meta: { adminOnly: true } },
+  { path: '/admin/activities', component: AdminActivities, meta: { adminOnly: true } },
   { path: '/admin/tickets', component: AdminTickets, meta: { adminOnly: true } }
 ]
 

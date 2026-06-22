@@ -216,6 +216,20 @@ export const createActivity = async (activityData) => {
   }
 }
 
+export const uploadActivityImage = async (file) => {
+  try {
+    const formData = new FormData()
+    formData.append('image', file)
+    const response = await axios.post(`${API_URL}/activities/upload-image`, formData, {
+      headers: getAuthHeader()
+    })
+    return response.data
+  } catch (error) {
+    console.error('Upload activity image error:', error)
+    return { success: false, error: error.response?.data?.error || error.message }
+  }
+}
+
 export const updateActivity = async (id, activityData) => {
   try {
     const response = await axios.put(`${API_URL}/activities/${encodeURIComponent(id)}`, activityData, {

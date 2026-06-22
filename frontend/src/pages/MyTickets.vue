@@ -325,13 +325,20 @@ export default {
 }
 
 .status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   align-self: flex-start;
+  min-width: 132px;
+  min-height: 34px;
   border-radius: 999px;
-  padding: 7px 11px;
+  padding: 7px 14px;
   font-weight: 800;
   font-size: 0.82rem;
+  line-height: 1;
   white-space: nowrap;
   border: 1px solid transparent;
+  text-align: center;
 }
 
 .status-badge.unpaid { background: #f1f5f9; color: #334155; border-color: #cbd5e1; }

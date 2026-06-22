@@ -59,16 +59,16 @@ router.get('/activities', async (req, res) => {
     await seedDefaultActivitiesIfEmpty()
 
     const activities = await Activity.find({ active: true })
-      .sort({ sortOrder: 1, name: 1 })
-      .select('name description image sortOrder')
+      .sort({ createdAt: -1, name: 1 })
+      .select('name image')
       .lean()
 
     const data = activities.map(activity => ({
       id: activity._id.toString(),
       label: activity.name,
-      description: activity.description || '',
+      description: '',
       image: activity.image || '/Playground.jpg',
-      sortOrder: activity.sortOrder || 0
+      sortOrder: 0
     }))
 
     res.json({ success: true, data: data.length > 0 ? data : DEFAULT_ACTIVITIES })

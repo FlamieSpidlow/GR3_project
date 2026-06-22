@@ -54,7 +54,7 @@
                 <td>{{ totalQuantity(order) }} vé</td>
                 <td>{{ formatVnd(order.totalPrice) }}</td>
                 <td class="ticket-code">{{ order.ticketCode || '-' }}</td>
-                <td><span :class="['status-badge', order.status]">{{ statusLabel(order.status) }}</span></td>
+                <td class="status-cell"><span :class="['status-badge', order.status]">{{ statusLabel(order.status) }}</span></td>
                 <td class="actions">
                   <button v-if="order.status === 'unpaid'" @click="updateStatus(order, 'cancelled')" class="action-btn cancel">Hủy</button>
                   <button v-if="order.status === 'pending'" @click="updateStatus(order, 'confirmed')" class="action-btn confirm">Xác nhận</button>
@@ -259,6 +259,10 @@ export default {
   vertical-align: top;
 }
 
+.orders-table td.status-cell {
+  vertical-align: middle;
+}
+
 .orders-table th {
   background: #f8fafc;
   color: var(--tw-text);
@@ -284,12 +288,19 @@ export default {
 
 .status-badge {
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 132px;
+  min-height: 34px;
   border-radius: 999px;
-  padding: 7px 10px;
+  padding: 7px 14px;
   font-weight: 800;
   font-size: 0.8rem;
+  line-height: 1;
   white-space: nowrap;
   border: 1px solid transparent;
+  margin-top: 0;
+  text-align: center;
 }
 
 .status-badge.unpaid { background: #f1f5f9; color: #334155; border-color: #cbd5e1; }

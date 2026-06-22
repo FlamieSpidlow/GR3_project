@@ -70,43 +70,6 @@
 
         <hr class="divider" />
 
-        <div class="activities-admin-section">
-          <div class="activities-admin-header">
-            <div>
-              <h3>Hoạt động thú vị trên trang chủ</h3>
-              <p>Quản lý các hoạt động được hiển thị ở mục Hoạt động thú vị.</p>
-            </div>
-            <button class="btn btn-primary" @click="openActivityModal()">Thêm hoạt động</button>
-          </div>
-
-          <div v-if="activitiesLoading" class="loading">Đang tải hoạt động...</div>
-          <div v-else-if="activitiesError" class="error-message">{{ activitiesError }}</div>
-          <div v-else-if="activities.length === 0" class="empty-submissions">Chưa có hoạt động nào.</div>
-          <div v-else class="activities-admin-grid">
-            <div v-for="activity in activities" :key="activity._id" class="activity-admin-card">
-              <div class="activity-admin-image">
-                <img :src="getImageUrl(activity.image)" :alt="activity.name" />
-              </div>
-              <div class="activity-admin-info">
-                <h4>{{ activity.name }}</h4>
-                <p>{{ activity.description || 'Chưa có mô tả' }}</p>
-                <div class="activity-admin-meta">
-                  <span>Thứ tự: {{ activity.sortOrder || 0 }}</span>
-                  <span :class="['activity-status', activity.active ? 'active' : 'inactive']">
-                    {{ activity.active ? 'Đang hiển thị' : 'Đã ẩn' }}
-                  </span>
-                </div>
-              </div>
-              <div class="activity-admin-actions">
-                <button class="btn-small btn-edit" @click="openActivityModal(activity)">Sửa</button>
-                <button class="btn-small btn-delete" @click="confirmDeleteActivity(activity)">Xóa</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <hr class="divider" />
-
         <!-- Pending review image submissions -->
         <div class="submissions-section">
           <div class="submissions-header">
@@ -162,43 +125,6 @@
               <button @click="editPlace(place)" class="btn-small btn-edit">✏️ Sửa</button>
               <button @click="confirmDelete(place)" class="btn-small btn-delete">🗑️ Xóa</button>
             </div>
-          </div>
-        </div>
-
-        <!-- Modal Thêm/Sửa hoạt động thú vị -->
-        <div v-if="showActivityModal" class="modal-overlay" @click.self="closeActivityModal">
-          <div class="modal-content modal-small">
-            <h2>{{ editingActivityId ? 'Sửa hoạt động' : 'Thêm hoạt động' }}</h2>
-            <form @submit.prevent="saveActivity">
-              <div class="form-group">
-                <label>Tên hoạt động *</label>
-                <input v-model="activityForm.name" type="text" required placeholder="VD: Bơi lội" />
-              </div>
-              <div class="form-group">
-                <label>Mô tả</label>
-                <textarea v-model="activityForm.description" rows="3" placeholder="Mô tả ngắn nếu cần"></textarea>
-              </div>
-              <div class="form-group">
-                <label>Ảnh hiển thị</label>
-                <input v-model="activityForm.image" type="text" placeholder="/activities/swimming.jpg hoặc /uploads/..." />
-              </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Thứ tự</label>
-                  <input v-model.number="activityForm.sortOrder" type="number" min="0" />
-                </div>
-                <div class="form-group checkbox-form-group">
-                  <label class="checkbox-inline">
-                    <input v-model="activityForm.active" type="checkbox" />
-                    Hiển thị
-                  </label>
-                </div>
-              </div>
-              <div class="modal-actions">
-                <button type="button" @click="closeActivityModal" class="btn btn-secondary">Hủy</button>
-                <button type="submit" class="btn btn-primary">{{ editingActivityId ? 'Cập nhật' : 'Thêm' }}</button>
-              </div>
-            </form>
           </div>
         </div>
 
@@ -286,6 +212,17 @@
               </div>
               <div class="form-group">
                 <label>Tags (chọn nhiều)</label>
+                <div class="inline-tag-create">
+                  <input
+                    v-model="placeTagName"
+                    type="text"
+                    placeholder="Nhập tag mới cho địa điểm"
+                    @keyup.enter.prevent="addTagToPlaceForm"
+                  />
+                  <button type="button" class="btn btn-secondary" @click="addTagToPlaceForm" :disabled="isAddingPlaceTag">
+                    {{ isAddingPlaceTag ? 'Đang thêm...' : '+ Tag mới' }}
+                  </button>
+                </div>
                 <div class="tags-selection">
                   <label v-for="tag in availableTags" :key="tag" class="tag-checkbox">
                     <input type="checkbox" :value="tag" v-model="formData.tags" />
@@ -315,10 +252,6 @@ import {
   createTag,
   searchGoongPlaces,
   addPlaceFromGoong,
-  getAllActivities,
-  createActivity,
-  updateActivity,
-  deleteActivity,
   getReviewImageSubmissions,
   approveReviewImageSubmission,
   rejectReviewImageSubmission
@@ -339,18 +272,6 @@ export default {
       pendingReviewImageSubmissions: [],
       reviewSubmissionsLoading: false,
       reviewSubmissionsError: '',
-      activities: [],
-      activitiesLoading: false,
-      activitiesError: '',
-      showActivityModal: false,
-      editingActivityId: null,
-      activityForm: {
-        name: '',
-        description: '',
-        image: '',
-        active: true,
-        sortOrder: 0
-      },
       showAddModal: false,
       showEditModal: false,
       // Search Goong
@@ -390,6 +311,8 @@ export default {
       availableTags: [],
       newTagName: '',
       isAddingTag: false,
+      placeTagName: '',
+      isAddingPlaceTag: false,
       fallbackParkingOptions: ['Có (ô tô, xe máy)', 'Có bãi đỗ xe gần địa điểm', 'Chỉ xe máy', 'Không có'],
       fallbackFoodOptions: ['Có quán ăn', 'Có quán ăn gần đó', 'Cho phép picnic', 'Có quán ăn & cho phép picnic', 'Không'],
       fallbackFacilityOptions: ['WC, khu nghỉ', 'Chỉ WC', 'Không'],
@@ -402,7 +325,6 @@ export default {
     this.checkAdmin()
     this.loadPlaces()
     this.loadTags()
-    this.loadActivities()
     this.loadPendingReviewImageSubmissions()
   },
   methods: {
@@ -480,83 +402,25 @@ export default {
         this.$notify({ type: 'error', title: 'Không thể thêm tag', message: res?.error || 'Đã có lỗi xảy ra.' })
       }
     },
-    async loadActivities() {
-      this.activitiesLoading = true
-      this.activitiesError = ''
-      const res = await getAllActivities()
-      if (res && res.success) {
-        this.activities = res.data || []
-      } else {
-        this.activities = []
-        this.activitiesError = res?.error || 'Không thể tải danh sách hoạt động.'
+    async addTagToPlaceForm() {
+      const name = String(this.placeTagName || '').trim()
+      if (!name) {
+        this.$notify({ type: 'warning', title: 'Thiếu tên tag', message: 'Vui lòng nhập tên tag cần thêm.' })
+        return
       }
-      this.activitiesLoading = false
-    },
-    openActivityModal(activity = null) {
-      if (activity) {
-        this.editingActivityId = activity._id
-        this.activityForm = {
-          name: activity.name || '',
-          description: activity.description || '',
-          image: activity.image || '',
-          active: activity.active !== false,
-          sortOrder: activity.sortOrder || 0
-        }
-      } else {
-        this.editingActivityId = null
-        this.activityForm = {
-          name: '',
-          description: '',
-          image: '',
-          active: true,
-          sortOrder: this.activities.length + 1
-        }
-      }
-      this.showActivityModal = true
-    },
-    closeActivityModal() {
-      this.showActivityModal = false
-      this.editingActivityId = null
-      this.activityForm = {
-        name: '',
-        description: '',
-        image: '',
-        active: true,
-        sortOrder: 0
-      }
-    },
-    async saveActivity() {
-      const payload = { ...this.activityForm }
-      const res = this.editingActivityId
-        ? await updateActivity(this.editingActivityId, payload)
-        : await createActivity(payload)
 
-      if (res && res.success) {
-        this.$notify({
-          type: 'success',
-          title: this.editingActivityId ? 'Đã cập nhật hoạt động' : 'Đã thêm hoạt động',
-          message: 'Danh sách hoạt động thú vị đã được lưu.'
-        })
-        this.closeActivityModal()
-        await this.loadActivities()
+      this.isAddingPlaceTag = true
+      const res = await createTag(name)
+      this.isAddingPlaceTag = false
+
+      if (res && res.success && res.data) {
+        const tagName = res.data.name || name
+        this.availableTags = this.mergeTags(this.availableTags, [tagName])
+        this.formData.tags = this.mergeTags(this.formData.tags, [tagName])
+        this.placeTagName = ''
+        this.$notify({ type: 'success', title: 'Đã thêm tag', message: `Tag "${tagName}" đã được thêm vào địa điểm.` })
       } else {
-        this.$notify({ type: 'error', title: 'Không thể lưu hoạt động', message: res?.error || 'Đã có lỗi xảy ra.' })
-      }
-    },
-    async confirmDeleteActivity(activity) {
-      const confirmed = await this.$confirm({
-        title: 'Xóa hoạt động',
-        message: `Bạn có chắc muốn xóa hoạt động "${activity.name}"?`,
-        confirmText: 'Xóa',
-        tone: 'danger'
-      })
-      if (!confirmed) return
-      const res = await deleteActivity(activity._id)
-      if (res && res.success) {
-        this.$notify({ type: 'success', title: 'Đã xóa hoạt động', message: 'Hoạt động đã được xóa khỏi trang chủ.' })
-        await this.loadActivities()
-      } else {
-        this.$notify({ type: 'error', title: 'Không thể xóa hoạt động', message: res?.error || 'Đã có lỗi xảy ra.' })
+        this.$notify({ type: 'error', title: 'Không thể thêm tag', message: res?.error || 'Đã có lỗi xảy ra.' })
       }
     },
     formatDateTime(iso) {
@@ -765,6 +629,8 @@ export default {
       }
       this.editingPlaceId = null
       this.uploadingImage = false
+      this.placeTagName = ''
+      this.isAddingPlaceTag = false
     },
     async handleImageUpload(event) {
       const files = event.target.files
@@ -1102,115 +968,6 @@ export default {
   padding: 6px 10px;
   font-size: 0.86rem;
   font-weight: 700;
-}
-
-.activities-admin-section {
-  background: var(--tw-surface);
-  border: 1px solid var(--tw-border);
-  padding: 20px;
-  border-radius: var(--tw-radius-lg);
-  margin-bottom: 20px;
-  box-shadow: var(--tw-shadow-sm);
-}
-
-.activities-admin-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
-.activities-admin-header h3 {
-  margin: 0 0 6px 0;
-  font-size: 18px;
-  color: #333;
-}
-
-.activities-admin-header p {
-  margin: 0;
-  color: #666;
-  font-size: 14px;
-}
-
-.activities-admin-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 14px;
-}
-
-.activity-admin-card {
-  border: 1px solid #eee;
-  border-radius: 10px;
-  overflow: hidden;
-  background: #fff;
-  display: flex;
-  flex-direction: column;
-}
-
-.activity-admin-image {
-  height: 140px;
-  background: #f3f4f6;
-}
-
-.activity-admin-image img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.activity-admin-info {
-  padding: 12px;
-  display: grid;
-  gap: 8px;
-}
-
-.activity-admin-info h4 {
-  margin: 0;
-  font-size: 16px;
-  color: #333;
-}
-
-.activity-admin-info p {
-  margin: 0;
-  color: #666;
-  font-size: 13px;
-  line-height: 1.45;
-}
-
-.activity-admin-meta {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  align-items: center;
-  font-size: 12px;
-  color: #555;
-}
-
-.activity-status {
-  padding: 3px 8px;
-  border-radius: 999px;
-  font-weight: 700;
-}
-
-.activity-status.active {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.activity-status.inactive {
-  background: #fee2e2;
-  color: #991b1b;
-}
-
-.activity-admin-actions {
-  margin-top: auto;
-  padding: 12px;
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  border-top: 1px solid #eee;
 }
 
 .checkbox-form-group {
@@ -1588,6 +1345,20 @@ export default {
 }
 
 /* Tags Selection */
+.inline-tag-create {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.inline-tag-create input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--tw-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
 .tags-selection {
   display: flex;
   flex-wrap: wrap;

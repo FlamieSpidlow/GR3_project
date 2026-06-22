@@ -66,7 +66,7 @@
       <section class="section-block section-activities">
         <div class="tw-container-wide">
           <div class="section-header centered">
-            <h2 class="tw-section-title">Hoạt động thú vị</h2>
+            <h2 class="tw-section-title">Các hoạt động vui chơi</h2>
             <p class="tw-muted">Gợi ý các trải nghiệm phù hợp cho trẻ nhỏ</p>
           </div>
 
