@@ -12,12 +12,12 @@
         <div class="tw-container-wide">
           <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
 
-          <div v-if="categoryOptions.length > 1" class="category-filter">
+          <div class="category-filter">
             <div class="filter-heading">
               <h2>Phân loại địa điểm</h2>
-              <span>{{ filteredPlaces.length }} địa điểm</span>
+              <span v-if="!loading">{{ filteredPlaces.length }} địa điểm</span>
             </div>
-            <div class="category-tabs" aria-label="Phân loại địa điểm">
+            <div v-if="categoryOptions.length > 1" class="category-tabs" aria-label="Phân loại địa điểm">
               <button
                 v-for="category in categoryOptions"
                 :key="category.id"
@@ -29,6 +29,7 @@
                 <span class="category-count">{{ category.count }}</span>
               </button>
             </div>
+            <div v-else class="category-loading">Đang tải danh mục...</div>
           </div>
 
           <div v-if="loading" class="loading">Đang tải...</div>
@@ -53,7 +54,7 @@
 import PlaceCard from '../components/PlaceCard.vue'
 import { getAllPlaces } from '../api/places'
 import { getCategories } from '../api/categories'
-import { filterPlacesByCategory, getCategoryId, getCategoryLabel } from '../utils/placeFilters'
+import { getCategoryId, getCategoryLabel, normalizeText } from '../utils/placeFilters'
 
 export default {
   name: 'AllPlaces',
@@ -69,21 +70,37 @@ export default {
   },
   computed: {
     filteredPlaces() {
-      return filterPlacesByCategory(this.places, this.activeCategory)
+      if (!this.activeCategory || this.activeCategory === 'all') return this.places
+      const selected = this.categoryOptions.find(category => category.id === this.activeCategory)
+      const selectedLabel = normalizeText(selected && selected.label)
+      return this.places.filter(place =>
+        getCategoryId(place.category) === this.activeCategory ||
+        (selectedLabel && normalizeText(getCategoryLabel(place.category)) === selectedLabel)
+      )
     },
     categoryOptions() {
-      const counts = this.places.reduce((acc, place) => {
+      const countsById = this.places.reduce((acc, place) => {
         const id = getCategoryId(place.category)
         if (id) acc[id] = (acc[id] || 0) + 1
         return acc
       }, {})
+      const countsByName = this.places.reduce((acc, place) => {
+        const name = normalizeText(getCategoryLabel(place.category))
+        if (name) acc[name] = (acc[name] || 0) + 1
+        return acc
+      }, {})
 
       const categoryItems = this.categories
-        .map(category => ({
-          id: getCategoryId(category),
-          label: getCategoryLabel(category),
-          count: counts[getCategoryId(category)] || 0
-        }))
+        .map(category => {
+          const id = getCategoryId(category)
+          const label = getCategoryLabel(category)
+          const nameKey = normalizeText(label)
+          return {
+            id,
+            label,
+            count: countsById[id] || countsByName[nameKey] || 0
+          }
+        })
         .filter(category => category.id && category.label)
 
       return [
@@ -100,7 +117,7 @@ export default {
       this.loading = true
       this.errorMessage = ''
       const [placesRes, categoriesRes] = await Promise.all([
-        getAllPlaces(),
+        getAllPlaces({ force: true }),
         getCategories()
       ])
 
@@ -271,6 +288,14 @@ export default {
 .category-tab.active .category-count {
   background: rgba(255, 255, 255, 0.22);
   color: #ffffff;
+}
+
+.category-loading {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  color: var(--tw-muted);
+  font-weight: 700;
 }
 
 .grid {
