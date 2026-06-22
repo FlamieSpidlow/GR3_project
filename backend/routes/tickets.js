@@ -14,7 +14,8 @@ const {
   handleZalopayCallback,
   handleVnpayPayload,
   populateBooking,
-  rejectVietQr
+  rejectVietQr,
+  verifySepayWebhookRequest
 } = require('../services/ticketingService')
 
 const statusToLegacyPayment = (status) => status === 'paid' || status === 'used' ? 'paid' : 'unpaid'
@@ -188,8 +189,7 @@ router.post('/admin/vietqr/reject', authenticate, requireAdmin, async (req, res)
 
 router.post('/vietqr/webhook', async (req, res) => {
   try {
-    const secret = process.env.VIETQR_WEBHOOK_SECRET
-    if (secret && req.headers['x-webhook-secret'] !== secret) {
+    if (!verifySepayWebhookRequest(req)) {
       return res.status(401).json({ success: false, error: 'Invalid webhook secret' })
     }
     const body = req.body || {}

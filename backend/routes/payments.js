@@ -11,7 +11,8 @@ const {
   createZalopayPayment,
   handleZalopayCallback,
   handleVnpayPayload,
-  confirmVietQr
+  confirmVietQr,
+  verifySepayWebhookRequest
 } = require('../services/ticketingService')
 
 const createOrderRef = () => `TWPAY-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`
@@ -175,8 +176,7 @@ router.post('/vietqr/create', authenticate, async (req, res) => {
 
 router.post('/vietqr/webhook', async (req, res) => {
   try {
-    const secret = process.env.VIETQR_WEBHOOK_SECRET
-    if (secret && req.headers['x-webhook-secret'] !== secret) {
+    if (!verifySepayWebhookRequest(req)) {
       return res.status(401).json({ success: false, error: 'Invalid webhook secret' })
     }
 

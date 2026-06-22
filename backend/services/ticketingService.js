@@ -76,6 +76,40 @@ const verifyVnpayPayload = (payload) => {
   return signVnpayParams(params).toLowerCase() === String(received).toLowerCase()
 }
 
+const safeCompare = (a, b) => {
+  const left = Buffer.from(String(a || ''), 'utf8')
+  const right = Buffer.from(String(b || ''), 'utf8')
+  return left.length === right.length && crypto.timingSafeEqual(left, right)
+}
+
+const verifySepayWebhookRequest = (req) => {
+  const hmacSecret = process.env.SEPAY_WEBHOOK_SECRET
+  if (hmacSecret) {
+    const signature = req.headers['x-sepay-signature']
+    const timestamp = Number(req.headers['x-sepay-timestamp'] || 0)
+    if (!signature || !Number.isFinite(timestamp)) return false
+    if (Math.abs(Math.floor(Date.now() / 1000) - timestamp) > 300) return false
+    if (typeof req.rawBody !== 'string') return false
+    const expected = `sha256=${crypto
+      .createHmac('sha256', hmacSecret)
+      .update(`${timestamp}.${req.rawBody}`, 'utf8')
+      .digest('hex')}`
+    return safeCompare(expected, signature)
+  }
+
+  const apiKey = process.env.SEPAY_API_KEY
+  if (apiKey) {
+    return safeCompare(req.headers.authorization || '', `Apikey ${apiKey}`)
+  }
+
+  const legacySecret = process.env.VIETQR_WEBHOOK_SECRET
+  if (legacySecret) {
+    return safeCompare(req.headers['x-webhook-secret'] || '', legacySecret)
+  }
+
+  return true
+}
+
 const signZalopay = (value, key) => crypto
   .createHmac('sha256', key)
   .update(String(value), 'utf8')
@@ -378,7 +412,7 @@ const populateBooking = (query) => query
   .populate('items.ticketType')
 
 const createBooking = async ({ user, payload, req }) => {
-  const { placeId, visitDate, note = '', paymentMethod = 'vnpay' } = payload || {}
+  const { placeId, visitDate, note = '', paymentMethod = 'vietqr' } = payload || {}
   if (!placeId) {
     const err = new Error('Thiếu địa điểm')
     err.statusCode = 400
@@ -403,7 +437,7 @@ const createBooking = async ({ user, payload, req }) => {
     err.statusCode = 400
     throw err
   }
-  const method = ['zalopay', 'vnpay', 'vietqr'].includes(paymentMethod) ? paymentMethod : 'vnpay'
+  const method = ['zalopay', 'vnpay', 'vietqr'].includes(paymentMethod) ? paymentMethod : 'vietqr'
   if (method === 'zalopay' && (!process.env.ZALOPAY_APP_ID || !process.env.ZALOPAY_KEY1 || !process.env.ZALOPAY_KEY2)) {
     const err = new Error('ZaloPay chưa được cấu hình')
     err.statusCode = 400
@@ -770,6 +804,7 @@ module.exports = {
   parsePriceValue,
   populateBooking,
   createZalopayPayment,
+  verifySepayWebhookRequest,
   verifyZalopayCallback,
   verifyVnpayPayload
 }

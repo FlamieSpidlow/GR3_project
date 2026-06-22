@@ -28,7 +28,12 @@ if (GOONG_API_KEY) {
 
 const app = express()
 app.use(cors())
-app.use(express.json({ limit: '50mb' }))
+app.use(express.json({
+  limit: '50mb',
+  verify: (req, res, buf) => {
+    req.rawBody = buf.toString('utf8')
+  }
+}))
 app.use(express.urlencoded({ limit: '50mb', extended: true }))
 
 // Serve static files from uploads folder

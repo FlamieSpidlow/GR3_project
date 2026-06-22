@@ -416,8 +416,8 @@
 
           <div class="form-group payment-method-fixed">
             <label>Phuong thuc thanh toan</label>
-            <div class="fixed-payment-badge">VNPAY QR</div>
-            <small>Thanh toan bang QR VNPAY hoac app ngan hang co ho tro VNPAY.</small>
+            <div class="fixed-payment-badge">VietQR</div>
+            <small>Thanh toan bang QR chuyen khoan. SePay se tu dong xac nhan khi tien vao.</small>
           </div>
 
           <div class="ticket-summary">
@@ -671,7 +671,7 @@ export default {
         adultQuantity: 1,
         childQuantity: 0,
         note: '',
-        paymentMethod: 'vnpay'
+        paymentMethod: 'vietqr'
       }
     }
   },
@@ -808,7 +808,7 @@ export default {
         adultQuantity: 1,
         childQuantity: 0,
         note: '',
-        paymentMethod: 'vnpay'
+        paymentMethod: 'vietqr'
       }
       this.showTicketModal = true
     },
@@ -847,7 +847,7 @@ export default {
         adultQuantity: adult,
         childQuantity: child,
         note: this.ticketForm.note,
-        paymentMethod: 'vnpay'
+        paymentMethod: 'vietqr'
       })
 
       this.ticketSubmitting = false

@@ -42,3 +42,13 @@ services:
         sync: false
       - key: VNPAY_PAY_URL
         value: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
+      - key: SEPAY_WEBHOOK_SECRET
+        sync: false
+      - key: VIETQR_BANK_ID
+        value: 970418
+      - key: VIETQR_ACCOUNT_NO
+        sync: false
+      - key: VIETQR_ACCOUNT_NAME
+        sync: false
+      - key: VIETQR_TEMPLATE
+        value: compact2
