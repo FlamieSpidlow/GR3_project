@@ -43,16 +43,34 @@
             <router-link to="/" class="btn-primary">Khám phá ngay</router-link>
           </div>
 
+          <div v-else>
+            <div v-if="categoryOptions.length > 1" class="category-tabs" aria-label="Phân loại địa điểm">
+              <button
+                v-for="category in categoryOptions"
+                :key="category.id"
+                type="button"
+                :class="['category-tab', { active: activeCategory === category.id }]"
+                @click="activeCategory = category.id"
+              >
+                {{ category.label }}
+              </button>
+            </div>
+
+            <div v-if="filteredFavoritePlaces.length === 0" class="empty-state compact">
+              <p>Không có địa điểm yêu thích phù hợp với phân loại đã chọn.</p>
+            </div>
+
           <div v-else class="grid">
             <PlaceCard
-              v-for="place in favoritePlaces"
+              v-for="place in filteredFavoritePlaces"
               :key="place._id || place.id"
               :place="place"
               :favorited="true"
-              :showTags="false"
+              :showTags="true"
               @select="onSelectPlace"
               @favorite-toggle="onFavoriteToggle"
             />
+          </div>
           </div>
         </div>
         </section>
@@ -67,6 +85,7 @@ import { getProfile, updateLocation } from '../api/auth'
 import { assetUrl } from '../utils/apiBase'
 import { getAuthToken } from '../utils/authSession'
 import { getBrowserLocationCached } from '../utils/clientCache'
+import { filterPlacesByCategory, getCategoryOptions } from '../utils/placeFilters'
 
 export default {
   name: 'FavourPage',
@@ -75,6 +94,7 @@ export default {
     return { 
       favorites: [],
       favoritePlaces: [],
+      activeCategory: 'all',
       isLoading: false,
       userLocation: null,
       isLocating: false
@@ -83,6 +103,14 @@ export default {
   async mounted() {
     await this.initUserLocation()
     this.loadFavorites()
+  },
+  computed: {
+    filteredFavoritePlaces() {
+      return filterPlacesByCategory(this.favoritePlaces, this.activeCategory)
+    },
+    categoryOptions() {
+      return getCategoryOptions(this.favoritePlaces)
+    }
   },
   methods: {
     coerceNumber(v) {
@@ -332,6 +360,10 @@ export default {
   padding: 80px 20px;
 }
 
+.empty-state.compact {
+  padding: 42px 20px;
+}
+
 .empty-icon {
   font-size: 4rem;
   margin-bottom: 20px;
@@ -356,6 +388,36 @@ export default {
 
 .btn-primary:hover {
   background: #4f46e5;
+}
+
+.category-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.category-tab {
+  border: 1px solid var(--tw-border);
+  background: #ffffff;
+  color: #475569;
+  border-radius: 999px;
+  min-height: 36px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-weight: 850;
+  font-size: 0.9rem;
+}
+
+.category-tab:hover {
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.category-tab.active {
+  background: var(--tw-primary);
+  border-color: var(--tw-primary);
+  color: #ffffff;
 }
 
 .grid {

@@ -169,6 +169,33 @@
             <input type="range" min="1" max="12" v-model="searchAge" />
           </div>
 
+          <div class="search-filter-panel">
+            <div class="search-filter-row">
+              <label>
+                Khoảng cách:
+                <strong>{{ searchDistanceMax >= 100 ? 'Tất cả' : `Dưới ${searchDistanceMax} km` }}</strong>
+              </label>
+              <input type="range" min="1" max="100" step="1" v-model.number="searchDistanceMax" />
+            </div>
+
+            <div class="search-filter-row">
+              <label>
+                Giá tiền:
+                <strong>{{ searchPriceMax >= 500000 ? 'Tất cả' : searchPriceLabel }}</strong>
+              </label>
+              <input type="range" min="0" max="500000" step="10000" v-model.number="searchPriceMax" />
+            </div>
+
+            <div class="search-filter-row compact">
+              <label>Loại địa điểm</label>
+              <div class="segmented">
+                <button type="button" :class="{ active: searchIndoor === '' }" @click="searchIndoor = ''">Tất cả</button>
+                <button type="button" :class="{ active: searchIndoor === 'indoor' }" @click="searchIndoor = 'indoor'">Trong nhà</button>
+                <button type="button" :class="{ active: searchIndoor === 'outdoor' }" @click="searchIndoor = 'outdoor'">Ngoài trời</button>
+              </div>
+            </div>
+          </div>
+
           <div class="search-grid">
             <div class="search-block">
               <div class="block-header">
@@ -278,6 +305,9 @@ export default {
       showSearchPopup: false,
       searchQuery: '',
       searchAge: 3,
+      searchDistanceMax: 100,
+      searchPriceMax: 500000,
+      searchIndoor: '',
       searchHistory: [],
       searchError: '',
       isLoadingSearchHistory: false,
@@ -287,6 +317,11 @@ export default {
   computed: {
     popularKeywords() {
       return ['công viên', 'khu vui chơi trong nhà', 'miễn phí', 'cuối tuần', 'hoạt động cho bé', 'bơi lội']
+    },
+    searchPriceLabel() {
+      const value = Number(this.searchPriceMax || 0)
+      if (value <= 0) return 'Miễn phí'
+      return `Dưới ${value.toLocaleString('vi-VN')}đ`
     },
     notifications() {
       return notificationState.items
@@ -444,10 +479,11 @@ export default {
         }
       }
       this.showSearchPopup = false
-      this.$router.push({
-        path: '/search',
-        query: { q, age: String(this.searchAge) }
-      })
+      const query = { q, age: String(this.searchAge) }
+      if (Number(this.searchDistanceMax) < 100) query.distance = String(this.searchDistanceMax)
+      if (Number(this.searchPriceMax) < 500000) query.price = String(this.searchPriceMax)
+      if (this.searchIndoor) query.indoor = this.searchIndoor
+      this.$router.push({ path: '/search', query })
     },
     toggleMenu() {
       this.showNotifications = false
@@ -929,28 +965,28 @@ export default {
   position: fixed;
   inset: 0;
   z-index: 2000;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: 80px 16px 24px 16px;
+  pointer-events: none;
 }
 
 .search-backdrop {
-  position: absolute;
+  position: fixed;
   inset: 0;
-  background: var(--tw-text);
-  opacity: 0.55;
+  background: rgba(15, 23, 42, 0.16);
+  pointer-events: auto;
 }
 
 .search-dialog {
-  position: relative;
-  width: 100%;
+  position: absolute;
+  top: 72px;
+  right: max(24px, calc((100vw - var(--tw-container-wide)) / 2 + 24px));
+  width: min(760px, calc(100vw - 32px));
   max-width: 760px;
   background: var(--tw-surface);
   border: 1px solid var(--tw-border);
   border-radius: var(--tw-radius-lg);
   box-shadow: var(--tw-shadow-md);
   overflow: hidden;
+  pointer-events: auto;
 }
 
 .search-header {
@@ -1043,6 +1079,62 @@ export default {
   accent-color: var(--tw-primary);
 }
 
+.search-filter-panel {
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid var(--tw-border);
+  border-radius: 14px;
+  background: var(--tw-bg);
+  display: grid;
+  gap: 12px;
+}
+
+.search-filter-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 220px) 1fr;
+  align-items: center;
+  gap: 12px;
+}
+
+.search-filter-row label {
+  color: var(--tw-text);
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.search-filter-row input[type="range"] {
+  width: 100%;
+  accent-color: var(--tw-primary);
+  cursor: pointer;
+}
+
+.search-filter-row.compact {
+  align-items: start;
+}
+
+.segmented {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.segmented button {
+  border: 1px solid var(--tw-border);
+  background: var(--tw-surface);
+  color: var(--tw-muted);
+  border-radius: 999px;
+  padding: 7px 10px;
+  cursor: pointer;
+  font-weight: 850;
+  font-size: 0.86rem;
+}
+
+.segmented button.active {
+  background: var(--tw-primary);
+  border-color: var(--tw-primary);
+  color: #ffffff;
+}
+
 .search-grid {
   margin-top: 16px;
   display: grid;
@@ -1131,10 +1223,10 @@ export default {
 }
 
 @media (max-width: 720px) {
-  .search-modal {
-    padding-top: 70px;
-  }
   .search-grid {
+    grid-template-columns: 1fr;
+  }
+  .search-filter-row {
     grid-template-columns: 1fr;
   }
 }
@@ -1207,11 +1299,14 @@ export default {
   }
 
   .search-modal {
-    align-items: stretch;
-    padding: 66px 10px 12px;
+    inset: 0;
   }
 
   .search-dialog {
+    top: 66px;
+    right: 10px;
+    left: 10px;
+    width: auto;
     max-height: calc(100vh - 82px);
     overflow-y: auto;
   }

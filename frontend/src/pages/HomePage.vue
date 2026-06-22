@@ -18,6 +18,18 @@
 
           <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
 
+          <div v-if="categoryOptions.length > 1" class="category-tabs" aria-label="Phân loại địa điểm">
+            <button
+              v-for="category in categoryOptions"
+              :key="category.id"
+              type="button"
+              :class="['category-tab', { active: activeCategory === category.id }]"
+              @click="activeCategory = category.id"
+            >
+              {{ category.label }}
+            </button>
+          </div>
+
           <div class="places">
             <div v-if="locationLoading" class="loading-spinner">
               <p>Đang tải các địa điểm gần bạn...</p>
@@ -59,6 +71,9 @@
             <div v-if="!locationLoading && allPlaces.length === 0 && !errorMessage" class="no-places">
               <p>Không tìm thấy địa điểm.</p>
             </div>
+            <div v-else-if="!locationLoading && filteredPlaces.length === 0" class="no-places">
+              <p>Không có địa điểm phù hợp với phân loại đã chọn.</p>
+            </div>
           </div>
         </div>
       </section>
@@ -95,10 +110,12 @@
             </button>
 
             <transition-group name="slide" tag="div" class="activities-grid">
-              <div
+              <button
                 v-for="activity in displayedActivities"
                 :key="activity.id"
+                type="button"
                 class="activity-card"
+                @click="selectActivity(activity)"
               >
                 <div class="activity-media">
                   <img :src="activity.image" :alt="activity.label" />
@@ -106,7 +123,7 @@
                 <div class="activity-body">
                   <h3 class="activity-title">{{ activity.label }}</h3>
                 </div>
-              </div>
+              </button>
             </transition-group>
           </div>
         </div>
@@ -119,6 +136,7 @@
 import PlaceCard from '../components/PlaceCard.vue'
 import { getAllPlaces } from '../api/places'
 import { DEFAULT_ACTIVITIES, getFeaturedActivities } from '../api/tags'
+import { filterPlacesByCategory, getCategoryOptions } from '../utils/placeFilters'
 
 
 export default {
@@ -132,25 +150,33 @@ export default {
       activityItems: [...DEFAULT_ACTIVITIES],
       activityIndex: 0,
       activityDisplayCount: 3,
+      activeCategory: 'all',
       errorMessage: '',
       locationLoading: true
     }
   },
   computed: {
     canSlidePlaces() {
-      return this.allPlaces.length > this.displayCount
+      return this.filteredPlaces.length > this.displayCount
     },
     canSlideActivities() {
       return this.activityItems.length > this.activityDisplayCount
     },
     displayedPlaces() {
-      if (this.allPlaces.length === 0) return []
+      if (this.filteredPlaces.length === 0) return []
       const result = []
-      for (let i = 0; i < this.displayCount; i++) {
-        const idx = (this.currentIndex + i) % this.allPlaces.length
-        result.push(this.allPlaces[idx])
+      const count = Math.min(this.displayCount, this.filteredPlaces.length)
+      for (let i = 0; i < count; i++) {
+        const idx = (this.currentIndex + i) % this.filteredPlaces.length
+        result.push(this.filteredPlaces[idx])
       }
       return result
+    },
+    filteredPlaces() {
+      return filterPlacesByCategory(this.allPlaces, this.activeCategory)
+    },
+    categoryOptions() {
+      return getCategoryOptions(this.allPlaces)
     },
     displayedActivities() {
       if (!this.activityItems || this.activityItems.length === 0) return []
@@ -196,13 +222,13 @@ export default {
       this.locationLoading = false
     },
     slideNextPlaces() {
-      if (this.allPlaces.length > this.displayCount) {
-        this.currentIndex = (this.currentIndex + 1) % this.allPlaces.length
+      if (this.filteredPlaces.length > this.displayCount) {
+        this.currentIndex = (this.currentIndex + 1) % this.filteredPlaces.length
       }
     },
     slidePrevPlaces() {
-      if (this.allPlaces.length > this.displayCount) {
-        this.currentIndex = (this.currentIndex - 1 + this.allPlaces.length) % this.allPlaces.length
+      if (this.filteredPlaces.length > this.displayCount) {
+        this.currentIndex = (this.currentIndex - 1 + this.filteredPlaces.length) % this.filteredPlaces.length
       }
     },
     slideNextActivities() {
@@ -232,6 +258,16 @@ export default {
       this.$router.push({
         path: `/place/${place._id}`
       })
+    },
+    selectActivity(activity) {
+      const label = activity && (activity.label || activity.name)
+      if (!label) return
+      this.$router.push({ path: '/search', query: { q: label, activity: label } })
+    }
+  },
+  watch: {
+    activeCategory() {
+      this.currentIndex = 0
     }
   }
 }
@@ -315,6 +351,37 @@ export default {
   border-left: 3px solid #fc8181;
 }
 
+.category-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin: 0 0 18px;
+}
+
+.category-tab {
+  border: 1px solid var(--tw-border);
+  background: var(--tw-surface);
+  color: var(--tw-muted);
+  border-radius: 999px;
+  min-height: 36px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-weight: 850;
+  font-size: 0.9rem;
+}
+
+.category-tab:hover {
+  background: var(--tw-bg);
+  color: var(--tw-text);
+}
+
+.category-tab.active {
+  background: var(--tw-primary);
+  border-color: var(--tw-primary);
+  color: #ffffff;
+}
+
 .site-main {
   padding-bottom: 36px;
 }
@@ -354,6 +421,7 @@ export default {
   overflow: hidden;
   cursor: pointer;
   padding: 0;
+  font: inherit;
   transition: border-color 0.15s ease, transform 0.15s ease;
 }
 

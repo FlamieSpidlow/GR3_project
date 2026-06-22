@@ -49,24 +49,39 @@
 
       <h2 class="section-title">Gợi ý cho bạn</h2>
 
+      <div v-if="categoryOptions.length > 1" class="category-tabs" aria-label="Phân loại địa điểm">
+        <button
+          v-for="category in categoryOptions"
+          :key="category.id"
+          type="button"
+          :class="['category-tab', { active: activeCategory === category.id }]"
+          @click="activeCategory = category.id"
+        >
+          {{ category.label }}
+        </button>
+      </div>
+
       <div v-if="loading" class="loading">Đang tải...</div>
       <div v-else>
         <div v-if="recommendations.length === 0">
           <div class="empty">Không có gợi ý</div>
+        </div>
+        <div v-else-if="filteredRecommendations.length === 0">
+          <div class="empty">Không có địa điểm phù hợp với phân loại đã chọn</div>
         </div>
         <div class="grid">
           <PlaceCard
             v-for="place in displayed"
             :key="place.id"
             :place="place"
-            :showTags="false"
+            :showTags="true"
             @select="viewDetails"
             @favorite-toggle="onFavoriteToggle"
           />
         </div>
 
         <div v-if="hasMore" class="more">
-          <button class="btn-outline" @click="loadMore">Xem thêm ({{ recommendations.length - displayLimit }})</button>
+          <button class="btn-outline" @click="loadMore">Xem thêm ({{ filteredRecommendations.length - displayLimit }})</button>
         </div>
       </div>
       </div>
@@ -80,6 +95,7 @@ import { getAllPlaces } from '../api/places'
 import { getProfile, updateLocation } from '../api/auth'
 import { getAuthToken, getAuthUserRaw } from '../utils/authSession'
 import { getBrowserLocationCached } from '../utils/clientCache'
+import { filterPlacesByCategory, getCategoryOptions } from '../utils/placeFilters'
 
 export default {
   name: 'SuggestPage',
@@ -97,6 +113,7 @@ export default {
       loading: true,
       recommendations: [],
       displayLimit: 6,
+      activeCategory: 'all',
       userLocation: null,
       isLocating: false,
       favorites: []
@@ -107,13 +124,19 @@ export default {
       return String(this.user.name || 'U').trim().slice(0, 1).toUpperCase()
     },
     displayed() {
-      return this.recommendations.slice(0, this.displayLimit)
+      return this.filteredRecommendations.slice(0, this.displayLimit)
     },
     hasMore() {
-      return this.recommendations.length > this.displayLimit
+      return this.filteredRecommendations.length > this.displayLimit
     },
     nearbyCount() {
       return this.recommendations.length
+    },
+    filteredRecommendations() {
+      return filterPlacesByCategory(this.recommendations, this.activeCategory)
+    },
+    categoryOptions() {
+      return getCategoryOptions(this.recommendations)
     }
   },
   mounted() {
@@ -246,6 +269,7 @@ export default {
               averageRating: p.rating || null,
               ageRange: p.ageRange || '0-12',
               price: p.price || 'Miễn phí',
+              tags: p.tags || [],
               lat: pLat,
               lng: pLng,
               distance: distance
@@ -317,6 +341,11 @@ export default {
     },
     loadMore() {
       this.displayLimit += 6
+    }
+  },
+  watch: {
+    activeCategory() {
+      this.displayLimit = 6
     }
   }
 }
@@ -415,6 +444,10 @@ export default {
 .location-warning { display:flex; align-items:center; gap:12px; background:#fffbeb; padding:14px 18px; border-radius:8px; margin-top:14px; border:1px solid #f59e0b }
 .location-warning p { margin:0; color:#92400e; font-size:0.95rem }
 .section-title { margin-top:20px; margin-bottom:12px }
+.category-tabs { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px }
+.category-tab { border:1px solid var(--tw-border); background:#fff; color:#475569; border-radius:999px; min-height:36px; padding:8px 12px; cursor:pointer; font-weight:850; font-size:0.9rem }
+.category-tab:hover { background:#f8fafc; color:#0f172a }
+.category-tab.active { background:var(--tw-primary); border-color:var(--tw-primary); color:#fff }
 .grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:16px }
 
 @media (max-width: 1100px) {
