@@ -337,7 +337,7 @@ export default {
 .status-badge.unpaid { background: #f1f5f9; color: #334155; border-color: #cbd5e1; }
 .status-badge.pending { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
 .status-badge.confirmed { background: #dbeafe; color: #1e40af; border-color: #93c5fd; }
-.status-badge.cancelled { background: #e5e7eb; color: #374151; border-color: #9ca3af; }
+.status-badge.cancelled { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
 .status-badge.used { background: #f3e8ff; color: #6b21a8; border-color: #c084fc; }
 
 .ticket-grid {
@@ -495,17 +495,18 @@ export default {
 }
 
 .cancel-ticket-btn {
-  border: 1px solid #fecaca;
+  border: 1px solid #dc2626;
   border-radius: 8px;
   padding: 9px 13px;
-  background: #fef2f2;
-  color: #991b1b;
+  background: #dc2626;
+  color: #ffffff;
   font-weight: 900;
   cursor: pointer;
 }
 
 .cancel-ticket-btn:hover:not(:disabled) {
-  background: #fee2e2;
+  background: #b91c1c;
+  border-color: #b91c1c;
 }
 
 .cancel-ticket-btn:disabled {

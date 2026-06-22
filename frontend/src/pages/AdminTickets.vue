@@ -295,7 +295,7 @@ export default {
 .status-badge.unpaid { background: #f1f5f9; color: #334155; border-color: #cbd5e1; }
 .status-badge.pending { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
 .status-badge.confirmed { background: #dbeafe; color: #1e40af; border-color: #93c5fd; }
-.status-badge.cancelled { background: #e5e7eb; color: #374151; border-color: #9ca3af; }
+.status-badge.cancelled { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
 .status-badge.used { background: #f3e8ff; color: #6b21a8; border-color: #c084fc; }
 
 .actions {
