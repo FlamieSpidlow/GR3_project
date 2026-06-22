@@ -583,6 +583,7 @@ import { assetUrl } from '../utils/apiBase'
 import { buildMapsDirectionsUrl, buildMapsEmbedUrl, hasMapTarget } from '../utils/mapLinks'
 import { getAuthToken, getAuthUserRaw } from '../utils/authSession'
 import { getBrowserLocationCached } from '../utils/clientCache'
+import { loadNotifications } from '../utils/notifications'
 
 export default {
   name: 'PlaceDetails',
@@ -1002,6 +1003,7 @@ export default {
             const nextUser = { ...user, favorites: serverFavorites }
             if (sessionStorage.getItem('user')) sessionStorage.setItem('user', JSON.stringify(nextUser))
           }
+          loadNotifications()
         }
       } catch (e) {
         console.error('Error toggling favorite:', e)

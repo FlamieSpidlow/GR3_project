@@ -53,6 +53,7 @@ import { cleanAddress } from '../utils/addressFormatter'
 import { assetUrl } from '../utils/apiBase'
 import { updateFavorite } from '../api/auth'
 import { getAuthToken, getAuthUserRaw } from '../utils/authSession'
+import { loadNotifications } from '../utils/notifications'
 
 export default {
   name: 'PlaceCard',
@@ -141,6 +142,7 @@ export default {
         const serverFavorites = Array.isArray(res.favorites) ? res.favorites : favorites
         this.writeFavorites(serverFavorites)
         this.$emit('favorite-toggle', { id: placeId, favorited: nextFavorited, favorites: serverFavorites })
+        loadNotifications()
       } catch (err) {
         console.error('Error syncing favorite:', err)
         this.localFavorited = previousFavorited
