@@ -34,4 +34,13 @@ services:
         sync: false
       - key: FROM_EMAIL
         sync: false
-
+      - key: FRONTEND_PUBLIC_ORIGIN
+        value: https://theweekend.onrender.com
+      - key: ZALOPAY_APP_ID
+        sync: false
+      - key: ZALOPAY_KEY1
+        sync: false
+      - key: ZALOPAY_KEY2
+        sync: false
+      - key: ZALOPAY_CREATE_URL
+        value: https://sb-openapi.zalopay.vn/v2/create

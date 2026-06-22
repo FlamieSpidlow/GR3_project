@@ -11,6 +11,7 @@ const {
   createBooking,
   ensureDefaultTicketTypes,
   getPublicOrigin,
+  handleZalopayCallback,
   handleVnpayPayload,
   populateBooking,
   rejectVietQr
@@ -209,6 +210,16 @@ router.post('/vietqr/webhook', async (req, res) => {
   } catch (err) {
     console.error('VietQR webhook error:', err)
     res.status(err.statusCode || 500).json({ success: false, error: err.message || 'Lỗi webhook VietQR' })
+  }
+})
+
+router.post('/zalopay/callback', async (req, res) => {
+  try {
+    const result = await handleZalopayCallback(req.body || {})
+    res.json({ return_code: result.code, return_message: result.message })
+  } catch (err) {
+    console.error('ZaloPay callback error:', err)
+    res.json({ return_code: 2, return_message: err.message || 'ZaloPay callback error' })
   }
 })
 

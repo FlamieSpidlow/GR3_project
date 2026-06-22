@@ -7,6 +7,9 @@ const { authenticate } = require('../middleware/auth')
 const {
   buildVietQr,
   buildVnpayPayUrl,
+  createUniqueZalopayOrderRef,
+  createZalopayPayment,
+  handleZalopayCallback,
   handleVnpayPayload,
   confirmVietQr
 } = require('../services/ticketingService')
@@ -53,7 +56,7 @@ const preparePayment = async ({ bookingId, user, provider, req }) => {
       user: user._id,
       provider,
       amount: booking.totalAmount,
-      orderRef: await getUniqueOrderRef(),
+      orderRef: provider === 'zalopay' ? await createUniqueZalopayOrderRef() : await getUniqueOrderRef(),
       expiresAt: booking.expiresAt
     })
   }
@@ -65,12 +68,25 @@ const preparePayment = async ({ bookingId, user, provider, req }) => {
   }
 
   payment.provider = provider
+  if (provider === 'zalopay' && !/^\d{6}/.test(String(payment.orderRef || ''))) {
+    payment.orderRef = await createUniqueZalopayOrderRef()
+  }
   payment.status = provider === 'vietqr' ? 'pending_review' : 'pending'
   payment.payUrl = ''
   payment.qrUrl = ''
   payment.transferContent = ''
 
-  if (provider === 'vnpay') {
+  if (provider === 'zalopay') {
+    if (!process.env.ZALOPAY_APP_ID || !process.env.ZALOPAY_KEY1 || !process.env.ZALOPAY_KEY2) {
+      const err = new Error('ZaloPay chưa được cấu hình')
+      err.statusCode = 400
+      throw err
+    }
+    const zalopay = await createZalopayPayment({ payment, booking, req })
+    payment.payUrl = zalopay.payUrl
+    payment.qrUrl = zalopay.qrUrl
+    payment.rawRequest = { ...payment.rawRequest, zalopayRequest: zalopay.rawRequest, zalopayResponse: zalopay.rawResponse }
+  } else if (provider === 'vnpay') {
     if (!process.env.VNPAY_TMN_CODE || !process.env.VNPAY_HASH_SECRET) {
       const err = new Error('VNPAY chưa được cấu hình')
       err.statusCode = 400
@@ -120,6 +136,28 @@ router.get('/vnpay/ipn', async (req, res) => {
   } catch (err) {
     console.error('VNPAY IPN error:', err)
     res.json({ RspCode: '99', Message: 'Unknown error' })
+  }
+})
+
+router.post('/zalopay/create', authenticate, async (req, res) => {
+  try {
+    const bookingId = req.body?.bookingId || req.body?.id
+    if (!bookingId) return res.status(400).json({ success: false, error: 'Thiếu bookingId' })
+    const data = await preparePayment({ bookingId, user: req.user, provider: 'zalopay', req })
+    res.json({ success: true, data })
+  } catch (err) {
+    console.error('Create ZaloPay payment error:', err)
+    res.status(err.statusCode || 500).json({ success: false, error: err.message || 'Lỗi tạo thanh toán ZaloPay' })
+  }
+})
+
+router.post('/zalopay/callback', async (req, res) => {
+  try {
+    const result = await handleZalopayCallback(req.body || {})
+    res.json({ return_code: result.code, return_message: result.message })
+  } catch (err) {
+    console.error('ZaloPay callback error:', err)
+    res.json({ return_code: 2, return_message: err.message || 'ZaloPay callback error' })
   }
 })
 

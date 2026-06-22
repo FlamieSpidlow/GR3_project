@@ -1,4 +1,5 @@
 const crypto = require('crypto')
+const fetch = require('node-fetch')
 const Booking = require('../models/Booking')
 const Payment = require('../models/Payment')
 const PaymentLog = require('../models/PaymentLog')
@@ -75,6 +76,17 @@ const verifyVnpayPayload = (payload) => {
   return signVnpayParams(params).toLowerCase() === String(received).toLowerCase()
 }
 
+const signZalopay = (value, key) => crypto
+  .createHmac('sha256', key)
+  .update(String(value), 'utf8')
+  .digest('hex')
+
+const verifyZalopayCallback = (payload) => {
+  const key2 = process.env.ZALOPAY_KEY2
+  if (!key2 || !payload?.data || !payload?.mac) return false
+  return signZalopay(payload.data, key2).toLowerCase() === String(payload.mac).toLowerCase()
+}
+
 const getPublicOrigin = (req) => {
   const configured = process.env.FRONTEND_PUBLIC_ORIGIN || process.env.APP_PUBLIC_ORIGIN
   if (configured) return configured.replace(/\/$/, '')
@@ -91,6 +103,19 @@ const createUniqueCode = async (Model, field, prefix) => {
     if (!await Model.exists({ [field]: code })) return code
   }
   throw new Error(`Cannot create unique ${field}`)
+}
+
+const zalopayDatePrefix = (date = new Date()) => {
+  const vietnamDate = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }))
+  return `${String(vietnamDate.getFullYear()).slice(-2)}${pad(vietnamDate.getMonth() + 1)}${pad(vietnamDate.getDate())}`
+}
+
+const createUniqueZalopayOrderRef = async () => {
+  for (let i = 0; i < 8; i += 1) {
+    const code = `${zalopayDatePrefix()}_TW${Date.now().toString(36).toUpperCase()}${crypto.randomBytes(3).toString('hex').toUpperCase()}`
+    if (code.length <= 40 && !await Payment.exists({ orderRef: code })) return code
+  }
+  throw new Error('Cannot create unique ZaloPay orderRef')
 }
 
 const toQuantity = (value) => {
@@ -243,6 +268,69 @@ const buildVietQr = (payment) => {
   }
 }
 
+const createZalopayPayment = async ({ payment, booking, req }) => {
+  const appId = process.env.ZALOPAY_APP_ID
+  const key1 = process.env.ZALOPAY_KEY1
+  const createUrl = process.env.ZALOPAY_CREATE_URL || 'https://sb-openapi.zalopay.vn/v2/create'
+  if (!appId || !key1 || !process.env.ZALOPAY_KEY2) return { payUrl: '', qrUrl: '', rawRequest: null, rawResponse: null }
+
+  const origin = getPublicOrigin(req)
+  const appTime = Date.now()
+  const appUser = String(payment.user || booking.user || 'theweekend').slice(0, 50)
+  const item = JSON.stringify((booking.items || []).map((line) => ({
+    itemid: String(line.ticketType || line.name || 'ticket'),
+    itemname: String(line.name || 'Ve TheWeekend'),
+    itemprice: line.unitPrice || 0,
+    itemquantity: line.quantity || 1
+  })))
+  const embedData = JSON.stringify({
+    redirecturl: `${origin}/ticket-payment/${booking._id}?provider=zalopay`,
+    preferred_payment_method: ['vietqr']
+  })
+  const requestBody = {
+    app_id: Number(appId),
+    app_user: appUser,
+    app_trans_id: payment.orderRef,
+    app_time: appTime,
+    expire_duration_seconds: Math.max(300, Math.floor((payment.expiresAt.getTime() - appTime) / 1000)),
+    amount: payment.amount,
+    description: `TheWeekend ${payment.orderRef}`,
+    callback_url: `${origin}/api/tickets/zalopay/callback`,
+    item,
+    embed_data: embedData,
+    bank_code: ''
+  }
+  const macInput = [
+    requestBody.app_id,
+    requestBody.app_trans_id,
+    requestBody.app_user,
+    requestBody.amount,
+    requestBody.app_time,
+    requestBody.embed_data,
+    requestBody.item
+  ].join('|')
+  requestBody.mac = signZalopay(macInput, key1)
+
+  const response = await fetch(createUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams(Object.entries(requestBody).map(([key, value]) => [key, String(value)]))
+  })
+  const rawResponse = await response.json().catch(() => ({}))
+  if (!response.ok || rawResponse.return_code !== 1) {
+    const err = new Error(rawResponse.return_message || rawResponse.sub_return_message || 'Khong tao duoc thanh toan ZaloPay')
+    err.statusCode = 400
+    err.details = rawResponse
+    throw err
+  }
+  return {
+    payUrl: rawResponse.order_url || '',
+    qrUrl: rawResponse.qr_code || '',
+    rawRequest: requestBody,
+    rawResponse
+  }
+}
+
 const isPaymentSuccessful = (payment) => ['success', 'paid'].includes(payment?.status)
 
 const expirePendingBooking = async (booking, payment) => {
@@ -290,7 +378,7 @@ const populateBooking = (query) => query
   .populate('items.ticketType')
 
 const createBooking = async ({ user, payload, req }) => {
-  const { placeId, visitDate, note = '', paymentMethod = 'vietqr' } = payload || {}
+  const { placeId, visitDate, note = '', paymentMethod = 'zalopay' } = payload || {}
   if (!placeId) {
     const err = new Error('Thiếu địa điểm')
     err.statusCode = 400
@@ -315,7 +403,12 @@ const createBooking = async ({ user, payload, req }) => {
     err.statusCode = 400
     throw err
   }
-  const method = paymentMethod === 'vnpay' ? 'vnpay' : 'vietqr'
+  const method = ['zalopay', 'vnpay', 'vietqr'].includes(paymentMethod) ? paymentMethod : 'zalopay'
+  if (method === 'zalopay' && (!process.env.ZALOPAY_APP_ID || !process.env.ZALOPAY_KEY1 || !process.env.ZALOPAY_KEY2)) {
+    const err = new Error('ZaloPay chưa được cấu hình')
+    err.statusCode = 400
+    throw err
+  }
   if (method === 'vnpay' && (!process.env.VNPAY_TMN_CODE || !process.env.VNPAY_HASH_SECRET)) {
     const err = new Error('VNPAY chưa được cấu hình')
     err.statusCode = 400
@@ -352,12 +445,17 @@ const createBooking = async ({ user, payload, req }) => {
     provider: method,
     status: method === 'vietqr' ? 'pending_review' : 'pending',
     amount: booking.totalAmount,
-    orderRef: await createUniqueCode(Payment, 'orderRef', 'TWPAY'),
+    orderRef: method === 'zalopay' ? await createUniqueZalopayOrderRef() : await createUniqueCode(Payment, 'orderRef', 'TWPAY'),
     expiresAt,
     rawRequest: { placeId, visitDate, items: payload.items, adultQuantity: payload.adultQuantity, childQuantity: payload.childQuantity }
   })
 
-  if (method === 'vnpay') {
+  if (method === 'zalopay') {
+    const zalopay = await createZalopayPayment({ payment, booking, req })
+    payment.payUrl = zalopay.payUrl
+    payment.qrUrl = zalopay.qrUrl
+    payment.rawRequest = { ...payment.rawRequest, zalopayRequest: zalopay.rawRequest, zalopayResponse: zalopay.rawResponse }
+  } else if (method === 'vnpay') {
     payment.payUrl = buildVnpayPayUrl({ payment, req })
   } else {
     const vietQr = buildVietQr(payment)
@@ -374,7 +472,7 @@ const createBooking = async ({ user, payload, req }) => {
     event: 'create',
     idempotencyKey: `${method}:create:${payment.orderRef}`,
     valid: true,
-    message: method === 'vietqr' ? 'VietQR created, waiting for confirmation' : 'VNPAY payment created',
+    message: method === 'vietqr' ? 'VietQR created, waiting for confirmation' : `${method.toUpperCase()} payment created`,
     payload: payment.rawRequest,
     actor: user
   })
@@ -549,6 +647,46 @@ const handleVnpayPayload = async (payload, source = 'return') => {
   return { success: true, code: '00', message: 'Confirm success', booking: populated }
 }
 
+const handleZalopayCallback = async (payload) => {
+  const idempotencyKey = `zalopay:callback:${payload?.data || 'missing'}`
+  if (!verifyZalopayCallback(payload)) {
+    await logPaymentEvent({ provider: 'zalopay', event: 'callback', idempotencyKey, valid: false, message: 'Invalid signature', payload })
+    return { success: false, code: 2, message: 'Invalid callback mac' }
+  }
+
+  let data
+  try {
+    data = JSON.parse(payload.data)
+  } catch (err) {
+    await logPaymentEvent({ provider: 'zalopay', event: 'callback', idempotencyKey, valid: false, message: 'Invalid callback data JSON', payload })
+    return { success: false, code: 2, message: 'Invalid callback data' }
+  }
+
+  const orderRef = data.app_trans_id
+  const payment = await Payment.findOne({ orderRef, provider: 'zalopay' })
+  const callbackKey = `zalopay:callback:${orderRef}:${data.zp_trans_id || data.server_time || 'unknown'}`
+  if (!payment) {
+    await logPaymentEvent({ provider: 'zalopay', event: 'callback', idempotencyKey: callbackKey, valid: false, message: 'Payment not found', payload })
+    return { success: false, code: 2, message: 'Payment not found' }
+  }
+
+  const booking = await Booking.findById(payment.booking)
+  await expirePendingBooking(booking, payment)
+  if (Number(data.amount) !== payment.amount) {
+    await logPaymentEvent({ payment, booking, provider: 'zalopay', event: 'callback', idempotencyKey: callbackKey, valid: false, message: 'Amount mismatch', payload })
+    return { success: false, code: 2, message: 'Amount mismatch', booking }
+  }
+
+  const populated = await markPaymentPaid({
+    payment,
+    payload,
+    providerTransactionId: data.zp_trans_id,
+    idempotencyKey: callbackKey,
+    provider: 'zalopay'
+  })
+  return { success: true, code: 1, message: 'Success', booking: populated }
+}
+
 const confirmVietQr = async ({ orderRef, amount, transactionId, payload, actor, source = 'webhook' }) => {
   const payment = await Payment.findOne({ orderRef, provider: 'vietqr' })
   const idempotencyKey = `vietqr:${source}:${transactionId || orderRef}:${amount}`
@@ -622,12 +760,16 @@ module.exports = {
   buildVnpayPayUrl,
   buildVietQr,
   createBooking,
+  createUniqueZalopayOrderRef,
   confirmVietQr,
   rejectVietQr,
   ensureDefaultTicketTypes,
   getPublicOrigin,
+  handleZalopayCallback,
   handleVnpayPayload,
   parsePriceValue,
   populateBooking,
+  createZalopayPayment,
+  verifyZalopayCallback,
   verifyVnpayPayload
 }

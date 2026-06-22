@@ -53,10 +53,24 @@ export default {
       if (res.success && ['paid', 'used'].includes(res.data?.status)) {
         this.status = 'success'
         this.message = 'Thanh toan da duoc backend xac minh. Ve dien tu da san sang.'
+        this.$notify({
+          type: 'success',
+          title: 'Thanh toán thành công',
+          message: 'Vé điện tử đã sẵn sàng trong mục Vé của tôi.',
+          duration: 4000,
+          persist: false
+        })
         return
       }
       this.status = 'error'
       this.message = res.error || 'Thanh toan chua duoc xac minh. Vui long kiem tra lai sau.'
+      this.$notify({
+        type: 'warning',
+        title: 'Chưa xác nhận thanh toán',
+        message: this.message,
+        duration: 4000,
+        persist: false
+      })
     }
   }
 }

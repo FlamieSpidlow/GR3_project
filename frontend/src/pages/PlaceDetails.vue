@@ -414,12 +414,10 @@
           </div>
 
 
-          <div class="form-group">
+          <div class="form-group payment-method-fixed">
             <label>Phuong thuc thanh toan</label>
-            <select v-model="ticketForm.paymentMethod">
-              <option value="vietqr">VietQR</option>
-              <option value="vnpay">VNPAY</option>
-            </select>
+            <div class="fixed-payment-badge">ZaloPay QR</div>
+            <small>Thanh toan bang QR ZaloPay hoac app ngan hang duoc ZaloPay ho tro.</small>
           </div>
 
           <div class="ticket-summary">
@@ -462,16 +460,32 @@
 
           <div v-if="!ticketPaymentCompleted" class="payment-qr-wrap">
             <img v-if="paymentQrImage" :src="paymentQrImage" class="payment-qr-image" alt="Mã QR thanh toán" />
-            <a
-              v-if="createdTicketOrder.payment?.payUrl"
-              class="btn-submit payment-link-btn"
-              :href="createdTicketOrder.payment.payUrl"
-            >
-              Thanh toan qua VNPAY
-            </a>
+            <div v-else class="payment-qr-empty">
+              Chưa tạo được QR thanh toán. Vui lòng kiểm tra cấu hình thanh toán.
+            </div>
             <div v-if="createdTicketOrder.payment?.transferContent" class="transfer-content">
               Noi dung chuyen khoan: <strong>{{ createdTicketOrder.payment.transferContent }}</strong>
             </div>
+            <div v-if="paymentQrImage && createdTicketOrder.payment?.provider === 'vietqr' && !createdTicketOrder.payment?.qrUrl && createdTicketOrder.payment?.transferContent" class="transfer-hint">
+              QR này chứa nội dung chuyển khoản. Để có QR ngân hàng tự điền số tiền/tài khoản, cấu hình VIETQR_BANK_ID và VIETQR_ACCOUNT_NO ở backend.
+            </div>
+            <div v-if="paymentQrImage && createdTicketOrder.payment?.provider === 'zalopay'" class="transfer-hint">
+              Quét QR này bằng ZaloPay hoặc app ngân hàng được hỗ trợ. Sau khi ZaloPay xác nhận thành công, vé điện tử sẽ tự xuất hiện trong mục Vé của tôi.
+            </div>
+            <div v-if="paymentQrImage && createdTicketOrder.payment?.provider === 'vnpay'" class="transfer-hint">
+              Quét QR này bằng app ngân hàng có hỗ trợ VNPAY. Sau khi VNPAY xác nhận thành công, vé điện tử sẽ tự xuất hiện trong mục Vé của tôi.
+            </div>
+            <div v-if="createdTicketOrder.payment?.provider === 'vietqr'" class="transfer-hint">
+              VietQR chỉ được ghi nhận thành công khi hệ thống nhận webhook ngân hàng hoặc admin xác nhận giao dịch. Chuyển khoản xong có thể mất vài phút để đối soát.
+            </div>
+            <button
+              v-if="createdTicketOrder"
+              type="button"
+              class="btn-check-payment"
+              @click="checkCurrentTicketPayment"
+            >
+              Kiểm tra trạng thái thanh toán
+            </button>
           </div>
 
           <div v-if="ticketError" class="ticket-error">{{ ticketError }}</div>
@@ -602,6 +616,7 @@ import { buildMapsDirectionsUrl, buildMapsEmbedUrl, hasMapTarget } from '../util
 import { getAuthToken, getAuthUserRaw } from '../utils/authSession'
 import { getBrowserLocationCached } from '../utils/clientCache'
 import { loadNotifications, requestConfirmation } from '../utils/notifications'
+import QRCode from 'qrcode'
 
 export default {
   name: 'PlaceDetails',
@@ -656,7 +671,7 @@ export default {
         adultQuantity: 1,
         childQuantity: 0,
         note: '',
-        paymentMethod: 'vietqr'
+        paymentMethod: 'zalopay'
       }
     }
   },
@@ -793,7 +808,7 @@ export default {
         adultQuantity: 1,
         childQuantity: 0,
         note: '',
-        paymentMethod: 'vietqr'
+        paymentMethod: 'zalopay'
       }
       this.showTicketModal = true
     },
@@ -832,31 +847,90 @@ export default {
         adultQuantity: adult,
         childQuantity: child,
         note: this.ticketForm.note,
-        paymentMethod: this.ticketForm.paymentMethod
+        paymentMethod: 'zalopay'
       })
 
       this.ticketSubmitting = false
       if (res.success) {
         this.ticketSuccess = 'Đã gửi yêu cầu đặt vé. Bạn có thể xem trạng thái trong mục Vé của tôi.'
         this.createdTicketOrder = res.data
+        const payment = this.createdTicketOrder.payment || {}
         this.$notify({
           type: 'info',
           title: 'Đã tạo đơn vé',
           message: `Đơn vé tại ${this.place.name || 'địa điểm'} đã được tạo. Vui lòng thanh toán để chờ xác nhận.`,
           persist: false
         })
+        if (payment.provider === 'zalopay' || payment.provider === 'vnpay') {
+          if (!payment.qrUrl && !payment.payUrl) {
+            this.ticketError = `${payment.provider === 'zalopay' ? 'ZaloPay' : 'VNPAY'} chưa được cấu hình hoặc chưa tạo được QR thanh toán.`
+            this.ticketSuccess = ''
+            return
+          }
+          await this.createPaymentQr(res.data)
+          this.startPaymentStatusWatcher(res.data)
+          this.ticketSuccess = payment.provider === 'zalopay'
+            ? 'Đã tạo đơn vé. Vui lòng quét QR ZaloPay để thanh toán.'
+            : 'Đã tạo đơn vé. Vui lòng quét QR VNPAY bằng app ngân hàng để thanh toán.'
+          return
+        }
+
         await this.createPaymentQr(res.data)
         this.startPaymentStatusWatcher(res.data)
-        this.ticketSuccess = this.createdTicketOrder.payment?.provider === 'vnpay'
-          ? 'Đã tạo đơn vé. Bấm nút VNPAY để thanh toán.'
-          : 'Đã tạo đơn vé. Vui lòng quét QR và chuyển khoản đúng nội dung.'
+        this.ticketSuccess = 'Đã tạo đơn vé. Vui lòng quét QR và chuyển khoản đúng nội dung.'
       } else {
         this.ticketError = res.error || 'Không thể gửi yêu cầu đặt vé'
       }
     },
     async createPaymentQr(order) {
       const payment = order?.payment || {}
-      this.paymentQrImage = payment.qrUrl || ''
+      if (payment.provider === 'zalopay' && payment.qrUrl) {
+        if (/^(https?:|data:image\/)/i.test(payment.qrUrl)) {
+          this.paymentQrImage = payment.qrUrl
+        } else {
+          this.paymentQrImage = await QRCode.toDataURL(payment.qrUrl, {
+            width: 240,
+            margin: 2,
+            color: { dark: '#0f172a', light: '#ffffff' }
+          })
+        }
+        return
+      }
+
+      if (payment.provider === 'zalopay' && payment.payUrl) {
+        this.paymentQrImage = await QRCode.toDataURL(payment.payUrl, {
+          width: 240,
+          margin: 2,
+          color: { dark: '#0f172a', light: '#ffffff' }
+        })
+        return
+      }
+
+      if (payment.provider === 'vnpay' && payment.payUrl) {
+        this.paymentQrImage = await QRCode.toDataURL(payment.payUrl, {
+          width: 240,
+          margin: 2,
+          color: { dark: '#0f172a', light: '#ffffff' }
+        })
+        return
+      }
+
+      if (payment.qrUrl) {
+        this.paymentQrImage = payment.qrUrl
+        return
+      }
+
+      const transferContent = payment.transferContent || payment.orderRef || order?.code || order?._id || ''
+      if (!transferContent) {
+        this.paymentQrImage = ''
+        return
+      }
+
+      this.paymentQrImage = await QRCode.toDataURL(transferContent, {
+        width: 240,
+        margin: 2,
+        color: { dark: '#0f172a', light: '#ffffff' }
+      })
     },
     startPaymentStatusWatcher(order) {
       this.stopPaymentStatusWatcher()
@@ -881,6 +955,42 @@ export default {
         })
         this.ticketSuccess = 'Thanh toán thành công. Vé điện tử đã sẵn sàng trong mục Vé của tôi.'
       }, 2000)
+    },
+    async checkCurrentTicketPayment({ silentPending = false } = {}) {
+      const orderId = this.createdTicketOrder?._id
+      if (!orderId) return false
+
+      const res = await getTicketPaymentStatus(orderId)
+      if (!res.success || !res.data) {
+        if (!silentPending) {
+          this.ticketError = res.error || 'Chưa kiểm tra được trạng thái thanh toán'
+        }
+        return false
+      }
+
+      const isPaid = res.data.paymentStatus === 'paid' || res.data.status === 'paid' || res.data.status === 'used'
+      if (!isPaid) {
+        if (!silentPending) {
+          this.ticketError = ''
+          this.ticketSuccess = this.createdTicketOrder?.payment?.provider === 'vietqr'
+            ? 'Hệ thống chưa nhận được webhook ngân hàng hoặc xác nhận từ admin. Vui lòng chờ đối soát giao dịch.'
+            : 'Thanh toán chưa được backend xác minh. Vui lòng kiểm tra lại sau.'
+        }
+        return false
+      }
+
+      this.stopPaymentStatusWatcher()
+      this.createdTicketOrder = res.data
+      this.ticketError = ''
+      this.ticketPaymentCompleted = true
+      this.$notify({
+        type: 'success',
+        title: 'Thanh toán thành công',
+        message: 'Đặt vé thành công. Vé điện tử đã sẵn sàng trong mục Vé của tôi.',
+        persist: false
+      })
+      this.ticketSuccess = 'Thanh toán thành công. Vé điện tử đã sẵn sàng trong mục Vé của tôi.'
+      return true
     },
     stopPaymentStatusWatcher() {
       if (!this.paymentStatusTimer) return
@@ -1959,6 +2069,28 @@ export default {
   box-sizing: border-box;
 }
 
+.form-group textarea {
+  resize: none;
+}
+
+.payment-method-fixed small {
+  display: block;
+  margin-top: 8px;
+  color: var(--tw-muted);
+  line-height: 1.4;
+}
+
+.fixed-payment-badge {
+  width: 100%;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  padding: 11px 12px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  box-sizing: border-box;
+  font-weight: 800;
+}
+
 .form-group input:focus,
 .form-group textarea:focus,
 .form-group select:focus {
@@ -2036,13 +2168,35 @@ export default {
   margin: 16px 0;
 }
 
-.payment-link-btn {
-  text-decoration: none;
+.btn-check-payment {
+  border: 1px solid var(--tw-border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  background: #ffffff;
+  color: var(--tw-text);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.btn-check-payment:hover {
+  background: #f8fafc;
 }
 
 .transfer-content {
   color: var(--tw-muted);
   font-size: 0.9rem;
+  text-align: center;
+}
+
+.transfer-hint {
+  max-width: 360px;
+  color: #92400e;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.86rem;
+  line-height: 1.45;
   text-align: center;
 }
 
@@ -2054,6 +2208,21 @@ export default {
   border-radius: 12px;
   padding: 10px;
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+.payment-qr-empty {
+  width: 240px;
+  min-height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 16px;
+  color: #92400e;
+  background: #fffbeb;
+  border: 1px dashed #f59e0b;
+  border-radius: 12px;
+  font-weight: 700;
 }
 
 .ticket-error,
@@ -2927,7 +3096,7 @@ export default {
   border: 1px solid #d1d5db;
   border-radius: 8px;
   font-size: 0.95rem;
-  resize: vertical;
+  resize: none;
   font-family: inherit;
 }
 
@@ -3440,7 +3609,7 @@ export default {
   border: 2px solid #e5e7eb;
   border-radius: 12px;
   font-size: 0.95rem;
-  resize: vertical;
+  resize: none;
   font-family: inherit;
   transition: border-color 0.2s, box-shadow 0.2s;
   min-height: 120px;
