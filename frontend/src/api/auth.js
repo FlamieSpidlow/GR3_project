@@ -61,6 +61,15 @@ export async function loginUser(credentials) {
   return parseJsonSafe(res).then(setProfileCache)
 }
 
+export async function loginWithGoogle(credential) {
+  const res = await fetch(`${API_URL}/google`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ credential })
+  })
+  return parseJsonSafe(res).then(setProfileCache)
+}
+
 export async function forgotPassword(email) {
   const res = await fetch(`${API_URL}/forgot-password`, {
     method: 'POST',

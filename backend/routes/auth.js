@@ -5,8 +5,11 @@ const Place = require('../models/Place')
 const bcrypt = require('bcrypt')
 const nodemailer = require('nodemailer')
 const jwt = require('jsonwebtoken')
+const { OAuth2Client } = require('google-auth-library')
 const { authenticate, JWT_SECRET } = require('../middleware/auth')
 const { createUserNotification } = require('../services/notificationService')
+
+const googleClient = new OAuth2Client()
 
 const buildUserResponse = (user) => ({
   id: user._id,
@@ -28,6 +31,55 @@ const signToken = (user) => jwt.sign(
   JWT_SECRET,
   { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
 )
+
+const normalizeEmail = (email = '') => String(email).trim().toLowerCase()
+
+const makeUsernameBase = (email, name) => {
+  const source = (email && email.split('@')[0]) || name || 'googleuser'
+  const base = source.normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9_]/g, '')
+    .slice(0, 24)
+    .toLowerCase()
+
+  return base || 'googleuser'
+}
+
+const buildUniqueUsername = async (email, name) => {
+  const base = makeUsernameBase(email, name)
+  let username = base
+  let suffix = 1
+
+  while (await User.exists({ username })) {
+    username = `${base}${suffix}`
+    suffix += 1
+  }
+
+  return username
+}
+
+const verifyGoogleCredential = async (credential) => {
+  const clientId = process.env.GOOGLE_CLIENT_ID
+  if (!clientId) {
+    const error = new Error('GOOGLE_CLIENT_ID is not configured')
+    error.status = 503
+    throw error
+  }
+
+  const ticket = await googleClient.verifyIdToken({
+    idToken: credential,
+    audience: clientId
+  })
+  const payload = ticket.getPayload()
+
+  if (!payload || !payload.sub || !payload.email || !payload.email_verified) {
+    const error = new Error('Google account is not verified')
+    error.status = 401
+    throw error
+  }
+
+  return payload
+}
 
 router.post('/register', async (req, res) => {
   try {
@@ -59,6 +111,9 @@ router.post('/login', async (req, res) => {
     const { username, password } = req.body
     const user = await User.findOne({ username })
     if (!user) return res.status(404).json({ success: false, error: 'Khong tim thay nguoi dung' })
+    if (!user.password) {
+      return res.status(400).json({ success: false, error: 'Tai khoan nay dang nhap bang Google. Vui long chon Dang nhap voi Google.' })
+    }
 
     const isMatch = await bcrypt.compare(password, user.password)
     if (!isMatch) return res.status(401).json({ success: false, error: 'Sai mat khau' })
@@ -71,6 +126,56 @@ router.post('/login', async (req, res) => {
     })
   } catch (err) {
     res.status(500).json({ success: false, error: 'Loi dang nhap', details: err.message })
+  }
+})
+
+router.post('/google', async (req, res) => {
+  try {
+    const { credential } = req.body
+    if (!credential) return res.status(400).json({ success: false, error: 'Thieu Google credential' })
+
+    const profile = await verifyGoogleCredential(credential)
+    const email = normalizeEmail(profile.email)
+    let user = await User.findOne({
+      $or: [
+        { googleId: profile.sub },
+        { email }
+      ]
+    })
+
+    if (!user) {
+      user = new User({
+        username: await buildUniqueUsername(email, profile.name),
+        email,
+        avatar: profile.picture || '',
+        parentName: profile.name || email.split('@')[0],
+        address: '',
+        phone: '',
+        googleId: profile.sub,
+        authProvider: 'google',
+        role: 'user'
+      })
+    } else {
+      if (!user.googleId) user.googleId = profile.sub
+      if (!user.avatar && profile.picture) user.avatar = profile.picture
+      if (user.authProvider !== 'google') user.authProvider = 'google'
+    }
+
+    await user.save()
+
+    res.status(200).json({
+      success: true,
+      message: 'Dang nhap Google thanh cong',
+      token: signToken(user),
+      user: buildUserResponse(user)
+    })
+  } catch (err) {
+    console.error('Google login error:', err)
+    res.status(err.status || 500).json({
+      success: false,
+      error: err.status === 503 ? 'Dang nhap Google chua duoc cau hinh' : 'Loi dang nhap Google',
+      details: err.message
+    })
   }
 })
 

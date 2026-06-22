@@ -8,6 +8,7 @@
         <div class="login-box">
           <img src="/Logo.jpg" alt="Logo" class="logo" />
           <h2>Chào mừng đến với TheWeekend!</h2>
+
           <div class="input-wrap">
             <input
               type="text"
@@ -16,6 +17,7 @@
               autocomplete="username"
             />
           </div>
+
           <div class="input-wrap">
             <input
               type="password"
@@ -24,10 +26,29 @@
               autocomplete="current-password"
             />
           </div>
+
           <button class="tw-btn tw-btn-primary" @click="login" :disabled="isLoading">
             {{ isLoading ? 'Đang xử lý...' : 'Đăng nhập' }}
           </button>
-          <p class="note">Chưa có tài khoản? <router-link to="/register">Đăng ký</router-link> • <router-link to="/forgot">Quên mật khẩu?</router-link></p>
+
+          <div class="auth-divider"><span>hoặc</span></div>
+
+          <div
+            v-if="googleClientId"
+            ref="googleButton"
+            class="google-button-wrap"
+            :class="{ 'is-loading': isGoogleLoading }"
+          ></div>
+          <button v-else class="tw-btn google-disabled" type="button" disabled>
+            Đăng nhập Google chưa được cấu hình
+          </button>
+
+          <p class="note">
+            Chưa có tài khoản?
+            <router-link to="/register">Đăng ký</router-link>
+            &bull;
+            <router-link to="/forgot">Quên mật khẩu?</router-link>
+          </p>
 
           <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
         </div>
@@ -37,7 +58,7 @@
 </template>
 
 <script>
-import { loginUser } from '../api/auth'
+import { loginUser, loginWithGoogle } from '../api/auth'
 import { setAuthSession } from '../utils/authSession'
 
 export default {
@@ -47,14 +68,85 @@ export default {
       username: '',
       password: '',
       isLoading: false,
+      isGoogleLoading: false,
+      googleClientId: process.env.VUE_APP_GOOGLE_CLIENT_ID || '',
       errorMessage: ''
     }
   },
+  mounted() {
+    this.initGoogleSignIn()
+  },
+  beforeUnmount() {
+    if (window.google && window.google.accounts && window.google.accounts.id) {
+      window.google.accounts.id.cancel()
+    }
+  },
   methods: {
+    loadGoogleScript() {
+      if (window.google && window.google.accounts && window.google.accounts.id) {
+        return Promise.resolve()
+      }
+
+      return new Promise((resolve, reject) => {
+        const existingScript = document.querySelector('script[src="https://accounts.google.com/gsi/client"]')
+        if (existingScript) {
+          existingScript.addEventListener('load', resolve, { once: true })
+          existingScript.addEventListener('error', reject, { once: true })
+          return
+        }
+
+        const script = document.createElement('script')
+        script.src = 'https://accounts.google.com/gsi/client'
+        script.async = true
+        script.defer = true
+        script.onload = resolve
+        script.onerror = reject
+        document.head.appendChild(script)
+      })
+    },
+    async initGoogleSignIn() {
+      if (!this.googleClientId) return
+
+      try {
+        await this.loadGoogleScript()
+        window.google.accounts.id.initialize({
+          client_id: this.googleClientId,
+          callback: this.handleGoogleCredential
+        })
+
+        if (this.$refs.googleButton) {
+          window.google.accounts.id.renderButton(this.$refs.googleButton, {
+            theme: 'outline',
+            size: 'large',
+            text: 'signin_with',
+            shape: 'rectangular',
+            width: 360
+          })
+        }
+      } catch (err) {
+        console.error('Google Sign-In init error:', err)
+        this.errorMessage = 'Không thể tải đăng nhập Google. Vui lòng thử lại sau.'
+      }
+    },
+    completeLogin(response, message) {
+      setAuthSession(response.token, response.user)
+
+      this.$notify({
+        title: 'Thành công!',
+        message,
+        type: 'success',
+        duration: 3000,
+        persist: false
+      })
+
+      const redirectPath = typeof this.$route.query.redirect === 'string'
+        ? this.$route.query.redirect
+        : '/'
+      this.$router.push(redirectPath)
+    },
     async login() {
       this.errorMessage = ''
 
-      // Validation
       if (!this.username || !this.password) {
         this.errorMessage = 'Vui lòng nhập tên đăng nhập và mật khẩu'
         return
@@ -68,20 +160,7 @@ export default {
         })
 
         if (response.success || response.token) {
-          setAuthSession(response.token, response.user)
-
-          this.$notify({
-            title: 'Thành công!',
-            message: 'Đăng nhập thành công. Chào mừng bạn!',
-            type: 'success',
-            duration: 3000,
-            persist: false
-          })
-
-          const redirectPath = typeof this.$route.query.redirect === 'string'
-            ? this.$route.query.redirect
-            : '/'
-          this.$router.push(redirectPath)
+          this.completeLogin(response, 'Đăng nhập thành công. Chào mừng bạn!')
         } else {
           this.errorMessage = response.error || response.details || response.message || 'Đăng nhập thất bại'
         }
@@ -90,6 +169,29 @@ export default {
         console.error('Login error:', err)
       } finally {
         this.isLoading = false
+      }
+    },
+    async handleGoogleCredential(googleResponse) {
+      this.errorMessage = ''
+
+      if (!googleResponse || !googleResponse.credential) {
+        this.errorMessage = 'Không nhận được thông tin đăng nhập Google'
+        return
+      }
+
+      this.isGoogleLoading = true
+      try {
+        const response = await loginWithGoogle(googleResponse.credential)
+        if (response.success || response.token) {
+          this.completeLogin(response, 'Đăng nhập Google thành công. Chào mừng bạn!')
+        } else {
+          this.errorMessage = response.error || response.details || response.message || 'Đăng nhập Google thất bại'
+        }
+      } catch (err) {
+        this.errorMessage = 'Lỗi khi đăng nhập Google: ' + (err.message || 'Vui lòng thử lại')
+        console.error('Google login error:', err)
+      } finally {
+        this.isGoogleLoading = false
       }
     }
   }
@@ -133,9 +235,9 @@ export default {
   position: absolute;
   top: 0;
   right: 0;
-  width: 14%; /* vùng mờ bên phải */
+  width: 14%;
   height: 100%;
-  backdrop-filter: blur(2px); /* độ nhòe */
+  backdrop-filter: blur(2px);
   -webkit-backdrop-filter: blur(2px);
   background: linear-gradient(
     to right,
@@ -145,7 +247,6 @@ export default {
   );
   pointer-events: none;
 }
-
 
 .login-right {
   flex: 0 0 50%;
@@ -232,6 +333,42 @@ export default {
   border-radius: var(--tw-radius-md);
   font-size: 1rem;
   margin-top: 8px;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0 14px;
+  color: #9ca3af;
+  font-size: 0.86rem;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #e5e7eb;
+}
+
+.google-button-wrap {
+  display: flex;
+  justify-content: center;
+  min-height: 44px;
+  opacity: 1;
+  transition: opacity 0.2s ease;
+}
+
+.google-button-wrap.is-loading {
+  opacity: 0.65;
+  pointer-events: none;
+}
+
+.google-disabled {
+  color: #6b7280;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
 }
 
 .note {
