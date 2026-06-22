@@ -77,8 +77,10 @@ export default {
             duration: 3000
           })
 
-          // Redirect immediately
-          this.$router.push('/')
+          const redirectPath = typeof this.$route.query.redirect === 'string'
+            ? this.$route.query.redirect
+            : '/'
+          this.$router.push(redirectPath)
         } else {
           this.errorMessage = response.error || response.details || response.message || 'Đăng nhập thất bại'
         }

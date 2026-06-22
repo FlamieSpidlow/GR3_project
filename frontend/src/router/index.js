@@ -17,7 +17,7 @@ import AdminPlaces from '../pages/AdminPlaces.vue'
 import AdminTickets from '../pages/AdminTickets.vue'
 import MyTickets from '../pages/MyTickets.vue'
 import TicketPayment from '../pages/TicketPayment.vue'
-import { getAuthUser } from '../utils/authSession'
+import { getAuthToken, getAuthUser } from '../utils/authSession'
 
 const routes = [
   { path: '/', component: HomePage, meta: { userOnly: true } },
@@ -25,8 +25,8 @@ const routes = [
   { path: '/register', component: RegisterPage },
   { path: '/forgot', component: ForgotPassword },
   { path: '/reset', component: ResetPassword },
-  { path: '/profile/edit', component: EditProfile },
-  { path: '/profile/change-password', component: ChangePassword },
+  { path: '/profile/edit', component: EditProfile, meta: { userOnly: true } },
+  { path: '/profile/change-password', component: ChangePassword, meta: { userOnly: true } },
   { path: '/search', component: SearchResults },
   { path: '/place/:id', component: PlaceDetails },
   { path: '/suggest', component: SuggestPage, meta: { userOnly: true } },
@@ -45,12 +45,26 @@ const router = createRouter({
   routes
 })
 
-// Navigation guard to restrict admin from user pages
+// Centralized route access control for guest, user, and admin pages.
 router.beforeEach((to, from, next) => {
+  const token = getAuthToken()
   const user = getAuthUser()
-  const isAdmin = user && user.role === 'admin'
+  const isAuthenticated = !!(token && user)
+  const isAdmin = isAuthenticated && user.role === 'admin'
 
-  // If admin tries to access user-only pages, redirect to admin dashboard
+  if ((to.meta.userOnly || to.meta.adminOnly) && !isAuthenticated) {
+    next({
+      path: '/login',
+      query: to.fullPath && to.fullPath !== '/login' ? { redirect: to.fullPath } : {}
+    })
+    return
+  }
+
+  if (to.meta.adminOnly && !isAdmin) {
+    next('/')
+    return
+  }
+
   if (to.meta.userOnly && isAdmin) {
     next('/admin')
     return
