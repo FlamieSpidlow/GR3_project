@@ -45,28 +45,22 @@
           </div>
           
           <div class="filter-group">
-            <label class="filter-label">Khoảng cách</label>
-            <div class="filter-options">
-              <button 
-                :class="['filter-btn', { active: filters.distance === '' }]"
-                @click="filters.distance = ''"
-              >Tất cả</button>
-              <button 
-                :class="['filter-btn', { active: filters.distance === '0-5' }]"
-                @click="filters.distance = '0-5'"
-              >0-5 km</button>
-              <button 
-                :class="['filter-btn', { active: filters.distance === '5-10' }]"
-                @click="filters.distance = '5-10'"
-              >5-10 km</button>
-              <button 
-                :class="['filter-btn', { active: filters.distance === '10-20' }]"
-                @click="filters.distance = '10-20'"
-              >10-20 km</button>
-              <button 
-                :class="['filter-btn', { active: filters.distance === '20+' }]"
-                @click="filters.distance = '20+'"
-              >20+ km</button>
+            <label class="filter-label">Kho&#7843;ng c&#225;ch</label>
+            <div class="range-filter">
+              <div class="range-value">{{ distanceFilterLabel }}</div>
+              <input
+                v-model.number="filters.distanceMax"
+                class="filter-range"
+                type="range"
+                min="1"
+                :max="distanceMaxLimit"
+                step="1"
+                aria-label="L&#7885;c theo kho&#7843;ng c&#225;ch t&#7889;i &#273;a"
+              />
+              <div class="range-scale">
+                <span>1 km</span>
+                <span>T&#7845;t c&#7843;</span>
+              </div>
             </div>
           </div>
           
@@ -93,52 +87,25 @@
           </div>
           
           <div class="filter-group">
-            <label class="filter-label">Giá tiền</label>
-            <div class="filter-options">
-              <button 
-                :class="['filter-btn', { active: filters.price === '' }]"
-                @click="filters.price = ''"
-              >Tất cả</button>
-              <button 
-                :class="['filter-btn', { active: filters.price === 'free' }]"
-                @click="filters.price = 'free'"
-              >Miễn phí</button>
-              <button 
-                :class="['filter-btn', { active: filters.price === '0-50' }]"
-                @click="filters.price = '0-50'"
-              >&lt; 50k</button>
-              <button 
-                :class="['filter-btn', { active: filters.price === '50-100' }]"
-                @click="filters.price = '50-100'"
-              >50-100k</button>
-              <button 
-                :class="['filter-btn', { active: filters.price === '100-200' }]"
-                @click="filters.price = '100-200'"
-              >100-200k</button>
-              <button 
-                :class="['filter-btn', { active: filters.price === '200+' }]"
-                @click="filters.price = '200+'"
-              >200k+</button>
+            <label class="filter-label">Gi&#225; ti&#7873;n</label>
+            <div class="range-filter">
+              <div class="range-value">{{ priceFilterLabel }}</div>
+              <input
+                v-model.number="filters.priceMax"
+                class="filter-range"
+                type="range"
+                min="0"
+                :max="priceMaxLimit"
+                step="10000"
+                aria-label="L&#7885;c theo gi&#225; t&#7889;i &#273;a"
+              />
+              <div class="range-scale">
+                <span>Mi&#7877;n ph&#237;</span>
+                <span>T&#7845;t c&#7843;</span>
+              </div>
             </div>
           </div>
           
-          <div class="filter-group">
-            <label class="filter-label">Loại hình</label>
-            <div class="filter-options">
-              <button 
-                :class="['filter-btn', { active: filters.indoor === '' }]"
-                @click="filters.indoor = ''"
-              >Tất cả</button>
-              <button 
-                :class="['filter-btn', { active: filters.indoor === 'indoor' }]"
-                @click="filters.indoor = 'indoor'"
-              >Trong nhà</button>
-              <button 
-                :class="['filter-btn', { active: filters.indoor === 'outdoor' }]"
-                @click="filters.indoor = 'outdoor'"
-              >Ngoài trời</button>
-            </div>
-          </div>
           
         </aside>
 
@@ -215,11 +182,12 @@ export default {
       itemsPerPage: 10,
       userLocation: null,
       ageFilter: 3,
+      distanceMaxLimit: 30,
+      priceMaxLimit: 300000,
       filters: {
-        distance: '',
+        distanceMax: 30,
         rating: '',
-        price: '',
-        indoor: ''
+        priceMax: 300000
       }
     }
   },
@@ -407,39 +375,36 @@ export default {
     },
     clearFilters() {
       this.filters = {
-        distance: '',
+        distanceMax: this.distanceMaxLimit,
         rating: '',
-        price: '',
-        indoor: ''
+        priceMax: this.priceMaxLimit
       }
     }
   },
   computed: {
+    distanceFilterLabel() {
+      return this.filters.distanceMax >= this.distanceMaxLimit
+        ? 'T\u1ea5t c\u1ea3'
+        : `T\u1ed1i \u0111a ${this.filters.distanceMax} km`
+    },
+    priceFilterLabel() {
+      if (this.filters.priceMax >= this.priceMaxLimit) return 'T\u1ea5t c\u1ea3'
+      if (this.filters.priceMax === 0) return 'Mi\u1ec5n ph\u00ed'
+      return `T\u1ed1i \u0111a ${Math.round(this.filters.priceMax / 1000)}k`
+    },
     hasActiveFilters() {
-      return this.filters.distance || this.filters.rating || this.filters.price || this.filters.indoor
+      return this.filters.distanceMax < this.distanceMaxLimit ||
+        this.filters.rating ||
+        this.filters.priceMax < this.priceMaxLimit
     },
     filteredResults() {
       let filtered = [...this.results]
       
-      // Filter by distance (p.distance is in meters, filter values are in km)
-      if (this.filters.distance) {
-        let min, max
-        if (this.filters.distance === '20+') {
-          min = 20
-          max = Infinity
-        } else {
-          const parts = this.filters.distance.split('-').map(Number)
-          min = parts[0]
-          max = parts[1]
-        }
-
+      // Filter by max distance (p.distance is in meters, slider value is in km)
+      if (this.filters.distanceMax < this.distanceMaxLimit) {
         filtered = filtered.filter(p => {
           if (p.distance === null || p.distance === undefined) return false
-          const distanceKm = p.distance / 1000
-          if (max === Infinity) {
-            return distanceKm >= min
-          }
-          return distanceKm >= min && distanceKm < max
+          return (p.distance / 1000) <= this.filters.distanceMax
         })
       }
       
@@ -449,32 +414,9 @@ export default {
         filtered = filtered.filter(p => (p.rating || 0) >= minRating)
       }
       
-      // Filter by price
-      if (this.filters.price) {
-        filtered = filtered.filter(p => {
-          const price = this.parsePrice(p.price)
-          switch (this.filters.price) {
-            case 'free': return price === 0
-            case '0-50': return price > 0 && price <= 50000
-            case '50-100': return price > 50000 && price <= 100000
-            case '100-200': return price > 100000 && price <= 200000
-            case '200+': return price > 200000
-            default: return true
-          }
-        })
-      }
-      
-      // Filter by indoor/outdoor
-      if (this.filters.indoor) {
-        filtered = filtered.filter(p => {
-          const tags = (p.tags || []).map(this.normalizeText)
-          if (this.filters.indoor === 'indoor') {
-            return tags.some(t => t.includes('trong nha') || t.includes('indoor'))
-          } else if (this.filters.indoor === 'outdoor') {
-            return tags.some(t => t.includes('ngoai troi') || t.includes('outdoor'))
-          }
-          return true
-        })
+      // Filter by max price
+      if (this.filters.priceMax < this.priceMaxLimit) {
+        filtered = filtered.filter(p => this.parsePrice(p.price) <= this.filters.priceMax)
       }
       
       return filtered
@@ -721,6 +663,31 @@ export default {
   background: var(--tw-primary);
   color: white;
   border-color: var(--tw-primary);
+}
+
+.range-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.range-value {
+  color: #334155;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.filter-range {
+  width: 100%;
+  accent-color: var(--tw-primary);
+  cursor: pointer;
+}
+
+.range-scale {
+  display: flex;
+  justify-content: space-between;
+  color: #94a3b8;
+  font-size: 0.76rem;
 }
 
 .clear-filters-btn {
