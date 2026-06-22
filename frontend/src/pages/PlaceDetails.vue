@@ -583,7 +583,7 @@ import { assetUrl } from '../utils/apiBase'
 import { buildMapsDirectionsUrl, buildMapsEmbedUrl, hasMapTarget } from '../utils/mapLinks'
 import { getAuthToken, getAuthUserRaw } from '../utils/authSession'
 import { getBrowserLocationCached } from '../utils/clientCache'
-import { loadNotifications } from '../utils/notifications'
+import { loadNotifications, requestConfirmation } from '../utils/notifications'
 
 export default {
   name: 'PlaceDetails',
@@ -974,6 +974,17 @@ export default {
           : []
         const placeId = this.$route.params.id
         const nextFavorited = !this.isFavorited
+
+        if (!nextFavorited) {
+          const ok = await requestConfirmation({
+            title: 'Bỏ yêu thích',
+            message: `Bạn có chắc muốn bỏ ${this.place?.name || 'địa điểm này'} khỏi danh sách yêu thích không?`,
+            confirmText: 'Bỏ yêu thích',
+            cancelText: 'Giữ lại',
+            tone: 'danger'
+          })
+          if (!ok) return
+        }
         
         if (!nextFavorited) {
           favorites = favorites.filter(id => id !== placeId)
@@ -1003,7 +1014,7 @@ export default {
             const nextUser = { ...user, favorites: serverFavorites }
             if (sessionStorage.getItem('user')) sessionStorage.setItem('user', JSON.stringify(nextUser))
           }
-          loadNotifications()
+          await loadNotifications()
         }
       } catch (e) {
         console.error('Error toggling favorite:', e)

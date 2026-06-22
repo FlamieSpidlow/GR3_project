@@ -53,7 +53,7 @@ import { cleanAddress } from '../utils/addressFormatter'
 import { assetUrl } from '../utils/apiBase'
 import { updateFavorite } from '../api/auth'
 import { getAuthToken, getAuthUserRaw } from '../utils/authSession'
-import { loadNotifications } from '../utils/notifications'
+import { loadNotifications, requestConfirmation } from '../utils/notifications'
 
 export default {
   name: 'PlaceCard',
@@ -123,6 +123,17 @@ export default {
       let favorites = this.readFavorites()
       const nextFavorited = !this.localFavorited
       const previousFavorited = this.localFavorited
+
+      if (!nextFavorited) {
+        const ok = await requestConfirmation({
+          title: 'Bỏ yêu thích',
+          message: `Bạn có chắc muốn bỏ ${this.place.name || 'địa điểm này'} khỏi danh sách yêu thích không?`,
+          confirmText: 'Bỏ yêu thích',
+          cancelText: 'Giữ lại',
+          tone: 'danger'
+        })
+        if (!ok) return
+      }
       
       if (!nextFavorited) {
         favorites = favorites.filter(id => id !== placeId)
@@ -142,7 +153,7 @@ export default {
         const serverFavorites = Array.isArray(res.favorites) ? res.favorites : favorites
         this.writeFavorites(serverFavorites)
         this.$emit('favorite-toggle', { id: placeId, favorited: nextFavorited, favorites: serverFavorites })
-        loadNotifications()
+        await loadNotifications()
       } catch (err) {
         console.error('Error syncing favorite:', err)
         this.localFavorited = previousFavorited

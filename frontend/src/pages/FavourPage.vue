@@ -63,7 +63,7 @@
 <script>
 import PlaceCard from '../components/PlaceCard.vue'
 import { getPlaceById } from '../api/places'
-import { getProfile, updateLocation, updateFavorite } from '../api/auth'
+import { getProfile, updateLocation } from '../api/auth'
 import { assetUrl } from '../utils/apiBase'
 import { getAuthToken } from '../utils/authSession'
 import { getBrowserLocationCached } from '../utils/clientCache'
@@ -166,14 +166,9 @@ export default {
         this.isLoading = false
       }
     },
-    async removeFavorite(placeId) {
+    removeFavorite(placeId) {
       this.favorites = this.favorites.filter(id => id !== placeId)
       this.favoritePlaces = this.favoritePlaces.filter(p => (p._id || p.id) !== placeId)
-      try {
-        if (getAuthToken()) await updateFavorite(placeId, false)
-      } catch (e) {
-        console.warn('Failed to sync removed favorite:', e)
-      }
     },
     onSelectPlace(place) {
       this.$router.push(`/place/${place._id || place.id}`)
