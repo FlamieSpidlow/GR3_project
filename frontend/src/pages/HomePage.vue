@@ -53,7 +53,7 @@
           <div class="section-heading">
             <div>
               <span class="section-eyebrow">Địa điểm nổi bật</span>
-              <h2>Gợi ý từ dữ liệu địa điểm</h2>
+              <h2>Những điểm đến được yêu thích</h2>
             </div>
             <router-link to="/places" class="text-link">Tất cả -&gt;</router-link>
           </div>
@@ -128,7 +128,7 @@
           <div class="review-copy">
             <span class="section-eyebrow">Trải nghiệm thật</span>
             <h2>Phụ huynh nói gì về TheWeekend</h2>
-            <p>Nội dung đánh giá được lấy từ cơ sở dữ liệu trang chủ.</p>
+            <p>Những chia sẻ gần đây từ các gia đình đã trải nghiệm.</p>
           </div>
           <div class="review-grid">
             <article v-for="review in reviews" :key="review._id" class="review-card">
