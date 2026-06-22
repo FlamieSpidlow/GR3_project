@@ -21,9 +21,9 @@
       </button>
 
       <div class="category-window">
-        <div class="category-track" :style="{ transform: `translateX(-${slideIndex * itemWidth}px)` }">
+        <div class="category-track">
           <button
-            v-for="category in slidingCategories"
+            v-for="category in visibleSlidingCategories"
             :key="category.id"
             type="button"
             :class="['category-pill', { active: activeCategory === category.id }]"
@@ -65,7 +65,6 @@ export default {
   data() {
     return {
       slideIndex: 0,
-      itemWidth: 196,
       visibleCount: 5
     }
   },
@@ -75,6 +74,9 @@ export default {
     },
     slidingCategories() {
       return this.categories.filter(category => category.id !== 'all')
+    },
+    visibleSlidingCategories() {
+      return this.slidingCategories.slice(this.slideIndex, this.slideIndex + this.visibleCount)
     },
     maxSlideIndex() {
       return Math.max(0, this.slidingCategories.length - this.visibleCount)
@@ -147,22 +149,22 @@ export default {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 
 .category-window {
-  width: calc(5 * 188px + 4 * 8px);
-  overflow: hidden;
+  flex: 1;
+  min-width: 0;
 }
 
 .category-track {
-  display: flex;
-  gap: 8px;
-  transition: transform 0.2s ease;
-  will-change: transform;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  column-gap: 8px;
 }
 
 .category-pill {
-  flex: 0 0 188px;
+  width: 100%;
   border: 1px solid #e5e7eb;
   background: #ffffff;
   color: #374151;
@@ -183,6 +185,7 @@ export default {
 }
 
 .fixed-pill {
+  flex: 0 0 auto;
   flex-basis: auto;
   min-width: 92px;
 }
@@ -202,8 +205,8 @@ export default {
 
 .category-name {
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .category-count {
@@ -289,7 +292,8 @@ export default {
   }
 
   .category-track {
-    transform: none !important;
+    display: flex;
+    gap: 8px;
   }
 
   .category-pill {

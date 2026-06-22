@@ -74,7 +74,8 @@ export default {
             title: 'Thành công!',
             message: 'Đăng nhập thành công. Chào mừng bạn!',
             type: 'success',
-            duration: 3000
+            duration: 3000,
+            persist: false
           })
 
           const redirectPath = typeof this.$route.query.redirect === 'string'
