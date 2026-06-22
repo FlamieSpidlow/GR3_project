@@ -19,6 +19,17 @@ export async function getReviews(placeId, page = 1, limit = 10) {
 }
 
 // Tạo đánh giá mới
+export async function getLatestReviews(limit = 4) {
+  try {
+    const res = await fetch(`${API_URL}/latest/public?limit=${encodeURIComponent(limit)}`)
+    const data = await res.json()
+    return data
+  } catch (err) {
+    console.error('Get latest reviews error:', err)
+    return { success: false, error: 'Loi lay danh gia moi nhat' }
+  }
+}
+
 export async function createReview(placeId, rating, comment, images = []) {
   try {
     const token = getAuthToken()

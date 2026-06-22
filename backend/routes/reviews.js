@@ -113,6 +113,34 @@ router.get('/place/:placeId', async (req, res) => {
 })
 
 // Tạo đánh giá mới (cần đăng nhập)
+// Lay cac danh gia moi nhat de hien thi trang chu
+router.get('/latest/public', async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit || '4', 10), 8)
+    const reviews = await Review.find({ comment: { $exists: true, $ne: '' } })
+      .populate('user', 'username parentName avatar')
+      .populate('place', 'name')
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean()
+
+    res.json({
+      success: true,
+      data: reviews.map(review => ({
+        _id: review._id,
+        rating: review.rating,
+        comment: review.comment,
+        createdAt: review.createdAt,
+        user: review.user,
+        place: review.place
+      }))
+    })
+  } catch (err) {
+    console.error('Get latest reviews error:', err)
+    res.status(500).json({ success: false, error: 'Loi lay danh gia moi nhat' })
+  }
+})
+
 router.post('/', authenticate, upload.array('images', 3), async (req, res) => {
   try {
     const { placeId, rating, comment } = req.body

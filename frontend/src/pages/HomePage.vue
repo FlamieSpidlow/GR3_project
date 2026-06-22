@@ -7,37 +7,8 @@
           <div class="hero-copy">
             <span class="hero-kicker">TheWeekend</span>
             <h1>Chọn điểm vui chơi cuối tuần cho cả gia đình</h1>
-            <p>
-              Khám phá khu vui chơi, công viên, bảo tàng và trải nghiệm ngoài trời phù hợp cho trẻ em.
-            </p>
+            <p>Khám phá khu vui chơi, công viên, bảo tàng và trải nghiệm ngoài trời phù hợp cho trẻ em.</p>
           </div>
-
-          <form class="hero-search" @submit.prevent="submitSearch">
-            <div class="search-field search-field-main">
-              <span class="field-icon" aria-hidden="true">⌕</span>
-              <div>
-                <label>Tìm kiếm địa điểm</label>
-                <input
-                  v-model="searchQuery"
-                  type="search"
-                  placeholder="Nhập công viên, khu vui chơi, bảo tàng..."
-                />
-              </div>
-            </div>
-            <div class="search-field">
-              <span class="field-icon" aria-hidden="true">⌁</span>
-              <div>
-                <label>Gợi ý nhanh</label>
-                <select v-model="quickCategory">
-                  <option value="">Tất cả danh mục</option>
-                  <option v-for="category in categories" :key="category._id || category.id" :value="category.name">
-                    {{ category.name }}
-                  </option>
-                </select>
-              </div>
-            </div>
-            <button type="submit" class="search-button">Tìm ngay</button>
-          </form>
 
           <div class="hero-stats" aria-label="Thống kê nhanh">
             <div v-for="stat in heroStats" :key="stat.label" class="stat-item">
@@ -53,7 +24,7 @@
           <div class="section-heading">
             <div>
               <span class="section-eyebrow">Khám phá theo nhu cầu</span>
-              <h2>Danh mục địa điểm</h2>
+              <h2>10 loại địa điểm vui chơi</h2>
             </div>
             <router-link to="/places" class="text-link">Xem tất cả -&gt;</router-link>
           </div>
@@ -82,7 +53,7 @@
           <div class="section-heading">
             <div>
               <span class="section-eyebrow">Địa điểm nổi bật</span>
-              <h2>Gợi ý được gia đình yêu thích</h2>
+              <h2>Gợi ý từ dữ liệu địa điểm</h2>
             </div>
             <router-link to="/places" class="text-link">Tất cả -&gt;</router-link>
           </div>
@@ -105,12 +76,12 @@
           </div>
 
           <div v-else class="no-places">
-            <p>Chưa có địa điểm phù hợp với danh mục đã chọn.</p>
+            <p>Chưa có địa điểm phù hợp với loại đã chọn.</p>
           </div>
         </div>
       </section>
 
-      <section class="section-block explore-section">
+      <section v-if="exploreAreas.length" class="section-block explore-section">
         <div class="tw-container-wide">
           <div class="section-heading">
             <div>
@@ -120,8 +91,8 @@
           </div>
 
           <div class="explore-grid">
-            <article v-for="area in exploreAreas" :key="area.title" class="explore-card">
-              <img :src="area.image" :alt="area.title" />
+            <article v-for="area in exploreAreas" :key="area._id || area.title" class="explore-card">
+              <img :src="getContentImage(area)" :alt="area.title" />
               <div>
                 <span>{{ area.badge }}</span>
                 <h3>{{ area.title }}</h3>
@@ -132,7 +103,7 @@
         </div>
       </section>
 
-      <section class="section-block offers-section">
+      <section v-if="offers.length" class="section-block offers-section">
         <div class="tw-container-wide">
           <div class="section-heading">
             <div>
@@ -142,50 +113,34 @@
           </div>
 
           <div class="offer-grid">
-            <article v-for="offer in offers" :key="offer.title" class="offer-card">
-              <span>{{ offer.date }}</span>
+            <article v-for="offer in offers" :key="offer._id || offer.title" class="offer-card">
+              <span>{{ offer.dateLabel }}</span>
               <h3>{{ offer.title }}</h3>
               <p>{{ offer.description }}</p>
-              <router-link :to="offer.to">Khám phá -&gt;</router-link>
+              <router-link :to="offer.link || '/places'">Khám phá -&gt;</router-link>
             </article>
           </div>
         </div>
       </section>
 
-      <section class="section-block review-section">
+      <section v-if="reviews.length" class="section-block review-section">
         <div class="tw-container-wide review-layout">
           <div class="review-copy">
             <span class="section-eyebrow">Trải nghiệm thật</span>
             <h2>Phụ huynh nói gì về TheWeekend</h2>
-            <p>
-              Tìm nơi vui chơi không còn là một buổi tối lướt mãi không xong. TheWeekend gom địa điểm, lọc theo nhu cầu và giúp gia đình chọn nhanh hơn.
-            </p>
+            <p>Nội dung đánh giá được lấy từ cơ sở dữ liệu trang chủ.</p>
           </div>
           <div class="review-grid">
-            <article v-for="review in reviews" :key="review.name" class="review-card">
-              <div class="stars">★★★★★</div>
-              <p>“{{ review.content }}”</p>
-              <strong>{{ review.name }}</strong>
-              <span>{{ review.role }}</span>
+            <article v-for="review in reviews" :key="review._id" class="review-card">
+              <div class="stars">{{ getStars(review.rating) }}</div>
+              <p>“{{ review.comment }}”</p>
+              <strong>{{ getReviewerName(review) }}</strong>
+              <span>{{ review.place?.name || 'Địa điểm vui chơi' }}</span>
             </article>
           </div>
         </div>
       </section>
     </main>
-
-    <footer class="home-footer">
-      <div class="tw-container-wide footer-inner">
-        <div>
-          <strong>TheWeekend</strong>
-          <p>Nền tảng gợi ý khu vui chơi cho trẻ em và gia đình.</p>
-        </div>
-        <nav aria-label="Liên kết cuối trang">
-          <router-link to="/places">Địa điểm</router-link>
-          <router-link to="/suggest">Gợi ý</router-link>
-          <router-link to="/favour">Yêu thích</router-link>
-        </nav>
-      </div>
-    </footer>
   </div>
 </template>
 
@@ -193,6 +148,8 @@
 import PlaceCard from '../components/PlaceCard.vue'
 import { getAllPlaces } from '../api/places'
 import { getCategories } from '../api/categories'
+import { getHomeContent } from '../api/homeContent'
+import { getLatestReviews } from '../api/reviews'
 import { getCategoryId, getCategoryLabel, normalizeText } from '../utils/placeFilters'
 
 const fallbackImage = '/Playground.jpg'
@@ -204,51 +161,21 @@ export default {
     return {
       allPlaces: [],
       categories: [],
+      homeContent: {
+        explore: [],
+        offers: []
+      },
+      latestReviews: [],
       activeCategory: 'all',
-      searchQuery: '',
-      quickCategory: '',
       errorMessage: '',
-      locationLoading: true,
-      offers: [
-        {
-          date: 'Cuối tuần này',
-          title: 'Checklist vui chơi trong nhà khi trời mưa',
-          description: 'Gợi ý các địa điểm có khu vận động, trò chơi sáng tạo và tiện ích cho phụ huynh.',
-          to: '/search?query=khu%20vui%20ch%C6%A1i%20trong%20nh%C3%A0'
-        },
-        {
-          date: 'Mùa hè',
-          title: 'Ngày năng động cùng công viên nước',
-          description: 'Chọn điểm vui chơi nước phù hợp độ tuổi, có khu nghỉ và dịch vụ ăn uống gần đó.',
-          to: '/search?query=c%C3%B4ng%20vi%C3%AAn%20n%C6%B0%E1%BB%9Bc'
-        },
-        {
-          date: 'Gia đình',
-          title: 'Lịch trình nửa ngày cho bé thích khám phá',
-          description: 'Kết hợp bảo tàng, không gian xanh và quán ăn gần địa điểm để chuyến đi nhẹ nhàng hơn.',
-          to: '/places'
-        }
-      ],
-      reviews: [
-        {
-          name: 'Minh Anh',
-          role: 'Phụ huynh bé 5 tuổi',
-          content: 'Mình tìm được khu vui chơi phù hợp tuổi của bé nhanh hơn, có ảnh và thông tin giá rất tiện.'
-        },
-        {
-          name: 'Gia Huy',
-          role: 'Gia đình cuối tuần',
-          content: 'Các danh mục rõ ràng, dễ chọn giữa công viên, trong nhà và bảo tàng cho từng buổi đi chơi.'
-        }
-      ]
+      locationLoading: true
     }
   },
   computed: {
     heroStats() {
       return [
         { value: `${this.allPlaces.length || 0}+`, label: 'địa điểm' },
-        { value: `${this.categories.length || 0}`, label: 'danh mục' },
-        { value: '4.8/5', label: 'trải nghiệm' }
+        { value: `${this.categories.length || 0}`, label: 'loại địa điểm vui chơi' }
       ]
     },
     categoryCards() {
@@ -264,14 +191,7 @@ export default {
         return acc
       }, {})
 
-      const allCard = {
-        id: 'all',
-        label: 'Tất cả',
-        count: this.allPlaces.length,
-        image: this.getCategoryImage()
-      }
-
-      const cards = this.categories.map(category => {
+      return this.categories.map(category => {
         const id = getCategoryId(category)
         const label = getCategoryLabel(category)
         return {
@@ -281,8 +201,6 @@ export default {
           image: this.getCategoryImage(id, label)
         }
       }).filter(category => category.id && category.label)
-
-      return [allCard, ...cards]
     },
     filteredPlaces() {
       if (this.activeCategory === 'all') return this.allPlaces
@@ -299,27 +217,13 @@ export default {
         .slice(0, 6)
     },
     exploreAreas() {
-      const images = this.featuredPlaces.length ? this.featuredPlaces : this.allPlaces
-      return [
-        {
-          badge: 'Trong nhà',
-          title: 'Vui chơi không phụ thuộc thời tiết',
-          description: 'Nhà bóng, trò chơi vận động, workshop sáng tạo và khu giải trí trong trung tâm thương mại.',
-          image: this.getPlaceImage(images[0])
-        },
-        {
-          badge: 'Ngoài trời',
-          title: 'Một ngày xanh cho cả nhà',
-          description: 'Công viên, vườn sinh thái và điểm dã ngoại có nhiều không gian để bé vận động.',
-          image: this.getPlaceImage(images[1])
-        },
-        {
-          badge: 'Học mà chơi',
-          title: 'Bảo tàng và trải nghiệm khám phá',
-          description: 'Các điểm đến giúp bé quan sát, đặt câu hỏi và học thêm qua trải nghiệm thực tế.',
-          image: this.getPlaceImage(images[2])
-        }
-      ]
+      return this.homeContent.explore || []
+    },
+    offers() {
+      return this.homeContent.offers || []
+    },
+    reviews() {
+      return this.latestReviews || []
     }
   },
   mounted() {
@@ -330,13 +234,26 @@ export default {
       this.locationLoading = true
       this.errorMessage = ''
 
-      const [placeRes, categoryRes] = await Promise.all([
+      const [placeRes, categoryRes, homeRes, reviewRes] = await Promise.all([
         getAllPlaces({ force: true }),
-        getCategories()
+        getCategories(),
+        getHomeContent(),
+        getLatestReviews(4)
       ])
 
       if (categoryRes && categoryRes.success) {
         this.categories = categoryRes.data || []
+      }
+
+      if (homeRes && homeRes.success && homeRes.data) {
+        this.homeContent = {
+          explore: homeRes.data.explore || [],
+          offers: homeRes.data.offers || []
+        }
+      }
+
+      if (reviewRes && reviewRes.success) {
+        this.latestReviews = reviewRes.data || []
       }
 
       if (placeRes && placeRes.success && placeRes.data) {
@@ -359,15 +276,8 @@ export default {
 
       this.locationLoading = false
     },
-    submitSearch() {
-      const term = [this.searchQuery, this.quickCategory].map(v => String(v || '').trim()).filter(Boolean).join(' ')
-      this.$router.push({
-        path: '/search',
-        query: term ? { query: term } : {}
-      })
-    },
     selectCategory(categoryId) {
-      this.activeCategory = categoryId
+      this.activeCategory = this.activeCategory === categoryId ? 'all' : categoryId
     },
     viewPlaceDetails(place) {
       this.$router.push({ path: `/place/${place._id || place.id}` })
@@ -383,6 +293,20 @@ export default {
         (labelNorm && normalizeText(getCategoryLabel(item.category)) === labelNorm)
       ) || this.allPlaces[0]
       return this.getPlaceImage(place)
+    },
+    getContentImage(item) {
+      const keyword = normalizeText(item && item.placeKeyword)
+      const place = keyword
+        ? this.allPlaces.find(p => normalizeText(p.name).includes(keyword))
+        : null
+      return this.getPlaceImage(place || this.allPlaces[0])
+    },
+    getStars(rating) {
+      const count = Math.max(1, Math.min(5, Number(rating) || 5))
+      return '★★★★★'.slice(0, count)
+    },
+    getReviewerName(review) {
+      return review?.user?.parentName || review?.user?.username || 'Người dùng TheWeekend'
     }
   }
 }
@@ -402,7 +326,7 @@ export default {
 
 .hero {
   position: relative;
-  min-height: 640px;
+  min-height: 560px;
   display: flex;
   align-items: center;
   overflow: hidden;
@@ -423,7 +347,7 @@ export default {
   content: '';
   position: absolute;
   inset: auto 0 0 0;
-  height: 180px;
+  height: 150px;
   background: linear-gradient(180deg, rgba(247, 251, 255, 0) 0%, #f7fbff 82%);
 }
 
@@ -436,7 +360,7 @@ export default {
 }
 
 .hero-copy {
-  max-width: 720px;
+  max-width: 760px;
   color: #ffffff;
 }
 
@@ -474,95 +398,15 @@ export default {
   font-weight: 600;
 }
 
-.hero-search {
-  width: min(1120px, 100%);
-  margin-top: 44px;
-  padding: 14px;
-  display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(220px, 0.6fr) auto;
-  gap: 10px;
-  background: rgba(255, 255, 255, 0.96);
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  border-radius: 8px;
-  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.22);
-}
-
-.search-field {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 68px;
-  padding: 10px 14px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-}
-
-.field-icon {
-  flex: 0 0 38px;
-  width: 38px;
-  height: 38px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  color: #0369a1;
-  background: #e0f2fe;
-  font-weight: 900;
-  font-size: 1.15rem;
-}
-
-.search-field div {
-  min-width: 0;
-  flex: 1;
-}
-
-.search-field label {
-  display: block;
-  color: #64748b;
-  font-size: 0.78rem;
-  font-weight: 850;
-  margin-bottom: 4px;
-}
-
-.search-field input,
-.search-field select {
-  width: 100%;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: #0f172a;
-  font: inherit;
-  font-weight: 850;
-}
-
-.search-field input::placeholder {
-  color: #94a3b8;
-}
-
-.search-button {
-  border: 0;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #f97316 0%, #ef4444 100%);
-  color: #ffffff;
-  padding: 0 28px;
-  min-height: 68px;
-  cursor: pointer;
-  font-weight: 950;
-  font-size: 1rem;
-  box-shadow: 0 18px 34px rgba(239, 68, 68, 0.25);
-}
-
 .hero-stats {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  margin-top: 26px;
+  margin-top: 34px;
 }
 
 .stat-item {
-  min-width: 128px;
+  min-width: 170px;
   padding: 14px 16px;
   border-radius: 8px;
   color: #ffffff;
@@ -676,7 +520,8 @@ export default {
   outline-offset: 0;
 }
 
-.featured-section {
+.featured-section,
+.review-section {
   background: #ffffff;
 }
 
@@ -741,7 +586,7 @@ export default {
 }
 
 .offers-section {
-  background: linear-gradient(180deg, #e0f2fe 0%, #f7fbff 100%);
+  background: #f7fbff;
 }
 
 .offer-grid {
@@ -785,10 +630,6 @@ export default {
   color: #0369a1;
   text-decoration: none;
   font-weight: 950;
-}
-
-.review-section {
-  background: #ffffff;
 }
 
 .review-layout {
@@ -844,41 +685,6 @@ export default {
   font-size: 0.9rem;
 }
 
-.home-footer {
-  background: #0f172a;
-  color: #ffffff;
-  padding: 26px 0;
-}
-
-.footer-inner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-}
-
-.footer-inner strong {
-  display: block;
-  font-size: 1.25rem;
-}
-
-.footer-inner p {
-  margin: 4px 0 0;
-  color: #cbd5e1;
-}
-
-.footer-inner nav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
-}
-
-.footer-inner a {
-  color: #e0f2fe;
-  text-decoration: none;
-  font-weight: 800;
-}
-
 .error-message {
   background-color: #fff5f5;
   color: #c53030;
@@ -915,16 +721,7 @@ export default {
     padding-bottom: 70px;
   }
 
-  .hero-search {
-    grid-template-columns: 1fr;
-  }
-
-  .search-button {
-    min-height: 54px;
-  }
-
-  .section-heading,
-  .footer-inner {
+  .section-heading {
     align-items: flex-start;
     flex-direction: column;
   }
@@ -945,10 +742,6 @@ export default {
 
   .hero-copy h1 {
     font-size: 2.35rem;
-  }
-
-  .search-field {
-    align-items: flex-start;
   }
 
   .category-card {
