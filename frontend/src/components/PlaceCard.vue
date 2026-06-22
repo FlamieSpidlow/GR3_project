@@ -197,15 +197,14 @@ export default {
   border: 1px solid var(--tw-border);
   border-radius: var(--tw-radius-md);
   overflow: hidden;
-  box-shadow: var(--tw-shadow-sm);
-  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  box-shadow: none;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
   cursor: pointer;
 }
 
 .card:hover { 
-  box-shadow: var(--tw-shadow-md);
-  transform: translateY(-4px); 
-  border-color: var(--tw-primary);
+  box-shadow: var(--tw-shadow-sm);
+  border-color: #cbd5e1;
 }
 
 .card-media {
@@ -226,7 +225,7 @@ export default {
   position: absolute;
   top: 10px;
   right: 10px;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.94);
   border: 1px solid var(--tw-border);
   border-radius: 50%;
   width: 36px;
@@ -237,11 +236,10 @@ export default {
   cursor: pointer;
   color: var(--tw-muted);
   transition: all 0.2s ease;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.12);
 }
 
 .favorite-btn:hover {
-  transform: scale(1.1);
   background: #fff;
 }
 
@@ -272,7 +270,7 @@ export default {
 }
 
 .card-title {
-  font-weight: 700;
+  font-weight: 650;
   font-size: 1rem;
   margin: 0 0 6px 0;
   color: var(--tw-text);
@@ -305,8 +303,8 @@ export default {
   padding: 2px 8px;
   background: var(--tw-bg);
   border: 1px solid var(--tw-border);
-  color: var(--tw-primary-700);
-  border-radius: 10px;
+  color: #475569;
+  border-radius: 6px;
   font-weight: 500;
 }
 
@@ -336,7 +334,7 @@ export default {
 
 .distance-row {
   color: #059669;
-  font-weight: 600;
+  font-weight: 550;
   font-size: 0.88rem;
   margin-bottom: 10px;
 }
@@ -347,7 +345,7 @@ export default {
   color: #fff;
   border: none;
   padding: 10px 12px;
-  border-radius: 8px;
+  border-radius: var(--tw-radius-md);
   width: 100%;
   margin-top: auto;
   cursor: pointer;

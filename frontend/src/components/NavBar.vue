@@ -508,7 +508,7 @@ export default {
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--tw-border);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  box-shadow: none;
 }
 
 .navbar-inner {
@@ -537,10 +537,10 @@ export default {
 .about-link {
   text-decoration: none;
   color: var(--tw-muted);
-  font-weight: 650;
+  font-weight: 550;
   font-size: 0.95rem;
   padding: 8px 10px;
-  border-radius: 999px;
+  border-radius: 8px;
   transition: background-color 0.12s ease, color 0.12s ease;
   white-space: nowrap;
 }
@@ -579,7 +579,7 @@ export default {
 .nav-links li a {
   text-decoration: none;
   color: var(--tw-muted);
-  font-weight: 650;
+  font-weight: 550;
   font-size: 0.95rem;
   transition: color 0.18s ease;
 }
@@ -607,7 +607,7 @@ export default {
 .icon-btn {
   width: 42px;
   height: 42px;
-  border-radius: 999px;
+  border-radius: 8px;
   border: 1px solid var(--tw-border);
   background: var(--tw-surface);
   display: inline-flex;
@@ -653,7 +653,7 @@ export default {
   justify-content: center;
   font-size: 0.68rem;
   line-height: 1;
-  font-weight: 900;
+  font-weight: 700;
 }
 
 .notification-panel {
@@ -665,8 +665,8 @@ export default {
   overflow: hidden;
   background: var(--tw-surface);
   border: 1px solid var(--tw-border);
-  border-radius: 14px;
-  box-shadow: var(--tw-shadow-md);
+  border-radius: 8px;
+  box-shadow: var(--tw-shadow-sm);
   z-index: 2200;
 }
 
@@ -683,7 +683,7 @@ export default {
   padding: 22px 14px;
   color: var(--tw-muted);
   text-align: center;
-  font-weight: 700;
+  font-weight: 550;
 }
 
 .notification-list {
@@ -694,7 +694,7 @@ export default {
 
 .notification-item {
   padding: 11px 12px;
-  border-radius: 12px;
+  border-radius: 8px;
   border: 1px solid transparent;
   background: #ffffff;
 }
@@ -704,8 +704,8 @@ export default {
 }
 
 .notification-item.unread {
-  border-color: rgba(79, 70, 229, 0.22);
-  background: #eef2ff;
+  border-color: #d8e2ea;
+  background: #f4f7fa;
 }
 
 .notification-item.success { border-left: 4px solid #059669; }
@@ -715,7 +715,7 @@ export default {
 
 .notification-item-title {
   color: var(--tw-text);
-  font-weight: 900;
+  font-weight: 650;
   font-size: 0.92rem;
 }
 
@@ -731,7 +731,7 @@ export default {
   margin-top: 6px;
   color: #94a3b8;
   font-size: 0.76rem;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .app-dialog-layer {
@@ -755,8 +755,8 @@ export default {
   width: min(440px, 100%);
   background: var(--tw-surface);
   border: 1px solid var(--tw-border);
-  border-radius: 14px;
-  box-shadow: var(--tw-shadow-md);
+  border-radius: 8px;
+  box-shadow: var(--tw-shadow-sm);
   padding: 18px;
 }
 
@@ -764,7 +764,7 @@ export default {
   margin: 0 0 8px;
   color: var(--tw-text);
   font-size: 1.08rem;
-  font-weight: 900;
+  font-weight: 650;
 }
 
 .app-dialog p {
@@ -819,7 +819,7 @@ export default {
 
 .login-btn {
   padding: 10px 14px;
-  border-radius: 999px;
+  border-radius: var(--tw-radius-md);
 }
 
 .logout-btn {
@@ -830,7 +830,6 @@ export default {
 
 .logout-btn:hover {
   background: #dc2626;
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
 }
 
 .user-info {
@@ -883,13 +882,13 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
+  border-radius: 8px;
   transition: all 0.3s ease;
   color: var(--tw-primary);
 }
 
 .user-icon-btn:hover {
-  background-color: rgba(99, 102, 241, 0.08);
+  background-color: #f3f4f6;
   color: var(--tw-primary-600);
 }
 
@@ -908,7 +907,7 @@ export default {
 }
 
 .user-icon-btn:hover .avatar-img {
-  border-color: #a78bfa;
+  border-color: #cbd5e1;
 }
 
 .dropdown-menu {
@@ -916,8 +915,8 @@ export default {
   top: 100%;
   right: 0;
   background: white;
-  border-radius: 10px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
+  box-shadow: var(--tw-shadow-sm);
   min-width: 200px;
   z-index: 1000;
   margin-top: 8px;
@@ -949,7 +948,7 @@ export default {
   background: var(--tw-surface);
   border: 1px solid var(--tw-border);
   border-radius: var(--tw-radius-lg);
-  box-shadow: var(--tw-shadow-md);
+  box-shadow: var(--tw-shadow-sm);
   overflow: hidden;
 }
 
@@ -973,10 +972,10 @@ export default {
   border: 1px solid var(--tw-border);
   background: var(--tw-surface);
   color: var(--tw-muted);
-  border-radius: 999px;
+  border-radius: 8px;
   padding: 8px 12px;
   cursor: pointer;
-  font-weight: 900;
+  font-weight: 650;
 }
 
 .close-btn:hover {
@@ -998,7 +997,7 @@ export default {
   flex: 1;
   min-width: 0;
   border: 1px solid var(--tw-border);
-  border-radius: 12px;
+  border-radius: 8px;
   padding: 12px 14px;
   font-size: 1rem;
   background: var(--tw-surface);
@@ -1013,11 +1012,11 @@ export default {
 .search-error {
   margin-top: 10px;
   padding: 10px 12px;
-  border-radius: 12px;
+  border-radius: 8px;
   border: 1px solid var(--tw-border);
   background: var(--tw-bg);
   color: var(--tw-danger-700);
-  font-weight: 800;
+  font-weight: 550;
   font-size: 0.92rem;
 }
 
@@ -1031,7 +1030,7 @@ export default {
 }
 
 .search-age label {
-  font-weight: 800;
+  font-weight: 600;
   color: var(--tw-text);
 }
 
@@ -1052,7 +1051,7 @@ export default {
 
 .search-block {
   border: 1px solid var(--tw-border);
-  border-radius: 14px;
+  border-radius: 8px;
   background: var(--tw-surface);
   padding: 12px;
 }

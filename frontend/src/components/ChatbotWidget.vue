@@ -189,8 +189,8 @@ export default {
   --chat-accent-strong: var(--tw-primary-600, #4f46e5);
   --chat-accent-2: var(--tw-primary-700, #4338ca);
   --chat-border: rgba(15, 23, 42, 0.12);
-  --chat-shadow: 0 24px 60px rgba(17, 24, 39, 0.22);
-  --chat-radius: 18px;
+  --chat-shadow: 0 10px 28px rgba(17, 24, 39, 0.14);
+  --chat-radius: 10px;
 
   position: fixed;
   right: 24px;
@@ -205,10 +205,10 @@ export default {
   width: 60px;
   height: 60px;
   border: none;
-  border-radius: 22px;
-  background: linear-gradient(140deg, var(--chat-accent), #c7d2fe);
+  border-radius: 14px;
+  background: var(--chat-accent);
   color: #ffffff;
-  box-shadow: 0 16px 30px rgba(99, 102, 241, 0.35);
+  box-shadow: 0 6px 16px rgba(17, 24, 39, 0.16);
   display: grid;
   place-items: center;
   cursor: pointer;
@@ -216,17 +216,11 @@ export default {
 }
 
 .tw-chatbot__fab:hover {
-  transform: translateY(-2px) scale(1.02);
-  box-shadow: 0 22px 40px rgba(99, 102, 241, 0.4);
+  box-shadow: 0 8px 20px rgba(17, 24, 39, 0.18);
 }
 
 .tw-chatbot__fab-ring {
-  position: absolute;
-  width: 90px;
-  height: 90px;
-  border-radius: 32px;
-  background: radial-gradient(circle, rgba(99, 102, 241, 0.22), rgba(99, 102, 241, 0));
-  z-index: -1;
+  display: none;
 }
 
 .tw-chatbot__fab-icon {
@@ -245,7 +239,7 @@ export default {
   background: var(--chat-bg);
   border-radius: var(--chat-radius);
   box-shadow: var(--chat-shadow);
-  border: 1px solid rgba(255, 255, 255, 0.8);
+  border: 1px solid var(--chat-border);
   overflow: hidden;
 }
 
@@ -254,16 +248,12 @@ export default {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: linear-gradient(135deg, #c7d2fe, #e0e7ff);
+  background: #eef4f8;
   position: relative;
 }
 
 .tw-chatbot__header::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.6), transparent 55%);
-  opacity: 0.8;
+  display: none;
 }
 
 .tw-chatbot__title {
@@ -275,15 +265,15 @@ export default {
 }
 
 .tw-chatbot__title-label {
-  font-weight: 700;
+  font-weight: 650;
   font-size: 1.05rem;
 }
 
 .tw-chatbot__subtitle {
   font-size: 0.78rem;
   color: var(--chat-accent-2);
-  font-weight: 600;
-  letter-spacing: 0.02em;
+  font-weight: 500;
+  letter-spacing: 0;
   text-transform: uppercase;
 }
 
@@ -306,15 +296,15 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.9));
+  background: #f7f8fa;
 }
 
 .tw-chatbot__empty {
   padding: 16px;
   background: var(--chat-surface);
-  border-radius: 16px;
+  border-radius: 8px;
   border: 1px solid var(--chat-border);
-  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.08);
+  box-shadow: none;
 }
 
 .tw-chatbot__empty h4 {
@@ -339,9 +329,9 @@ export default {
   border: 1px solid rgba(47, 93, 80, 0.2);
   background: rgba(47, 93, 80, 0.08);
   color: var(--chat-accent-2);
-  border-radius: 999px;
+  border-radius: 8px;
   padding: 8px 12px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
   font-size: 0.8rem;
 }
@@ -368,17 +358,17 @@ export default {
 .tw-chatbot__bubble {
   max-width: 80%;
   padding: 10px 12px;
-  border-radius: 14px;
+  border-radius: 8px;
   font-size: 0.95rem;
   line-height: 1.55;
   background: var(--chat-surface);
   border: 1px solid var(--chat-border);
-  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
+  box-shadow: none;
   white-space: pre-wrap;
 }
 
 .tw-chatbot__msg--user .tw-chatbot__bubble {
-  background: linear-gradient(135deg, var(--chat-accent), var(--chat-accent-strong));
+  background: var(--chat-accent);
   color: #ffffff;
   border-color: transparent;
 }
@@ -397,10 +387,10 @@ export default {
   min-height: 34px;
   padding: 7px 10px;
   border-radius: 10px;
-  background: #eef2ff;
+  background: #eef4f8;
   color: var(--chat-accent-2);
-  border: 1px solid #c7d2fe;
-  font-weight: 700;
+  border: 1px solid #d8e2ea;
+  font-weight: 600;
   font-size: 0.86rem;
   line-height: 1.25;
   text-decoration: none;
@@ -408,9 +398,8 @@ export default {
 }
 
 .tw-chatbot__place-link:hover {
-  background: #e0e7ff;
-  border-color: #a5b4fc;
-  transform: translateY(-1px);
+  background: #e6edf3;
+  border-color: #c7d5df;
 }
 
 .tw-chatbot__typing {
@@ -447,7 +436,7 @@ export default {
 .tw-chatbot__input {
   flex: 1 1 auto;
   border: 1px solid var(--chat-border);
-  border-radius: 14px;
+  border-radius: 8px;
   padding: 10px 12px;
   font-family: inherit;
   font-size: 0.95rem;
@@ -459,9 +448,9 @@ export default {
 
 .tw-chatbot__send {
   border: none;
-  border-radius: 14px;
+  border-radius: 8px;
   padding: 0 16px;
-  font-weight: 700;
+  font-weight: 600;
   background: var(--chat-accent-2);
   color: #ffffff;
   cursor: pointer;

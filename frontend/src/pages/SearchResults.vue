@@ -551,7 +551,7 @@ export default {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.7) 0%, rgba(15, 23, 42, 0.4) 55%, rgba(15, 23, 42, 0.25) 100%);
+  background: linear-gradient(180deg, rgba(17, 24, 39, 0.62) 0%, rgba(17, 24, 39, 0.36) 60%, rgba(17, 24, 39, 0.24) 100%);
 }
 
 .search-hero-inner {
@@ -597,8 +597,8 @@ export default {
 }
 
 .search-bar-container input:focus {
-  border-color: rgba(99, 102, 241, 0.65);
-  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.18);
+  border-color: #94a3b8;
+  box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.16);
 }
 
 .search-bar-container input::placeholder {
@@ -617,7 +617,7 @@ export default {
 
 .search-age label {
   color: #ffffff;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .search-age input[type="range"] {
@@ -656,9 +656,9 @@ export default {
   width: 240px;
   flex-shrink: 0;
   background: #ffffff;
-  border-radius: 12px;
+  border-radius: 8px;
   padding: 20px;
-  box-shadow: var(--tw-shadow-sm);
+  box-shadow: none;
   border: 1px solid var(--tw-border);
   height: fit-content;
   position: sticky;
@@ -702,7 +702,7 @@ export default {
 .filter-btn {
   padding: 6px 12px;
   border: 1px solid var(--tw-border);
-  border-radius: 20px;
+  border-radius: 8px;
   font-size: 0.8rem;
   color: #6b7280;
   background: #f9fafb;
@@ -712,9 +712,9 @@ export default {
 }
 
 .filter-btn:hover {
-  border-color: rgba(99, 102, 241, 0.5);
-  color: var(--tw-primary);
-  background: rgba(99, 102, 241, 0.08);
+  border-color: #cbd5e1;
+  color: #334155;
+  background: #ffffff;
 }
 
 .filter-btn.active {

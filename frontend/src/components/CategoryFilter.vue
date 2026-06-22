@@ -134,21 +134,23 @@ export default {
   color: #0f172a;
   font-size: 1.18rem;
   line-height: 1.3;
-  font-weight: 750;
+  font-weight: 650;
   letter-spacing: 0;
 }
 
 .filter-heading span {
   color: #64748b;
   font-size: 0.9rem;
-  font-weight: 650;
+  font-weight: 550;
   white-space: nowrap;
 }
 
 .category-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: max-content 36px minmax(0, 1fr) 36px;
   align-items: center;
   gap: 8px;
+  width: 100%;
   min-width: 0;
 }
 
@@ -161,21 +163,23 @@ export default {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   column-gap: 8px;
+  min-width: 0;
 }
 
 .category-pill {
+  min-width: 0;
   width: 100%;
   border: 1px solid #e5e7eb;
   background: #ffffff;
   color: #374151;
-  border-radius: 14px;
-  min-height: 36px;
-  padding: 7px 10px 7px 12px;
+  border-radius: 8px;
+  min-height: 40px;
+  padding: 7px 9px 7px 11px;
   cursor: pointer;
   font-family: inherit;
-  font-weight: 650;
-  font-size: 0.88rem;
-  line-height: 1;
+  font-weight: 560;
+  font-size: 0.84rem;
+  line-height: 1.2;
   display: inline-flex;
   align-items: center;
   justify-content: space-between;
@@ -185,9 +189,8 @@ export default {
 }
 
 .fixed-pill {
-  flex: 0 0 auto;
-  flex-basis: auto;
-  min-width: 92px;
+  width: auto;
+  min-width: 116px;
 }
 
 .category-pill:hover {
@@ -197,19 +200,23 @@ export default {
 }
 
 .category-pill.active {
-  background: #eef2ff;
-  border-color: #818cf8;
-  color: #3730a3;
+  background: #eef4f8;
+  border-color: #9eb3c5;
+  color: #334e68;
   box-shadow: none;
 }
 
 .category-name {
-  white-space: nowrap;
-  overflow: visible;
-  text-overflow: clip;
+  min-width: 0;
+  white-space: normal;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .category-count {
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -226,14 +233,14 @@ export default {
 
 .category-pill.active .category-count {
   background: #ffffff;
-  color: #4f46e5;
+  color: #4f6f8f;
 }
 
 .nav-btn {
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 40px;
   border: 1px solid #e5e7eb;
-  border-radius: 12px;
+  border-radius: 8px;
   background: #ffffff;
   color: #475569;
   cursor: pointer;
@@ -275,6 +282,7 @@ export default {
   }
 
   .category-row {
+    display: flex;
     align-items: stretch;
   }
 
@@ -305,6 +313,7 @@ export default {
 
   .fixed-pill {
     flex: 0 0 auto;
+    min-width: 92px;
   }
 
   .nav-btn {

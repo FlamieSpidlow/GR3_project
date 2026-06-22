@@ -317,7 +317,7 @@ export default {
 
 <style scoped>
 .home-page {
-  background: #f7fbff;
+  background: var(--tw-bg);
   color: #0f172a;
   min-height: 100%;
   overflow-x: hidden;
@@ -339,7 +339,7 @@ export default {
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(90deg, rgba(7, 20, 46, 0.78) 0%, rgba(7, 20, 46, 0.42) 48%, rgba(7, 20, 46, 0.18) 100%),
+    linear-gradient(90deg, rgba(17, 24, 39, 0.64) 0%, rgba(17, 24, 39, 0.36) 52%, rgba(17, 24, 39, 0.18) 100%),
     url('~@/../public/Playground.jpg');
   background-size: cover;
   background-position: center;
@@ -351,7 +351,7 @@ export default {
   position: absolute;
   inset: auto 0 0 0;
   height: 150px;
-  background: linear-gradient(180deg, rgba(247, 251, 255, 0) 0%, #f7fbff 82%);
+  background: linear-gradient(180deg, rgba(247, 248, 250, 0) 0%, var(--tw-bg) 86%);
 }
 
 .hero-inner {
@@ -371,10 +371,10 @@ export default {
 .section-eyebrow {
   display: inline-flex;
   align-items: center;
-  color: #0284c7;
+  color: #4f6f8f;
   font-size: 0.82rem;
-  font-weight: 900;
-  letter-spacing: 0.12em;
+  font-weight: 650;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
@@ -387,7 +387,7 @@ export default {
   margin: 0;
   font-size: clamp(2.5rem, 6vw, 5.15rem);
   line-height: 1.02;
-  font-weight: 950;
+  font-weight: 720;
   letter-spacing: 0;
   max-width: 850px;
 }
@@ -398,7 +398,7 @@ export default {
   color: rgba(255, 255, 255, 0.9);
   font-size: 1.12rem;
   line-height: 1.7;
-  font-weight: 600;
+  font-weight: 480;
 }
 
 .hero-stats {
@@ -413,9 +413,9 @@ export default {
   padding: 14px 16px;
   border-radius: 8px;
   color: #ffffff;
-  background: rgba(15, 23, 42, 0.34);
+  background: rgba(17, 24, 39, 0.28);
   border: 1px solid rgba(255, 255, 255, 0.18);
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(6px);
 }
 
 .stat-item strong {
@@ -427,7 +427,7 @@ export default {
 .stat-item span {
   color: rgba(255, 255, 255, 0.76);
   font-size: 0.85rem;
-  font-weight: 700;
+  font-weight: 550;
 }
 
 .section-block {
@@ -447,14 +447,14 @@ export default {
   color: #0f172a;
   font-size: clamp(1.65rem, 3vw, 2.35rem);
   line-height: 1.15;
-  font-weight: 950;
+  font-weight: 700;
   letter-spacing: 0;
 }
 
 .text-link {
-  color: #0369a1;
+  color: var(--tw-primary-600);
   text-decoration: none;
-  font-weight: 900;
+  font-weight: 650;
   white-space: nowrap;
 }
 
@@ -474,7 +474,8 @@ export default {
   cursor: pointer;
   text-align: left;
   background: #0f172a;
-  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.12);
+  box-shadow: none;
+  border: 1px solid var(--tw-border);
 }
 
 .category-card img,
@@ -489,13 +490,13 @@ export default {
 .category-card:hover img,
 .category-card.active img,
 .explore-card:hover img {
-  transform: scale(1.05);
+  transform: scale(1.025);
 }
 
 .category-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.1) 0%, rgba(15, 23, 42, 0.82) 100%);
+  background: linear-gradient(180deg, rgba(17, 24, 39, 0.08) 0%, rgba(17, 24, 39, 0.72) 100%);
 }
 
 .category-content {
@@ -508,19 +509,19 @@ export default {
   display: block;
   font-size: 1rem;
   line-height: 1.25;
-  font-weight: 950;
+  font-weight: 650;
 }
 
 .category-content small {
   display: inline-flex;
   margin-top: 6px;
   color: rgba(255, 255, 255, 0.82);
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .category-card.active {
-  outline: 4px solid #38bdf8;
-  outline-offset: 0;
+  outline: 2px solid rgba(79, 111, 143, 0.5);
+  outline-offset: -2px;
 }
 
 .featured-section,
@@ -546,14 +547,15 @@ export default {
   overflow: hidden;
   border-radius: 8px;
   background: #0f172a;
-  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.12);
+  box-shadow: none;
+  border: 1px solid var(--tw-border);
 }
 
 .explore-card::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.08) 0%, rgba(15, 23, 42, 0.82) 100%);
+  background: linear-gradient(180deg, rgba(17, 24, 39, 0.06) 0%, rgba(17, 24, 39, 0.72) 100%);
 }
 
 .explore-card div {
@@ -569,10 +571,10 @@ export default {
   display: inline-flex;
   margin-bottom: 8px;
   padding: 5px 9px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: rgba(255, 255, 255, 0.18);
   font-size: 0.78rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .explore-card h3 {
@@ -585,11 +587,11 @@ export default {
   margin: 0;
   color: rgba(255, 255, 255, 0.82);
   line-height: 1.55;
-  font-weight: 600;
+  font-weight: 450;
 }
 
 .offers-section {
-  background: #f7fbff;
+  background: var(--tw-bg);
 }
 
 .offer-grid {
@@ -603,7 +605,7 @@ export default {
   border-radius: 8px;
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.08);
+  box-shadow: none;
 }
 
 .offer-card {
@@ -613,7 +615,7 @@ export default {
 .offer-card span {
   color: #ea580c;
   font-size: 0.82rem;
-  font-weight: 950;
+  font-weight: 650;
 }
 
 .offer-card h3 {
@@ -626,13 +628,13 @@ export default {
   color: #475569;
   margin: 0 0 18px;
   line-height: 1.6;
-  font-weight: 600;
+  font-weight: 450;
 }
 
 .offer-card a {
-  color: #0369a1;
+  color: var(--tw-primary-600);
   text-decoration: none;
-  font-weight: 950;
+  font-weight: 650;
 }
 
 .review-layout {
@@ -652,7 +654,7 @@ export default {
   margin: 0;
   color: #475569;
   line-height: 1.7;
-  font-weight: 600;
+  font-weight: 450;
 }
 
 .review-grid {
@@ -675,7 +677,7 @@ export default {
   color: #334155;
   margin: 0 0 16px;
   line-height: 1.65;
-  font-weight: 650;
+  font-weight: 450;
 }
 
 .review-card strong {
@@ -705,7 +707,7 @@ export default {
   text-align: center;
   color: #64748b;
   font-size: 1rem;
-  font-weight: 700;
+  font-weight: 550;
 }
 
 @media (max-width: 1180px) {

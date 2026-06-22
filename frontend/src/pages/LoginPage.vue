@@ -133,14 +133,14 @@ export default {
   position: absolute;
   top: 0;
   right: 0;
-  width: 20%; /* vùng mờ bên phải */
+  width: 14%; /* vùng mờ bên phải */
   height: 100%;
-  backdrop-filter: blur(3px); /* độ nhòe */
-  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(2px); /* độ nhòe */
+  -webkit-backdrop-filter: blur(2px);
   background: linear-gradient(
     to right,
     rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.8) 90%,
+    rgba(255, 255, 255, 0.65) 90%,
     rgba(255, 255, 255, 1) 100%
   );
   pointer-events: none;
@@ -161,7 +161,7 @@ export default {
   padding: 40px 36px;
   border-radius: var(--tw-radius-lg);
   border: 1px solid var(--tw-border);
-  box-shadow: var(--tw-shadow-md);
+  box-shadow: none;
   width: 100%;
   max-width: 440px;
   text-align: center;
@@ -181,7 +181,7 @@ export default {
   margin: 0 0 28px;
   color: #111827;
   font-size: 1.4rem;
-  font-weight: 700;
+  font-weight: 650;
   letter-spacing: -0.01em;
   line-height: 1.3;
 }
@@ -208,8 +208,8 @@ export default {
 }
 
 .login-box input:focus {
-  border-color: rgba(99, 102, 241, 0.65);
-  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12);
+  border-color: #94a3b8;
+  box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.16);
 }
 
 .input-wrap input[type="text"] {
@@ -229,7 +229,7 @@ export default {
 .login-box button {
   width: 100%;
   padding: 14px 16px;
-  border-radius: 12px;
+  border-radius: var(--tw-radius-md);
   font-size: 1rem;
   margin-top: 8px;
 }
