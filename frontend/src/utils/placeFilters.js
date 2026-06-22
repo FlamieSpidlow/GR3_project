@@ -1,16 +1,3 @@
-export const PLACE_CATEGORIES = [
-  { id: 'all', label: 'Tất cả', aliases: [] },
-  { id: 'indoor', label: 'Trong nhà', aliases: ['trong nha', 'indoor', 'nha bong'] },
-  { id: 'outdoor', label: 'Ngoài trời', aliases: ['ngoai troi', 'outdoor', 'cong vien'] },
-  { id: 'water', label: 'Nước', aliases: ['boi', 'ho boi', 'be boi', 'cong vien nuoc', 'water'] },
-  { id: 'nature', label: 'Thiên nhiên', aliases: ['thien nhien', 'sinh thai', 'eco'] },
-  { id: 'farm', label: 'Nông trại', aliases: ['nong trai', 'farm'] },
-  { id: 'museum', label: 'Bảo tàng', aliases: ['bao tang', 'museum'] },
-  { id: 'culture', label: 'Văn hóa', aliases: ['van hoa', 'lich su', 'di tich', 'tam linh', 'truyen thong'] },
-  { id: 'picnic', label: 'Picnic', aliases: ['picnic', 'da ngoai'] },
-  { id: 'animal', label: 'Động vật', aliases: ['dong vat', 'cham soc thu', 'so thu', 'zoo'] }
-]
-
 export function normalizeText(value) {
   return String(value || '')
     .toLowerCase()
@@ -22,24 +9,26 @@ export function normalizeText(value) {
     .trim()
 }
 
-export function getPlaceSearchText(place) {
-  const parts = [
-    place && place.name,
-    place && place.address,
-    place && place.description,
-    ...(place && Array.isArray(place.tags) ? place.tags : []),
-    ...(place && Array.isArray(place.types) ? place.types : [])
-  ]
-  return parts.map(normalizeText).filter(Boolean).join(' ')
+export function getCategoryId(category) {
+  if (!category) return ''
+  if (typeof category === 'string') return category
+  return category.id || category._id || ''
+}
+
+export function getCategoryLabel(category) {
+  if (!category) return ''
+  if (typeof category === 'string') return category
+  return category.name || category.label || ''
+}
+
+export function getPlaceCategoryId(place) {
+  if (!place) return ''
+  return getCategoryId(place.category) || place.categoryId || ''
 }
 
 export function placeMatchesCategory(place, categoryId) {
   if (!categoryId || categoryId === 'all') return true
-  const category = PLACE_CATEGORIES.find(item => item.id === categoryId)
-  if (!category) return true
-
-  const text = getPlaceSearchText(place)
-  return category.aliases.some(alias => text.includes(normalizeText(alias)))
+  return getPlaceCategoryId(place) === categoryId
 }
 
 export function filterPlacesByCategory(places, categoryId) {
@@ -47,9 +36,22 @@ export function filterPlacesByCategory(places, categoryId) {
   return places.filter(place => placeMatchesCategory(place, categoryId))
 }
 
-export function getCategoryOptions(places) {
+export function getCategoryOptions(places, categories = []) {
   const items = Array.isArray(places) ? places : []
-  return PLACE_CATEGORIES.filter(category =>
-    category.id === 'all' || items.some(place => placeMatchesCategory(place, category.id))
-  )
+  const availableIds = new Set(items.map(getPlaceCategoryId).filter(Boolean))
+  const options = []
+  const seen = new Set()
+
+  const addOption = (category) => {
+    const id = getCategoryId(category)
+    const label = getCategoryLabel(category)
+    if (!id || !label || seen.has(id) || !availableIds.has(id)) return
+    seen.add(id)
+    options.push({ id, label })
+  }
+
+  ;(Array.isArray(categories) ? categories : []).forEach(addOption)
+  items.forEach(place => addOption(place && place.category))
+
+  return [{ id: 'all', label: 'Tất cả' }, ...options]
 }

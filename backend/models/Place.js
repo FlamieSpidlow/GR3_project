@@ -20,6 +20,7 @@ const placeSchema = new mongoose.Schema({
   parking: { type: String, default: '' }, // Bãi đỗ xe: 'Có (ô tô, xe máy)', 'Chỉ xe máy', 'Không có'
   food: { type: String, default: '' }, // Ăn uống: 'Có quán ăn', 'Cho phép picnic', 'Không'
   facilities: { type: String, default: '' }, // Tiện ích: 'WC, khu nghỉ', 'Chỉ WC', 'Không'
+  category: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', default: null },
   tags: [{ type: String }] // Tags: ['Dã ngoại', 'Picnic', 'Leo núi', ...]
 }, { timestamps: true })
 

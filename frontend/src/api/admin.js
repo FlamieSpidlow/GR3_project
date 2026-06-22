@@ -97,6 +97,16 @@ export const getAllTags = async () => {
   }
 }
 
+export const getAllCategories = async () => {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/categories`)
+    return response.data
+  } catch (error) {
+    console.error('Get all categories error:', error)
+    return { success: false, error: error.response?.data?.error || error.message }
+  }
+}
+
 export const createTag = async (name) => {
   try {
     const response = await axios.post(`${API_URL}/tags`, { name }, {

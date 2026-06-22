@@ -81,6 +81,7 @@
 <script>
 import PlaceCard from '../components/PlaceCard.vue'
 import { getPlaceById } from '../api/places'
+import { getCategories } from '../api/categories'
 import { getProfile, updateLocation } from '../api/auth'
 import { assetUrl } from '../utils/apiBase'
 import { getAuthToken } from '../utils/authSession'
@@ -94,6 +95,7 @@ export default {
     return { 
       favorites: [],
       favoritePlaces: [],
+      categories: [],
       activeCategory: 'all',
       isLoading: false,
       userLocation: null,
@@ -101,6 +103,7 @@ export default {
     }
   },
   async mounted() {
+    this.loadCategories()
     await this.initUserLocation()
     this.loadFavorites()
   },
@@ -109,7 +112,7 @@ export default {
       return filterPlacesByCategory(this.favoritePlaces, this.activeCategory)
     },
     categoryOptions() {
-      return getCategoryOptions(this.favoritePlaces)
+      return getCategoryOptions(this.favoritePlaces, this.categories)
     }
   },
   methods: {
@@ -124,6 +127,12 @@ export default {
       if (latNum === null || lngNum === null) return false
       this.userLocation = { lat: latNum, lng: lngNum }
       return true
+    },
+    async loadCategories() {
+      const res = await getCategories()
+      if (res && res.success) {
+        this.categories = res.data || []
+      }
     },
     async loadUserLocationFromProfile() {
       const token = getAuthToken()

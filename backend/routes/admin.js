@@ -4,6 +4,7 @@ const User = require('../models/User')
 const Place = require('../models/Place')
 const Review = require('../models/Review')
 const Tag = require('../models/Tag')
+const Category = require('../models/Category')
 const ReviewImageSubmission = require('../models/ReviewImageSubmission')
 const bcrypt = require('bcrypt')
 const multer = require('multer')
@@ -55,6 +56,14 @@ const upsertTags = async (tags) => {
     })
   }
   if (ops.length > 0) await Tag.bulkWrite(ops, { ordered: false })
+}
+
+const normalizeCategoryId = async (category) => {
+  const value = String(category || '').trim()
+  if (!value) return null
+  if (!Category.db.base.Types.ObjectId.isValid(value)) return null
+  const found = await Category.findById(value).select('_id').lean()
+  return found ? found._id : null
 }
 
 // Cấu hình multer để upload ảnh
@@ -250,7 +259,7 @@ router.post('/places/upload-image', upload.array('images', 10), async (req, res)
 // Lấy danh sách tất cả địa điểm
 router.get('/places', async (req, res) => {
   try {
-    const places = await Place.find().sort({ viewCount: -1, createdAt: -1 })
+    const places = await Place.find().populate('category').sort({ viewCount: -1, createdAt: -1 })
     res.json({ success: true, data: places })
   } catch (err) {
     console.error('Get places error:', err)
@@ -261,7 +270,7 @@ router.get('/places', async (req, res) => {
 // Lấy thông tin một địa điểm
 router.get('/places/:id', async (req, res) => {
   try {
-    const place = await Place.findById(req.params.id)
+    const place = await Place.findById(req.params.id).populate('category')
     if (!place) {
       return res.status(404).json({ success: false, error: 'Không tìm thấy địa điểm' })
     }
@@ -275,7 +284,7 @@ router.get('/places/:id', async (req, res) => {
 // Thêm địa điểm mới
 router.post('/places', async (req, res) => {
   try {
-    const { placeId, name, address, openingHours, description, images, types, ageRange, price, parking, food, facilities, tags } = req.body
+    const { placeId, name, address, openingHours, description, images, types, ageRange, price, parking, food, facilities, category, tags } = req.body
     
     if (!placeId || !name) {
       return res.status(400).json({ success: false, error: 'placeId và name là bắt buộc' })
@@ -292,6 +301,7 @@ router.post('/places', async (req, res) => {
     }
 
     await upsertTags(tags)
+    const categoryId = await normalizeCategoryId(category)
 
     const newPlace = new Place({
       placeId,
@@ -306,11 +316,13 @@ router.post('/places', async (req, res) => {
       parking: parking || '',
       food: food || '',
       facilities: facilities || '',
+      category: categoryId,
       tags: tags || [],
       viewCount: 0
     })
 
     await newPlace.save()
+    await newPlace.populate('category')
     
     res.status(201).json({ success: true, message: 'Thêm địa điểm thành công', data: newPlace })
   } catch (err) {
@@ -322,7 +334,7 @@ router.post('/places', async (req, res) => {
 // Cập nhật địa điểm
 router.put('/places/:id', async (req, res) => {
   try {
-    const { name, address, openingHours, description, images, types, ageRange, price, parking, food, facilities, tags } = req.body
+    const { name, address, openingHours, description, images, types, ageRange, price, parking, food, facilities, category, tags } = req.body
     const place = await Place.findById(req.params.id)
     
     if (!place) {
@@ -345,6 +357,7 @@ router.put('/places/:id', async (req, res) => {
     if (parking !== undefined) place.parking = parking
     if (food !== undefined) place.food = food
     if (facilities !== undefined) place.facilities = facilities
+    if (category !== undefined) place.category = await normalizeCategoryId(category)
     if (tags !== undefined) place.tags = tags
 
     if (tags !== undefined) {
@@ -352,6 +365,7 @@ router.put('/places/:id', async (req, res) => {
     }
 
     await place.save()
+    await place.populate('category')
     
     res.json({ success: true, message: 'Cập nhật địa điểm thành công', data: place })
   } catch (err) {
@@ -511,7 +525,7 @@ router.get('/search-goong', async (req, res) => {
 // Thêm địa điểm từ kết quả Goong vào database
 router.post('/places/add-from-goong', async (req, res) => {
   try {
-    const { placeId, name, ageMin, ageMax, price, tags } = req.body
+    const { placeId, name, ageMin, ageMax, price, category, tags } = req.body
     
     if (!placeId || !name) {
       return res.status(400).json({ success: false, error: 'Thiếu thông tin bắt buộc' })
@@ -537,6 +551,7 @@ router.post('/places/add-from-goong', async (req, res) => {
 
     const ageRange = `${ageMin || 0}-${ageMax || 12}`
     await upsertTags(tags)
+    const categoryId = await normalizeCategoryId(category)
     
     const newPlace = new Place({
       placeId,
@@ -551,11 +566,13 @@ router.post('/places/add-from-goong', async (req, res) => {
       ageRange,
       price: price || 'Miễn phí',
       tags: tags || [],
+      category: categoryId,
       images: [],
       rating: placeDetails.rating || 0
     })
 
     await newPlace.save()
+    await newPlace.populate('category')
     
     res.json({ success: true, message: 'Thêm địa điểm thành công', data: newPlace })
   } catch (err) {

@@ -92,6 +92,7 @@
 <script>
 import PlaceCard from '../components/PlaceCard.vue'
 import { getAllPlaces } from '../api/places'
+import { getCategories } from '../api/categories'
 import { getProfile, updateLocation } from '../api/auth'
 import { getAuthToken, getAuthUserRaw } from '../utils/authSession'
 import { getBrowserLocationCached } from '../utils/clientCache'
@@ -114,6 +115,7 @@ export default {
       recommendations: [],
       displayLimit: 6,
       activeCategory: 'all',
+      categories: [],
       userLocation: null,
       isLocating: false,
       favorites: []
@@ -136,7 +138,7 @@ export default {
       return filterPlacesByCategory(this.recommendations, this.activeCategory)
     },
     categoryOptions() {
-      return getCategoryOptions(this.recommendations)
+      return getCategoryOptions(this.recommendations, this.categories)
     }
   },
   mounted() {
@@ -243,7 +245,13 @@ export default {
       this.loading = true
       try {
         // Lấy tất cả địa điểm từ database
-        const res = await getAllPlaces()
+        const [res, categoryRes] = await Promise.all([
+          getAllPlaces(),
+          getCategories()
+        ])
+        if (categoryRes && categoryRes.success) {
+          this.categories = categoryRes.data || []
+        }
         
         if (res && res.success && res.data) {
           // Map và tính khoảng cách
@@ -269,6 +277,7 @@ export default {
               averageRating: p.rating || null,
               ageRange: p.ageRange || '0-12',
               price: p.price || 'Miễn phí',
+              category: p.category || null,
               tags: p.tags || [],
               lat: pLat,
               lng: pLng,

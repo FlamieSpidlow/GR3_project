@@ -12,8 +12,9 @@
 
       <section class="section-block">
         <div class="tw-container-wide">
-          <div class="section-header centered">
+          <div class="section-header section-header-row">
             <h2 class="tw-section-title">Một số địa điểm vui chơi cho trẻ nhỏ</h2>
+            <router-link to="/places" class="all-places-link">Tất cả -&gt;</router-link>
           </div>
 
           <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
@@ -85,6 +86,7 @@
 <script>
 import PlaceCard from '../components/PlaceCard.vue'
 import { getAllPlaces } from '../api/places'
+import { getCategories } from '../api/categories'
 import { filterPlacesByCategory, getCategoryOptions } from '../utils/placeFilters'
 
 
@@ -94,6 +96,7 @@ export default {
   data() {
     return {
       allPlaces: [],
+      categories: [],
       currentIndex: 0,
       displayCount: 3,
       activeCategory: 'all',
@@ -119,7 +122,7 @@ export default {
       return filterPlacesByCategory(this.allPlaces, this.activeCategory)
     },
     categoryOptions() {
-      return getCategoryOptions(this.allPlaces)
+      return getCategoryOptions(this.allPlaces, this.categories)
     }
   },
   mounted() {
@@ -134,7 +137,13 @@ export default {
       this.errorMessage = ''
       
       // Lấy tất cả địa điểm từ database
-      const res = await getAllPlaces()
+      const [res, categoryRes] = await Promise.all([
+        getAllPlaces(),
+        getCategories()
+      ])
+      if (categoryRes && categoryRes.success) {
+        this.categories = categoryRes.data || []
+      }
       if (res.success && res.data) {
         const mapped = res.data.map((place, idx) => ({
           _id: place.id || place.placeId || `place-${idx}`,
@@ -145,6 +154,7 @@ export default {
           image: place.image || null,
           images: place.images || [],
           price: place.price || 'Miễn phí',
+          category: place.category || null,
           tags: place.tags || []
         }))
         // Shuffle array để random thứ tự
@@ -299,8 +309,27 @@ export default {
   margin-bottom: 18px;
 }
 
+.section-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
 .section-header.centered {
   text-align: center;
+}
+
+.all-places-link {
+  flex: 0 0 auto;
+  color: var(--tw-primary);
+  font-weight: 850;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.all-places-link:hover {
+  color: var(--tw-primary-600);
 }
 
 .section-header p {
@@ -478,6 +507,10 @@ export default {
   .section-header {
     align-items: flex-start;
     gap: 10px;
+  }
+
+  .section-header-row {
+    flex-direction: column;
   }
 
   .section-header h2 {

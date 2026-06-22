@@ -3,10 +3,22 @@ const router = express.Router()
 const Place = require('../models/Place')
 const Tag = require('../models/Tag')
 
+const formatCategory = (category) => {
+  if (!category) return null
+  const id = category._id ? category._id.toString() : String(category)
+  return {
+    _id: id,
+    id,
+    name: category.name || '',
+    description: category.description || '',
+    sortOrder: category.sortOrder || 0
+  }
+}
+
 // Lấy tất cả địa điểm từ database
 router.get('/all', async (req, res) => {
   try {
-    const places = await Place.find({}).sort({ viewCount: -1, createdAt: -1 })
+    const places = await Place.find({}).populate('category').sort({ viewCount: -1, createdAt: -1 })
     
     const results = places.map(place => ({
       id: place._id.toString(),
@@ -25,6 +37,7 @@ router.get('/all', async (req, res) => {
       parking: place.parking,
       food: place.food,
       facilities: place.facilities,
+      category: formatCategory(place.category),
       tags: place.tags || [],
       source: 'database'
     }))
@@ -46,6 +59,7 @@ router.get('/random', async (req, res) => {
     const randomPlaces = await Place.aggregate([
       { $sample: { size: limitNum } }
     ])
+    await Place.populate(randomPlaces, { path: 'category' })
     
     // Map to consistent format
     const results = randomPlaces.map(place => ({
@@ -65,6 +79,7 @@ router.get('/random', async (req, res) => {
       parking: place.parking,
       food: place.food,
       facilities: place.facilities,
+      category: formatCategory(place.category),
       tags: place.tags || [],
       source: 'database'
     }))
@@ -445,11 +460,11 @@ router.get('/search', async (req, res) => {
 
     const matchesSearchCandidate = (place) => matchesNormalizedQuery(place) || matchesSpecialExpansion(place)
 
-    let dbPlaces = await Place.find(mongoFilter).lean()
+    let dbPlaces = await Place.find(mongoFilter).populate('category').lean()
     const seenPlaceIds = new Set(dbPlaces.map(place => String(place._id)))
 
     if (normalizedQuery) {
-      const fallbackPlaces = await Place.find({}).lean()
+      const fallbackPlaces = await Place.find({}).populate('category').lean()
       for (const place of fallbackPlaces) {
         const id = String(place._id)
         if (seenPlaceIds.has(id) || !matchesSearchCandidate(place)) continue
@@ -528,6 +543,7 @@ router.get('/search', async (req, res) => {
         parking: place.parking,
         food: place.food,
         facilities: place.facilities,
+        category: formatCategory(place.category),
         tags: place.tags || [],
         source: 'database',
         hasImage: (place.images && place.images.length > 0) || !!place.image,
@@ -584,7 +600,7 @@ router.get('/nearby', async (req, res) => {
     const places = await Place.find({
       lat: { $type: 'number' },
       lng: { $type: 'number' }
-    }).lean()
+    }).populate('category').lean()
 
     const results = places
       .map(place => {
@@ -608,6 +624,7 @@ router.get('/nearby', async (req, res) => {
           parking: place.parking,
           food: place.food,
           facilities: place.facilities,
+          category: formatCategory(place.category),
           tags: place.tags || [],
           source: 'database',
           distance
@@ -632,7 +649,7 @@ router.get('/details/:placeId', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Place ID is required' })
     }
 
-    const place = await Place.findOne({ placeId })
+    const place = await Place.findOne({ placeId }).populate('category')
     if (!place) {
       return res.status(404).json({ success: false, error: 'Không tìm thấy địa điểm trong database' })
     }
@@ -664,6 +681,7 @@ router.get('/details/:placeId', async (req, res) => {
         parking: place.parking,
         food: place.food,
         facilities: place.facilities,
+        category: formatCategory(place.category),
         tags: place.tags || [],
         source: 'database'
       }
@@ -683,7 +701,7 @@ router.get('/place/:id', async (req, res) => {
     }
 
     // Tìm trong database bằng _id
-    const place = await Place.findById(id)
+    const place = await Place.findById(id).populate('category')
     
     if (!place) {
       return res.status(404).json({ success: false, error: 'Không tìm thấy địa điểm' })
@@ -714,6 +732,7 @@ router.get('/place/:id', async (req, res) => {
       parking: place.parking,
       food: place.food,
       facilities: place.facilities,
+      category: formatCategory(place.category),
       tags: place.tags || []
     }
 

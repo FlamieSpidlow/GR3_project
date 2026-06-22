@@ -211,6 +211,15 @@
                 </select>
               </div>
               <div class="form-group">
+                <label>Phân loại địa điểm</label>
+                <select v-model="formData.category">
+                  <option value="">Chưa phân loại</option>
+                  <option v-for="category in availableCategories" :key="category._id || category.id" :value="category._id || category.id">
+                    {{ category.name }}
+                  </option>
+                </select>
+              </div>
+              <div class="form-group">
                 <label>Tags (chọn nhiều)</label>
                 <div class="inline-tag-create">
                   <input
@@ -249,6 +258,7 @@ import {
   updatePlace,
   deletePlace,
   getAllTags,
+  getAllCategories,
   createTag,
   searchGoongPlaces,
   addPlaceFromGoong,
@@ -296,6 +306,7 @@ export default {
         parking: '',
         food: '',
         facilities: '',
+        category: '',
         tags: []
       },
       editingPlaceId: null,
@@ -309,6 +320,7 @@ export default {
         'Lịch sử', 'Văn hóa'
       ],
       availableTags: [],
+      availableCategories: [],
       newTagName: '',
       isAddingTag: false,
       placeTagName: '',
@@ -325,6 +337,7 @@ export default {
     this.checkAdmin()
     this.loadPlaces()
     this.loadTags()
+    this.loadCategories()
     this.loadPendingReviewImageSubmissions()
   },
   methods: {
@@ -379,6 +392,14 @@ export default {
         this.availableTags = apiTags.length ? this.mergeTags(apiTags) : [...this.fallbackTags]
       } else {
         this.availableTags = [...this.fallbackTags]
+      }
+    },
+    async loadCategories() {
+      const res = await getAllCategories()
+      if (res && res.success) {
+        this.availableCategories = res.data || []
+      } else {
+        this.availableCategories = []
       }
     },
     async addTag() {
@@ -538,6 +559,7 @@ export default {
         parking: place.parking || '',
         food: place.food || '',
         facilities: place.facilities || '',
+        category: (place.category && (place.category._id || place.category.id)) || '',
         tags: place.tags || []
       }
       this.availableTags = this.mergeTags(this.availableTags, place.tags || [])
@@ -625,6 +647,7 @@ export default {
         parking: '',
         food: '',
         facilities: '',
+        category: '',
         tags: []
       }
       this.editingPlaceId = null
@@ -724,6 +747,7 @@ export default {
         ageMin: 0,
         ageMax: 12,
         price: 'Miễn phí',
+        category: '',
         tags: []
       }
       

@@ -9,6 +9,7 @@ const ResetPassword = () => import('../pages/ResetPassword.vue')
 const EditProfile = () => import('../pages/EditProfile.vue')
 const ChangePassword = () => import('../pages/ChangePassword.vue')
 const SearchResults = () => import('../pages/SearchResults.vue')
+const AllPlaces = () => import('../pages/AllPlaces.vue')
 const PlaceDetails = () => import('../pages/PlaceDetails.vue')
 const SuggestPage = () => import('../pages/SuggestPage.vue')
 const FavourPage = () => import('../pages/FavourPage.vue')
@@ -29,6 +30,7 @@ const routes = [
   { path: '/profile/edit', component: EditProfile, meta: { userOnly: true } },
   { path: '/profile/change-password', component: ChangePassword, meta: { userOnly: true } },
   { path: '/search', component: SearchResults },
+  { path: '/places', component: AllPlaces, meta: { userOnly: true } },
   { path: '/place/:id', component: PlaceDetails },
   { path: '/suggest', component: SuggestPage, meta: { userOnly: true } },
   { path: '/favour', component: FavourPage, meta: { userOnly: true } },
