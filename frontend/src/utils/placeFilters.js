@@ -4,6 +4,9 @@ export function normalizeText(value) {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'd')
+    .replace(/Ä‘/g, 'd')
+    .replace(/Ä/g, 'd')
     .replace(/[^a-z0-9\s-]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
@@ -26,32 +29,45 @@ export function getPlaceCategoryId(place) {
   return getCategoryId(place.category) || place.categoryId || ''
 }
 
-export function placeMatchesCategory(place, categoryId) {
-  if (!categoryId || categoryId === 'all') return true
-  return getPlaceCategoryId(place) === categoryId
+export function getPlaceCategoryKey(place) {
+  return normalizeText(getCategoryLabel(place && place.category))
 }
 
-export function filterPlacesByCategory(places, categoryId) {
+export function placeMatchesCategory(place, categoryId, categoryLabel = '') {
+  if (!categoryId || categoryId === 'all') return true
+  return getPlaceCategoryId(place) === categoryId ||
+    (!!categoryLabel && getPlaceCategoryKey(place) === normalizeText(categoryLabel))
+}
+
+export function filterPlacesByCategory(places, categoryId, categoryLabel = '') {
   if (!Array.isArray(places)) return []
-  return places.filter(place => placeMatchesCategory(place, categoryId))
+  return places.filter(place => placeMatchesCategory(place, categoryId, categoryLabel))
 }
 
 export function getCategoryOptions(places, categories = []) {
   const items = Array.isArray(places) ? places : []
-  const availableIds = new Set(items.map(getPlaceCategoryId).filter(Boolean))
-  const options = []
-  const seen = new Set()
+  const countsById = items.reduce((acc, place) => {
+    const id = getPlaceCategoryId(place)
+    if (id) acc[id] = (acc[id] || 0) + 1
+    return acc
+  }, {})
+  const countsByName = items.reduce((acc, place) => {
+    const key = getPlaceCategoryKey(place)
+    if (key) acc[key] = (acc[key] || 0) + 1
+    return acc
+  }, {})
 
-  const addOption = (category) => {
-    const id = getCategoryId(category)
-    const label = getCategoryLabel(category)
-    if (!id || !label || seen.has(id) || !availableIds.has(id)) return
-    seen.add(id)
-    options.push({ id, label })
-  }
+  const options = (Array.isArray(categories) ? categories : [])
+    .map(category => {
+      const id = getCategoryId(category)
+      const label = getCategoryLabel(category)
+      return {
+        id,
+        label,
+        count: countsById[id] || countsByName[normalizeText(label)] || 0
+      }
+    })
+    .filter(category => category.id && category.label)
 
-  ;(Array.isArray(categories) ? categories : []).forEach(addOption)
-  items.forEach(place => addOption(place && place.category))
-
-  return [{ id: 'all', label: 'Tất cả' }, ...options]
+  return [{ id: 'all', label: 'Tất cả', count: items.length }, ...options]
 }
