@@ -413,6 +413,15 @@
             <textarea v-model="ticketForm.note" rows="3" placeholder="Ví dụ: cần hỗ trợ thêm, đi theo nhóm..."></textarea>
           </div>
 
+
+          <div class="form-group">
+            <label>Phuong thuc thanh toan</label>
+            <select v-model="ticketForm.paymentMethod">
+              <option value="vietqr">VietQR</option>
+              <option value="vnpay">VNPAY</option>
+            </select>
+          </div>
+
           <div class="ticket-summary">
             <div>
               <span>Đơn giá tham khảo</span>
@@ -453,6 +462,16 @@
 
           <div v-if="!ticketPaymentCompleted" class="payment-qr-wrap">
             <img v-if="paymentQrImage" :src="paymentQrImage" class="payment-qr-image" alt="Mã QR thanh toán" />
+            <a
+              v-if="createdTicketOrder.payment?.payUrl"
+              class="btn-submit payment-link-btn"
+              :href="createdTicketOrder.payment.payUrl"
+            >
+              Thanh toan qua VNPAY
+            </a>
+            <div v-if="createdTicketOrder.payment?.transferContent" class="transfer-content">
+              Noi dung chuyen khoan: <strong>{{ createdTicketOrder.payment.transferContent }}</strong>
+            </div>
           </div>
 
           <div v-if="ticketError" class="ticket-error">{{ ticketError }}</div>
@@ -575,8 +594,7 @@
 import { getPlaceById, getAllPlaces } from '../api/places'
 import { getReviews, createReview, updateReview, deleteReview, getMyReviewImageSubmissions, reactToReview } from '../api/reviews'
 import { getProfile, updateLocation, updateFavorite } from '../api/auth'
-import { createTicketOrder, getTicketPaymentOrigin, getTicketPaymentStatus } from '../api/tickets'
-import QRCode from 'qrcode'
+import { createTicketOrder, getTicketPaymentStatus } from '../api/tickets'
 import { formatPrice, parsePriceValue } from '../utils/priceFormatter'
 import { cleanAddress } from '../utils/addressFormatter'
 import { assetUrl } from '../utils/apiBase'
@@ -637,7 +655,8 @@ export default {
         visitDate: '',
         adultQuantity: 1,
         childQuantity: 0,
-        note: ''
+        note: '',
+        paymentMethod: 'vietqr'
       }
     }
   },
@@ -773,7 +792,8 @@ export default {
         visitDate: this.minVisitDate,
         adultQuantity: 1,
         childQuantity: 0,
-        note: ''
+        note: '',
+        paymentMethod: 'vietqr'
       }
       this.showTicketModal = true
     },
@@ -811,7 +831,8 @@ export default {
         visitDate: this.ticketForm.visitDate,
         adultQuantity: adult,
         childQuantity: child,
-        note: this.ticketForm.note
+        note: this.ticketForm.note,
+        paymentMethod: this.ticketForm.paymentMethod
       })
 
       this.ticketSubmitting = false
@@ -826,38 +847,16 @@ export default {
         })
         await this.createPaymentQr(res.data)
         this.startPaymentStatusWatcher(res.data)
-        this.ticketSuccess = 'Đã tạo đơn vé. Vui lòng quét QR để thanh toán.'
+        this.ticketSuccess = this.createdTicketOrder.payment?.provider === 'vnpay'
+          ? 'Đã tạo đơn vé. Bấm nút VNPAY để thanh toán.'
+          : 'Đã tạo đơn vé. Vui lòng quét QR và chuyển khoản đúng nội dung.'
       } else {
         this.ticketError = res.error || 'Không thể gửi yêu cầu đặt vé'
       }
     },
-    getPaymentUrl(order) {
-      const id = order?._id || ''
-      const token = order?.paymentToken || ''
-      if (!id || !token) return ''
-      const origin = this.paymentOrigin || window.location.origin
-      return `${origin}/ticket-payment/${encodeURIComponent(id)}?token=${encodeURIComponent(token)}`
-    },
     async createPaymentQr(order) {
-      if (!this.paymentOrigin) {
-        const originRes = await getTicketPaymentOrigin()
-        if (originRes.success && originRes.origin) {
-          this.paymentOrigin = String(originRes.origin).replace(/\/$/, '')
-        }
-      }
-      const url = this.getPaymentUrl(order)
-      if (!url) {
-        this.paymentQrImage = ''
-        return
-      }
-      this.paymentQrImage = await QRCode.toDataURL(url, {
-        width: 240,
-        margin: 2,
-        color: {
-          dark: '#0f172a',
-          light: '#ffffff'
-        }
-      })
+      const payment = order?.payment || {}
+      this.paymentQrImage = payment.qrUrl || ''
     },
     startPaymentStatusWatcher(order) {
       this.stopPaymentStatusWatcher()
@@ -867,7 +866,7 @@ export default {
         const res = await getTicketPaymentStatus(order._id)
         if (!res.success || !res.data) return
 
-        const isPaid = res.data.paymentStatus === 'paid' || res.data.status !== 'unpaid'
+        const isPaid = res.data.paymentStatus === 'paid' || res.data.status === 'paid' || res.data.status === 'used'
         if (!isPaid) return
 
         this.stopPaymentStatusWatcher()
@@ -877,10 +876,10 @@ export default {
         this.$notify({
           type: 'success',
           title: 'Thanh toán thành công',
-          message: 'Vé của bạn đang chờ quản trị viên xác nhận.',
+          message: 'Đặt vé thành công. Vé điện tử đã sẵn sàng trong mục Vé của tôi.',
           persist: false
         })
-        this.ticketSuccess = 'Thanh toán thành công. Vé của bạn đang chờ quản trị viên xác nhận.'
+        this.ticketSuccess = 'Thanh toán thành công. Vé điện tử đã sẵn sàng trong mục Vé của tôi.'
       }, 2000)
     },
     stopPaymentStatusWatcher() {
@@ -1950,7 +1949,8 @@ export default {
 }
 
 .form-group input,
-.form-group textarea {
+.form-group textarea,
+.form-group select {
   width: 100%;
   border: 1px solid var(--tw-border);
   border-radius: 10px;
@@ -1960,7 +1960,8 @@ export default {
 }
 
 .form-group input:focus,
-.form-group textarea:focus {
+.form-group textarea:focus,
+.form-group select:focus {
   outline: none;
   border-color: #6366f1;
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.14);
@@ -2029,7 +2030,20 @@ export default {
 .payment-qr-wrap {
   display: flex;
   justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  gap: 12px;
   margin: 16px 0;
+}
+
+.payment-link-btn {
+  text-decoration: none;
+}
+
+.transfer-content {
+  color: var(--tw-muted);
+  font-size: 0.9rem;
+  text-align: center;
 }
 
 .payment-qr-image {

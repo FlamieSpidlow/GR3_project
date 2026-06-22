@@ -40,7 +40,7 @@ const routes = [
   { path: '/admin', component: AdminDashboard, meta: { adminOnly: true } },
   { path: '/admin/users', component: AdminUsers, meta: { adminOnly: true } },
   { path: '/admin/places', component: AdminPlaces, meta: { adminOnly: true } },
-  { path: '/admin/tickets', component: AdminTickets, meta: { adminOnly: true } }
+  { path: '/admin/tickets', component: AdminTickets, meta: { staffOrAdmin: true } }
 ]
 
 const router = createRouter({
@@ -54,8 +54,9 @@ router.beforeEach((to, from, next) => {
   const user = getAuthUser()
   const isAuthenticated = !!(token && user)
   const isAdmin = isAuthenticated && user.role === 'admin'
+  const isStaff = isAuthenticated && user.role === 'staff'
 
-  if ((to.meta.userOnly || to.meta.adminOnly) && !isAuthenticated) {
+  if ((to.meta.userOnly || to.meta.adminOnly || to.meta.staffOrAdmin) && !isAuthenticated) {
     next({
       path: '/login',
       query: to.fullPath && to.fullPath !== '/login' ? { redirect: to.fullPath } : {}
@@ -64,6 +65,11 @@ router.beforeEach((to, from, next) => {
   }
 
   if (to.meta.adminOnly && !isAdmin) {
+    next('/')
+    return
+  }
+
+  if (to.meta.staffOrAdmin && !(isAdmin || isStaff)) {
     next('/')
     return
   }

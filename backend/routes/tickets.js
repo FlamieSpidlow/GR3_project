@@ -1,102 +1,42 @@
 const express = require('express')
 const router = express.Router()
-const TicketOrder = require('../models/TicketOrder')
-const Place = require('../models/Place')
-const { authenticate, requireAdmin } = require('../middleware/auth')
-const { createUserNotification } = require('../services/notificationService')
+const Booking = require('../models/Booking')
+const Payment = require('../models/Payment')
+const PaymentLog = require('../models/PaymentLog')
+const Ticket = require('../models/Ticket')
+const TicketType = require('../models/TicketType')
+const { authenticate, requireAdmin, requireStaffOrAdmin } = require('../middleware/auth')
+const {
+  confirmVietQr,
+  createBooking,
+  ensureDefaultTicketTypes,
+  getPublicOrigin,
+  handleVnpayPayload,
+  populateBooking
+} = require('../services/ticketingService')
 
-const removeVietnameseAccents = (value) => String(value || '')
-  .normalize('NFD')
-  .replace(/[\u0300-\u036f]/g, '')
-  .replace(/đ/g, 'd')
-  .replace(/Đ/g, 'D')
+const statusToLegacyPayment = (status) => status === 'paid' || status === 'used' ? 'paid' : 'unpaid'
 
-const parsePriceToken = (token) => {
-  const raw = String(token || '').trim()
-  if (!raw) return null
-
-  const hasK = /k/i.test(raw)
-  const digits = raw.replace(/[^\d]/g, '')
-  if (!digits) return null
-
-  let value = Number.parseInt(digits, 10)
-  if (!Number.isFinite(value)) return null
-
-  if (hasK || (value > 0 && value < 1000 && !/[.,]/.test(raw))) {
-    value *= 1000
+const addLegacyFields = (booking) => {
+  if (!booking) return booking
+  const plain = typeof booking.toObject === 'function' ? booking.toObject() : booking
+  const adult = (plain.items || []).filter(i => i.audience === 'adult').reduce((sum, i) => sum + (i.quantity || 0), 0)
+  const child = (plain.items || []).filter(i => i.audience === 'child').reduce((sum, i) => sum + (i.quantity || 0), 0)
+  return {
+    ...plain,
+    totalPrice: plain.totalAmount,
+    adultQuantity: adult,
+    childQuantity: child || Math.max(0, (plain.totalQuantity || 0) - adult),
+    paymentStatus: statusToLegacyPayment(plain.status),
+    ticketCode: plain.code
   }
-
-  return value
 }
 
-const parsePriceValue = (value) => {
-  if (value === null || value === undefined || value === '') return 0
-  if (typeof value === 'number') return Number.isFinite(value) && value > 0 ? value : 0
-
-  const normalized = removeVietnameseAccents(value).toLowerCase().trim()
-  if (!normalized || normalized.includes('mien phi') || normalized.includes('free')) return 0
-
-  const matches = String(value || '').match(/\d[\d\s.,]*(?:k|K)?/g) || []
-  const prices = matches
-    .map(parsePriceToken)
-    .filter(n => Number.isFinite(n) && n >= 0)
-
-  return prices.length > 0 ? prices[0] : 0
-}
-
-const toQuantity = (value) => {
-  const n = Number.parseInt(value, 10)
-  if (!Number.isFinite(n) || n < 0) return 0
-  return Math.min(n, 50)
-}
-
-const generateTicketCode = () => {
-  const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '')
-  const random = Math.random().toString(36).slice(2, 8).toUpperCase()
-  return `TW-${stamp}-${random}`
-}
-
-const generatePaymentToken = () => {
-  const randomA = Math.random().toString(36).slice(2)
-  const randomB = Math.random().toString(36).slice(2)
-  return `${Date.now().toString(36)}-${randomA}${randomB}`.slice(0, 48)
-}
-
-const populateOrder = (query) => query
-  .populate('place', 'name address price images')
-  .populate('user', 'username email parentName')
-  .populate('confirmedBy', 'username parentName')
-
-const statusNotification = (status, order) => {
-  const placeName = order.place && order.place.name ? order.place.name : 'địa điểm'
-  if (status === 'confirmed') {
-    return {
-      type: 'success',
-      title: 'Vé đã được xác nhận',
-      message: `Đơn vé tại ${placeName} đã được xác nhận. Mã vé của bạn: ${order.ticketCode || 'đang cập nhật'}.`
-    }
-  }
-  if (status === 'cancelled') {
-    return { type: 'warning', title: 'Vé đã bị hủy', message: `Đơn vé tại ${placeName} đã bị hủy.` }
-  }
-  if (status === 'used') {
-    return { type: 'info', title: 'Vé đã sử dụng', message: `Vé tại ${placeName} đã được đánh dấu là đã sử dụng.` }
-  }
-  if (status === 'pending') {
-    return { type: 'info', title: 'Vé đang chờ xác nhận', message: `Đơn vé tại ${placeName} đã thanh toán và đang chờ quản trị viên xác nhận.` }
-  }
-  return null
-}
-
-const getPublicOrigin = (req) => {
-  const configured = process.env.FRONTEND_PUBLIC_ORIGIN || process.env.APP_PUBLIC_ORIGIN
-  if (configured) return configured.replace(/\/$/, '')
-
-  const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https'
-  const host = req.headers['x-forwarded-host'] || req.headers.host
-  if (host) return `${proto}://${host}`.replace(/\/$/, '')
-
-  return ''
+const addTickets = async (booking) => {
+  const plain = addLegacyFields(booking)
+  if (!plain?._id) return plain
+  plain.tickets = await Ticket.find({ booking: plain._id }).sort({ lineIndex: 1 })
+  return plain
 }
 
 router.get('/payment-origin', (req, res) => {
@@ -107,283 +47,284 @@ router.get('/payment-origin', (req, res) => {
   res.json({ success: true, origin })
 })
 
+router.get('/places/:placeId/ticket-types', async (req, res) => {
+  try {
+    const Place = require('../models/Place')
+    const place = await Place.findById(req.params.placeId)
+    if (!place) return res.status(404).json({ success: false, error: 'Không tìm thấy địa điểm' })
+    const ticketTypes = await ensureDefaultTicketTypes(place)
+    res.json({ success: true, data: ticketTypes })
+  } catch (err) {
+    console.error('Get ticket types error:', err)
+    res.status(500).json({ success: false, error: 'Lỗi lấy loại vé', details: err.message })
+  }
+})
+
 router.post('/', authenticate, async (req, res) => {
   try {
-    const { placeId, visitDate, adultQuantity, childQuantity, note = '' } = req.body || {}
-    if (!placeId) return res.status(400).json({ success: false, error: 'Thiếu địa điểm' })
-    if (!visitDate) return res.status(400).json({ success: false, error: 'Thiếu ngày đi' })
-
-    const place = await Place.findById(placeId)
-    if (!place) return res.status(404).json({ success: false, error: 'Không tìm thấy địa điểm' })
-
-    const parsedVisitDate = new Date(visitDate)
-    if (Number.isNaN(parsedVisitDate.getTime())) {
-      return res.status(400).json({ success: false, error: 'Ngày đi không hợp lệ' })
-    }
-
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const visitDay = new Date(parsedVisitDate)
-    visitDay.setHours(0, 0, 0, 0)
-    if (visitDay < today) {
-      return res.status(400).json({ success: false, error: 'Ngày đi không được ở quá khứ' })
-    }
-
-    const adultQty = toQuantity(adultQuantity)
-    const childQty = toQuantity(childQuantity)
-    const totalQuantity = adultQty + childQty
-    if (totalQuantity <= 0) {
-      return res.status(400).json({ success: false, error: 'Vui lòng chọn ít nhất 1 vé' })
-    }
-
-    const unitPrice = parsePriceValue(place.price)
-    if (unitPrice <= 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'Địa điểm miễn phí không cần đặt vé'
-      })
-    }
-
-    let paymentToken = generatePaymentToken()
-    while (await TicketOrder.exists({ paymentToken })) {
-      paymentToken = generatePaymentToken()
-    }
-
-    const order = await TicketOrder.create({
-      user: req.user._id,
-      place: place._id,
-      visitDate: visitDay,
-      adultQuantity: adultQty,
-      childQuantity: childQty,
-      unitPrice,
-      totalPrice: unitPrice * totalQuantity,
-      note: String(note || '').trim().slice(0, 500),
-      status: 'unpaid',
-      paymentStatus: 'unpaid',
-      paymentToken
+    const booking = await createBooking({ user: req.user, payload: req.body, req })
+    res.status(201).json({
+      success: true,
+      message: 'Đã tạo đơn đặt vé. Vui lòng thanh toán để hoàn tất.',
+      data: addLegacyFields(booking)
     })
-
-    const populated = await populateOrder(TicketOrder.findById(order._id))
-    await createUserNotification(req.user._id, {
-      type: 'info',
-      title: 'Đã tạo đơn vé',
-      message: `Đơn vé tại ${place.name} đã được tạo. Vui lòng thanh toán để chờ xác nhận.`
-    })
-    res.status(201).json({ success: true, message: 'Đã gửi yêu cầu đặt vé', data: populated })
   } catch (err) {
-    console.error('Create ticket order error:', err)
-    res.status(500).json({ success: false, error: 'Lỗi đặt vé', details: err.message })
+    console.error('Create booking error:', err)
+    res.status(err.statusCode || 500).json({ success: false, error: err.message || 'Lỗi đặt vé' })
   }
 })
 
-router.post('/:id/simulate-payment', authenticate, async (req, res) => {
+router.post('/bookings', authenticate, async (req, res) => {
   try {
-    const order = await TicketOrder.findOne({ _id: req.params.id, user: req.user._id })
-    if (!order) return res.status(404).json({ success: false, error: 'Không tìm thấy đơn vé' })
-
-    if (order.status === 'cancelled') {
-      return res.status(400).json({ success: false, error: 'Đơn vé đã hủy, không thể thanh toán' })
-    }
-    if (order.status === 'used') {
-      return res.status(400).json({ success: false, error: 'Vé đã sử dụng' })
-    }
-
-    order.paymentStatus = 'paid'
-    order.paidAt = order.paidAt || new Date()
-    if (order.status === 'unpaid') {
-      order.status = 'pending'
-    }
-
-    await order.save()
-    const populated = await populateOrder(TicketOrder.findById(order._id))
-    await createUserNotification(order.user, {
-      type: 'success',
-      title: 'Thanh toán thành công',
-      message: `Đơn vé tại ${populated.place?.name || 'địa điểm'} đã thanh toán và đang chờ xác nhận.`
-    })
-    res.json({ success: true, message: 'Thanh toán thành công, vé đang chờ xác nhận', data: populated })
+    const booking = await createBooking({ user: req.user, payload: req.body, req })
+    res.status(201).json({ success: true, data: addLegacyFields(booking) })
   } catch (err) {
-    console.error('Simulate ticket payment error:', err)
-    res.status(500).json({ success: false, error: 'Lỗi thanh toán giả lập', details: err.message })
+    console.error('Create booking error:', err)
+    res.status(err.statusCode || 500).json({ success: false, error: err.message || 'Lỗi đặt vé' })
   }
 })
 
-router.post('/:id/simulate-payment/scan', async (req, res) => {
+router.get('/my', authenticate, async (req, res) => {
   try {
-    const { token = '' } = req.body || {}
-    const order = await TicketOrder.findOne({ _id: req.params.id, paymentToken: String(token || '') })
-    if (!order) return res.status(404).json({ success: false, error: 'Mã QR không hợp lệ hoặc đã hết hạn' })
-
-    if (order.status === 'cancelled') {
-      return res.status(400).json({ success: false, error: 'Đơn vé đã hủy, không thể thanh toán' })
-    }
-    if (order.status === 'used') {
-      return res.status(400).json({ success: false, error: 'Vé đã sử dụng' })
-    }
-
-    order.paymentStatus = 'paid'
-    order.paidAt = order.paidAt || new Date()
-    if (order.status === 'unpaid') {
-      order.status = 'pending'
-    }
-
-    await order.save()
-    const populated = await populateOrder(TicketOrder.findById(order._id))
-    await createUserNotification(order.user, {
-      type: 'success',
-      title: 'Thanh toán thành công',
-      message: `Đơn vé tại ${populated.place?.name || 'địa điểm'} đã thanh toán và đang chờ xác nhận.`
-    })
-    res.json({ success: true, message: 'Thanh toán thành công, vé đang chờ xác nhận', data: populated })
+    const bookings = await populateBooking(
+      Booking.find({ user: req.user._id }).sort({ createdAt: -1 })
+    )
+    const data = await Promise.all(bookings.map(addTickets))
+    res.json({ success: true, data })
   } catch (err) {
-    console.error('Scan ticket payment error:', err)
-    res.status(500).json({ success: false, error: 'Lỗi thanh toán bằng QR', details: err.message })
+    console.error('Get my bookings error:', err)
+    res.status(500).json({ success: false, error: 'Lỗi lấy danh sách vé', details: err.message })
+  }
+})
+
+router.get('/admin', authenticate, requireStaffOrAdmin, async (req, res) => {
+  try {
+    const { status = '', limit = 200 } = req.query
+    const query = {}
+    if (status) query.status = status
+    const bookings = await populateBooking(
+      Booking.find(query)
+        .sort({ createdAt: -1 })
+        .limit(Math.min(Number.parseInt(limit, 10) || 200, 500))
+    )
+    const data = await Promise.all(bookings.map(addTickets))
+    res.json({ success: true, data })
+  } catch (err) {
+    console.error('Get admin bookings error:', err)
+    res.status(500).json({ success: false, error: 'Lỗi lấy danh sách đặt vé', details: err.message })
+  }
+})
+
+router.get('/admin/payments', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { status = '', provider = '', limit = 200 } = req.query
+    const query = {}
+    if (status) query.status = status
+    if (provider) query.provider = provider
+    const payments = await Payment.find(query)
+      .populate('booking')
+      .populate('user', 'username email parentName phone')
+      .sort({ createdAt: -1 })
+      .limit(Math.min(Number.parseInt(limit, 10) || 200, 500))
+    res.json({ success: true, data: payments })
+  } catch (err) {
+    console.error('Get payments error:', err)
+    res.status(500).json({ success: false, error: 'Lỗi đối soát thanh toán', details: err.message })
+  }
+})
+
+router.get('/admin/payment-logs', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const logs = await PaymentLog.find({})
+      .populate('actor', 'username email parentName role')
+      .sort({ createdAt: -1 })
+      .limit(300)
+    res.json({ success: true, data: logs })
+  } catch (err) {
+    console.error('Get payment logs error:', err)
+    res.status(500).json({ success: false, error: 'Lỗi lấy log thanh toán', details: err.message })
+  }
+})
+
+router.post('/admin/vietqr/confirm', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { orderRef, amount, transactionId = '', payload = {} } = req.body || {}
+    if (!orderRef || !Number.isFinite(Number(amount))) {
+      return res.status(400).json({ success: false, error: 'Thiếu mã thanh toán hoặc số tiền' })
+    }
+    const booking = await confirmVietQr({
+      orderRef,
+      amount: Number(amount),
+      transactionId,
+      payload: { ...payload, orderRef, amount, transactionId },
+      actor: req.user,
+      source: 'admin'
+    })
+    res.json({ success: true, message: 'Đã xác nhận thanh toán VietQR', data: addLegacyFields(booking) })
+  } catch (err) {
+    console.error('Admin confirm VietQR error:', err)
+    res.status(err.statusCode || 500).json({ success: false, error: err.message || 'Lỗi xác nhận VietQR' })
+  }
+})
+
+router.post('/vietqr/webhook', async (req, res) => {
+  try {
+    const secret = process.env.VIETQR_WEBHOOK_SECRET
+    if (secret && req.headers['x-webhook-secret'] !== secret) {
+      return res.status(401).json({ success: false, error: 'Invalid webhook secret' })
+    }
+    const body = req.body || {}
+    const orderRef = body.orderRef || body.content || body.transferContent || body.description
+    const amount = Number(body.amount || body.transferAmount || body.creditAmount)
+    const transactionId = body.transactionId || body.reference || body.refNo || ''
+    if (!orderRef || !Number.isFinite(amount)) {
+      return res.status(400).json({ success: false, error: 'Invalid VietQR payload' })
+    }
+    const booking = await confirmVietQr({
+      orderRef: String(orderRef).trim(),
+      amount,
+      transactionId: String(transactionId || ''),
+      payload: body,
+      source: 'webhook'
+    })
+    res.json({ success: true, data: addLegacyFields(booking) })
+  } catch (err) {
+    console.error('VietQR webhook error:', err)
+    res.status(err.statusCode || 500).json({ success: false, error: err.message || 'Lỗi webhook VietQR' })
+  }
+})
+
+router.get('/vnpay/ipn', async (req, res) => {
+  try {
+    const result = await handleVnpayPayload(req.query, 'ipn')
+    res.json({ RspCode: result.code, Message: result.message })
+  } catch (err) {
+    console.error('VNPAY IPN error:', err)
+    res.json({ RspCode: '99', Message: 'Unknown error' })
+  }
+})
+
+router.get('/vnpay/return', async (req, res) => {
+  try {
+    const result = await handleVnpayPayload(req.query, 'return')
+    const bookingId = result.booking?._id || ''
+    const status = result.success ? 'success' : 'failed'
+    const origin = getPublicOrigin(req)
+    res.redirect(`${origin}/ticket-payment/${bookingId}?provider=vnpay&status=${status}`)
+  } catch (err) {
+    console.error('VNPAY return error:', err)
+    const origin = getPublicOrigin(req)
+    res.redirect(`${origin}/tickets?payment=failed`)
   }
 })
 
 router.get('/:id/payment-status', authenticate, async (req, res) => {
   try {
-    const order = await populateOrder(
-      TicketOrder.findOne({ _id: req.params.id, user: req.user._id })
+    const booking = await populateBooking(
+      Booking.findOne({ _id: req.params.id, user: req.user._id })
     )
-    if (!order) return res.status(404).json({ success: false, error: 'Không tìm thấy đơn vé' })
-
+    if (!booking) return res.status(404).json({ success: false, error: 'Không tìm thấy đơn vé' })
+    const data = await addTickets(booking)
     res.json({
       success: true,
-      data: order,
-      paymentStatus: order.paymentStatus,
-      status: order.status,
-      paidAt: order.paidAt
+      data,
+      paymentStatus: data.paymentStatus,
+      status: data.status,
+      paidAt: data.paidAt
     })
   } catch (err) {
-    console.error('Get ticket payment status error:', err)
+    console.error('Get payment status error:', err)
     res.status(500).json({ success: false, error: 'Lỗi kiểm tra trạng thái thanh toán', details: err.message })
   }
 })
 
 router.patch('/:id/cancel', authenticate, async (req, res) => {
   try {
-    const order = await TicketOrder.findOne({ _id: req.params.id, user: req.user._id })
-    if (!order) return res.status(404).json({ success: false, error: 'Không tìm thấy đơn vé' })
-
-    if (order.status === 'cancelled') {
-      return res.status(400).json({ success: false, error: 'Đơn vé đã được hủy trước đó' })
+    const booking = await Booking.findOne({ _id: req.params.id, user: req.user._id })
+    if (!booking) return res.status(404).json({ success: false, error: 'Không tìm thấy đơn vé' })
+    if (!['pending'].includes(booking.status)) {
+      return res.status(400).json({ success: false, error: 'Chỉ có thể hủy đơn đang chờ thanh toán' })
     }
-    if (order.status === 'confirmed') {
-      return res.status(400).json({ success: false, error: 'Vé đã xác nhận, vui lòng liên hệ quản trị viên để được hỗ trợ' })
-    }
-    if (order.status === 'used') {
-      return res.status(400).json({ success: false, error: 'Vé đã sử dụng, không thể hủy' })
-    }
-
-    order.status = 'cancelled'
-    order.cancelledAt = new Date()
-    await order.save()
-
-    const populated = await populateOrder(TicketOrder.findById(order._id))
-    await createUserNotification(order.user, {
-      type: 'warning',
-      title: 'Bạn đã hủy vé',
-      message: `Đơn vé tại ${populated.place?.name || 'địa điểm'} đã được hủy.`
-    })
-
-    res.json({ success: true, message: 'Đã hủy vé', data: populated })
+    booking.status = 'cancelled'
+    booking.cancelledAt = new Date()
+    await booking.save()
+    await Payment.updateOne({ booking: booking._id, status: 'pending' }, { status: 'cancelled' })
+    await Ticket.updateMany({ booking: booking._id }, { status: 'cancelled' })
+    const populated = await populateBooking(Booking.findById(booking._id))
+    res.json({ success: true, message: 'Đã hủy vé', data: addLegacyFields(populated) })
   } catch (err) {
-    console.error('Cancel ticket order error:', err)
+    console.error('Cancel booking error:', err)
     res.status(500).json({ success: false, error: 'Lỗi hủy vé', details: err.message })
-  }
-})
-
-router.get('/my', authenticate, async (req, res) => {
-  try {
-    const orders = await populateOrder(
-      TicketOrder.find({ user: req.user._id }).sort({ createdAt: -1 })
-    )
-    res.json({ success: true, data: orders })
-  } catch (err) {
-    console.error('Get my ticket orders error:', err)
-    res.status(500).json({ success: false, error: 'Lỗi lấy danh sách vé', details: err.message })
-  }
-})
-
-router.get('/admin', authenticate, requireAdmin, async (req, res) => {
-  try {
-    const { status = '', limit = 200 } = req.query
-    const query = {}
-    if (status) query.status = status
-
-    const orders = await populateOrder(
-      TicketOrder.find(query)
-        .sort({ createdAt: -1 })
-        .limit(Math.min(Number.parseInt(limit, 10) || 200, 500))
-    )
-
-    res.json({ success: true, data: orders })
-  } catch (err) {
-    console.error('Get admin ticket orders error:', err)
-    res.status(500).json({ success: false, error: 'Lỗi lấy danh sách đơn vé', details: err.message })
   }
 })
 
 router.patch('/admin/:id/status', authenticate, requireAdmin, async (req, res) => {
   try {
     const { status } = req.body || {}
-    const allowedStatuses = ['unpaid', 'pending', 'confirmed', 'cancelled', 'used']
+    const allowedStatuses = ['pending', 'paid', 'expired', 'cancelled', 'refunded', 'used']
     if (!allowedStatuses.includes(status)) {
       return res.status(400).json({ success: false, error: 'Trạng thái không hợp lệ' })
     }
-
-    const order = await TicketOrder.findById(req.params.id)
-    if (!order) return res.status(404).json({ success: false, error: 'Không tìm thấy đơn vé' })
-
-    if (order.status === 'used' && status !== 'used') {
-      return res.status(400).json({ success: false, error: 'Vé đã sử dụng không thể đổi trạng thái' })
+    const booking = await Booking.findById(req.params.id)
+    if (!booking) return res.status(404).json({ success: false, error: 'Không tìm thấy đơn vé' })
+    if (status === 'paid') {
+      return res.status(400).json({ success: false, error: 'Không xác nhận paid thủ công ở đây. Dùng đối soát VietQR hoặc VNPAY callback.' })
     }
-    if (status === 'confirmed' && order.status === 'unpaid') {
-      return res.status(400).json({ success: false, error: 'Chỉ có thể xác nhận vé đã thanh toán' })
-    }
-    if (status === 'used' && order.status !== 'confirmed') {
-      return res.status(400).json({ success: false, error: 'Chỉ có thể sử dụng vé đã xác nhận' })
-    }
-
-    order.status = status
-    if (status === 'confirmed') {
-      if (!order.ticketCode) {
-        let code = generateTicketCode()
-        while (await TicketOrder.exists({ ticketCode: code })) {
-          code = generateTicketCode()
-        }
-        order.ticketCode = code
-      }
-      order.confirmedBy = req.user._id
-      order.confirmedAt = order.confirmedAt || new Date()
-      order.paymentStatus = 'paid'
-      order.paidAt = order.paidAt || new Date()
-      order.cancelledAt = undefined
-      order.usedAt = undefined
-    } else if (status === 'cancelled') {
-      order.cancelledAt = new Date()
-    } else if (status === 'unpaid') {
-      order.paymentStatus = 'unpaid'
-      order.paidAt = undefined
-      order.confirmedBy = undefined
-      order.confirmedAt = undefined
-      order.cancelledAt = undefined
-      order.usedAt = undefined
-    } else if (status === 'used') {
-      order.usedAt = new Date()
-    }
-
-    await order.save()
-    const populated = await populateOrder(TicketOrder.findById(order._id))
-    const notification = statusNotification(status, populated)
-    if (notification) {
-      await createUserNotification(order.user, notification)
-    }
-    res.json({ success: true, message: 'Đã cập nhật trạng thái vé', data: populated })
+    booking.status = status
+    if (status === 'cancelled') booking.cancelledAt = new Date()
+    if (status === 'refunded') booking.refundedAt = new Date()
+    if (status === 'used') booking.usedAt = new Date()
+    await booking.save()
+    await Ticket.updateMany({ booking: booking._id }, { status: status === 'used' ? 'used' : status })
+    const populated = await populateBooking(Booking.findById(booking._id))
+    res.json({ success: true, message: 'Đã cập nhật trạng thái vé', data: addLegacyFields(populated) })
   } catch (err) {
-    console.error('Update ticket order status error:', err)
+    console.error('Update booking status error:', err)
     res.status(500).json({ success: false, error: 'Lỗi cập nhật trạng thái vé', details: err.message })
+  }
+})
+
+router.post('/staff/check-in', authenticate, requireStaffOrAdmin, async (req, res) => {
+  try {
+    const { ticketCode, qrPayload } = req.body || {}
+    let code = ticketCode
+    if (!code && qrPayload) {
+      try {
+        code = JSON.parse(qrPayload).ticketCode
+      } catch (_) {
+        code = String(qrPayload || '')
+      }
+    }
+    if (!code) return res.status(400).json({ success: false, error: 'Thiếu mã vé' })
+    const ticket = await Ticket.findOne({ code })
+      .populate('booking')
+      .populate('place', 'name address')
+      .populate('user', 'username email parentName phone')
+    if (!ticket) return res.status(404).json({ success: false, error: 'Không tìm thấy vé' })
+    if (ticket.status === 'used') return res.status(409).json({ success: false, error: 'Vé đã được check-in trước đó', data: ticket })
+    if (ticket.status !== 'paid') return res.status(400).json({ success: false, error: `Vé không hợp lệ ở trạng thái ${ticket.status}` })
+    ticket.status = 'used'
+    ticket.usedAt = new Date()
+    ticket.checkedInBy = req.user._id
+    await ticket.save()
+    const remaining = await Ticket.countDocuments({ booking: ticket.booking._id, status: 'paid' })
+    if (remaining === 0) {
+      await Booking.updateOne({ _id: ticket.booking._id }, { status: 'used', usedAt: new Date() })
+    }
+    res.json({ success: true, message: 'Check-in vé thành công', data: ticket })
+  } catch (err) {
+    console.error('Check-in ticket error:', err)
+    res.status(500).json({ success: false, error: 'Lỗi check-in vé', details: err.message })
+  }
+})
+
+router.post('/admin/ticket-types', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const ticketType = await TicketType.create(req.body || {})
+    res.status(201).json({ success: true, data: ticketType })
+  } catch (err) {
+    console.error('Create ticket type error:', err)
+    res.status(400).json({ success: false, error: err.message || 'Lỗi tạo loại vé' })
   }
 })
 

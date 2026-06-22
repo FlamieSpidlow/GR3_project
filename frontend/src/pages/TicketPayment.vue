@@ -10,55 +10,53 @@
       <h1>{{ title }}</h1>
       <p>{{ message }}</p>
 
-      <router-link v-if="status === 'success'" to="/" class="payment-link">
-        Quay lại trang chủ
+      <router-link v-if="status === 'success'" to="/tickets" class="payment-link">
+        Xem vé của tôi
       </router-link>
-      <router-link v-else-if="status === 'error'" to="/" class="payment-link secondary">
-        Về trang chủ
+      <router-link v-else-if="status === 'error'" to="/tickets" class="payment-link secondary">
+        Về Vé của tôi
       </router-link>
     </section>
   </main>
 </template>
 
 <script>
-import { scanTicketPayment } from '../api/tickets'
+import { getTicketPaymentStatus } from '../api/tickets'
 
 export default {
   name: 'TicketPayment',
   data() {
     return {
       status: 'loading',
-      message: 'Đang xử lý thanh toán...'
+      message: 'Dang kiem tra trang thai thanh toan...'
     }
   },
   computed: {
     title() {
-      if (this.status === 'success') return 'Thanh toán thành công'
-      if (this.status === 'error') return 'Thanh toán không thành công'
-      return 'Đang thanh toán'
+      if (this.status === 'success') return 'Dat ve thanh cong'
+      if (this.status === 'error') return 'Chua xac nhan thanh toan'
+      return 'Dang kiem tra'
     }
   },
   mounted() {
-    this.payByQr()
+    this.checkPayment()
   },
   methods: {
-    async payByQr() {
-      const orderId = this.$route.params.orderId
-      const token = this.$route.query.token
-      if (!orderId || !token) {
+    async checkPayment() {
+      const bookingId = this.$route.params.orderId
+      if (!bookingId) {
         this.status = 'error'
-        this.message = 'Mã QR không hợp lệ.'
+        this.message = 'Khong tim thay ma dat ve.'
         return
       }
-
-      const res = await scanTicketPayment(orderId, token)
-      if (res.success) {
+      const res = await getTicketPaymentStatus(bookingId)
+      if (res.success && ['paid', 'used'].includes(res.data?.status)) {
         this.status = 'success'
-        this.message = 'Vé của bạn đã được thanh toán và đang chờ quản trị viên xác nhận.'
-      } else {
-        this.status = 'error'
-        this.message = res.error || 'Không thể xử lý thanh toán từ mã QR.'
+        this.message = 'Thanh toan da duoc backend xac minh. Ve dien tu da san sang.'
+        return
       }
+      this.status = 'error'
+      this.message = res.error || 'Thanh toan chua duoc xac minh. Vui long kiem tra lai sau.'
     }
   }
 }
@@ -78,7 +76,7 @@ export default {
   width: min(420px, 100%);
   background: #ffffff;
   border: 1px solid var(--tw-border);
-  border-radius: 16px;
+  border-radius: 14px;
   box-shadow: var(--tw-shadow-sm);
   padding: 30px 24px;
   text-align: center;
@@ -93,23 +91,12 @@ export default {
   align-items: center;
   justify-content: center;
   font-size: 2rem;
-  font-weight: 900;
+  font-weight: 800;
 }
 
-.payment-icon.loading {
-  background: #eef2ff;
-  color: #4f46e5;
-}
-
-.payment-icon.success {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.payment-icon.error {
-  background: #fee2e2;
-  color: #991b1b;
-}
+.payment-icon.loading { background: #eef2ff; color: #4f46e5; }
+.payment-icon.success { background: #dcfce7; color: #166534; }
+.payment-icon.error { background: #fee2e2; color: #991b1b; }
 
 .payment-card h1 {
   margin: 0 0 10px;
@@ -132,7 +119,7 @@ export default {
   border-radius: 10px;
   background: var(--tw-primary);
   color: #ffffff;
-  font-weight: 800;
+  font-weight: 700;
   text-decoration: none;
 }
 

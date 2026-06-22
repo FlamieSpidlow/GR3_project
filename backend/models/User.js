@@ -12,7 +12,7 @@ const userSchema = new mongoose.Schema({
   address:     { type: String, required: true },
   lat:         { type: Number }, // Tọa độ latitude
   lng:         { type: Number }, // Tọa độ longitude
-  role:        { type: String, enum: ['user', 'admin'], default: 'user' },
+  role:        { type: String, enum: ['user', 'admin', 'staff'], default: 'user' },
   searchHistory: [{ 
     query: String, 
     timestamp: { type: Date, default: Date.now }

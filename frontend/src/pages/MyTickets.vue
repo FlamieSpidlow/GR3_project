@@ -41,11 +41,11 @@
               </div>
               <div>
                 <span>Mã vé</span>
-                <strong>{{ order.ticketCode || 'Chờ xác nhận' }}</strong>
+                <strong>{{ primaryTicketCode(order) || 'Chờ xác nhận' }}</strong>
               </div>
             </div>
 
-            <div v-if="order.status === 'unpaid'" class="ticket-code-box payment-box">
+            <div v-if="order.status === 'pending'" class="ticket-code-box payment-box">
               <button
                 v-if="paymentQrImages[order._id]"
                 type="button"
@@ -93,7 +93,7 @@
 </template>
 
 <script>
-import { cancelTicketOrder, getMyTicketOrders, getTicketPaymentOrigin } from '../api/tickets'
+import { cancelTicketOrder, getMyTicketOrders } from '../api/tickets'
 import QRCode from 'qrcode'
 import { formatVnd } from '../utils/priceFormatter'
 import { getAuthToken } from '../utils/authSession'
@@ -106,7 +106,7 @@ export default {
       orders: [],
       isLoading: false,
       paymentQrImages: {},
-      paymentOrigin: '',
+      ticketQrImages: {},
       previewOrder: null,
       errorMessage: '',
       cancellingOrderId: ''
@@ -134,43 +134,38 @@ export default {
     },
     statusLabel(status) {
       const labels = {
-        unpaid: 'Chờ thanh toán',
-        pending: 'Chờ xác nhận',
-        confirmed: 'Đã xác nhận',
-        cancelled: 'Đã hủy',
-        used: 'Đã sử dụng'
+        pending: 'Cho thanh toan',
+        paid: 'Da thanh toan',
+        expired: 'Da het han',
+        cancelled: 'Da huy',
+        refunded: 'Da hoan tien',
+        used: 'Da su dung'
       }
       return labels[status] || status
     },
-    getPaymentUrl(order) {
-      const id = order?._id || ''
-      const token = order?.paymentToken || ''
-      if (!id || !token) return ''
-      const origin = this.paymentOrigin || window.location.origin
-      return `${origin}/ticket-payment/${encodeURIComponent(id)}?token=${encodeURIComponent(token)}`
-    },
     async createPaymentQrs() {
-      if (!this.paymentOrigin) {
-        const originRes = await getTicketPaymentOrigin()
-        if (originRes.success && originRes.origin) {
-          this.paymentOrigin = String(originRes.origin).replace(/\/$/, '')
+      const paymentEntries = []
+      const ticketEntries = []
+      for (const order of this.orders || []) {
+        if (order.status === 'pending' && order.payment?.qrUrl) {
+          paymentEntries.push([order._id, order.payment.qrUrl])
+        }
+        for (const ticket of order.tickets || []) {
+          if (ticket.qrPayload) {
+            const image = await QRCode.toDataURL(ticket.qrPayload, {
+              width: 160,
+              margin: 2,
+              color: { dark: '#0f172a', light: '#ffffff' }
+            })
+            ticketEntries.push([ticket.code, image])
+          }
         }
       }
-      const entries = await Promise.all((this.orders || [])
-        .filter(order => order.status === 'unpaid' && order.paymentToken)
-        .map(async (order) => {
-          const url = this.getPaymentUrl(order)
-          const image = await QRCode.toDataURL(url, {
-            width: 160,
-            margin: 2,
-            color: {
-              dark: '#0f172a',
-              light: '#ffffff'
-            }
-          })
-          return [order._id, image]
-        }))
-      this.paymentQrImages = Object.fromEntries(entries)
+      this.paymentQrImages = Object.fromEntries(paymentEntries)
+      this.ticketQrImages = Object.fromEntries(ticketEntries)
+    },
+    primaryTicketCode(order) {
+      return order?.tickets?.[0]?.code || order?.ticketCode || ''
     },
     openQrPreview(order) {
       this.previewOrder = order
@@ -179,7 +174,7 @@ export default {
       this.previewOrder = null
     },
     canCancel(order) {
-      return ['unpaid', 'pending'].includes(order?.status)
+      return ['pending'].includes(order?.status)
     },
     async cancelOrder(order) {
       if (!order || !this.canCancel(order)) return
@@ -344,6 +339,9 @@ export default {
 .status-badge.unpaid { background: #f1f5f9; color: #334155; border-color: #cbd5e1; }
 .status-badge.pending { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
 .status-badge.confirmed { background: #dbeafe; color: #1e40af; border-color: #93c5fd; }
+.status-badge.paid { background: #dcfce7; color: #166534; border-color: #86efac; }
+.status-badge.expired { background: #f1f5f9; color: #475569; border-color: #cbd5e1; }
+.status-badge.refunded { background: #e0f2fe; color: #075985; border-color: #7dd3fc; }
 .status-badge.cancelled { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
 .status-badge.used { background: #f3e8ff; color: #6b21a8; border-color: #c084fc; }
 
@@ -391,6 +389,18 @@ export default {
 
 .payment-box {
   justify-content: flex-start;
+}
+
+.issued-ticket {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.issued-ticket + .issued-ticket {
+  border-top: 1px solid var(--tw-border);
+  padding-top: 12px;
 }
 
 .qr-preview-btn {

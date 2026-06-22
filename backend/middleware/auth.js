@@ -46,4 +46,18 @@ const requireAdmin = (req, res, next) => {
   next()
 }
 
-module.exports = { authenticate, requireAdmin, verifyAuthToken, JWT_SECRET }
+const requireRole = (...roles) => (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ success: false, error: 'Unauthorized' })
+  }
+
+  if (!roles.includes(req.user.role)) {
+    return res.status(403).json({ success: false, error: 'Forbidden - Insufficient role' })
+  }
+
+  next()
+}
+
+const requireStaffOrAdmin = requireRole('staff', 'admin')
+
+module.exports = { authenticate, requireAdmin, requireRole, requireStaffOrAdmin, verifyAuthToken, JWT_SECRET }

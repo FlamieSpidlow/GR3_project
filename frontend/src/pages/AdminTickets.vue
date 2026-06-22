@@ -1,66 +1,132 @@
 <template>
   <div class="admin-tickets-page">
-    <main class="content">
-      <section class="page-hero">
-        <div class="page-hero-inner tw-container-wide">
-          <h1>Quản lý vé</h1>
-          <p>Xác nhận, hủy và đánh dấu vé đã sử dụng</p>
+    <main class="content tw-container-wide">
+      <section class="page-head">
+        <div>
+          <h1>Quan ly ve va thanh toan</h1>
+          <p>Doi soat VietQR, theo doi booking, check-in ve dien tu.</p>
         </div>
+        <select v-model="statusFilter" @change="loadAll">
+          <option value="">Tat ca booking</option>
+          <option value="pending">Cho thanh toan</option>
+          <option value="paid">Da thanh toan</option>
+          <option value="used">Da su dung</option>
+          <option value="cancelled">Da huy</option>
+          <option value="refunded">Da hoan tien</option>
+          <option value="expired">Da het han</option>
+        </select>
       </section>
 
-      <section class="page-body tw-container-wide">
-        <div class="toolbar">
-          <h2>Danh sách đơn vé</h2>
-          <select v-model="statusFilter" @change="loadOrders">
-            <option value="unpaid">Chờ thanh toán</option>
-            <option value="">Tất cả trạng thái</option>
-            <option value="pending">Chờ xác nhận</option>
-            <option value="confirmed">Đã xác nhận</option>
-            <option value="cancelled">Đã hủy</option>
-            <option value="used">Đã sử dụng</option>
-          </select>
-        </div>
+      <section class="admin-grid">
+        <form class="tool-card" @submit.prevent="confirmVietQr">
+          <h2>Xac nhan VietQR</h2>
+          <input v-model.trim="vietQrForm.orderRef" placeholder="Ma thanh toan TWPAY..." required />
+          <input v-model.number="vietQrForm.amount" type="number" min="0" step="1000" placeholder="So tien" required />
+          <input v-model.trim="vietQrForm.transactionId" placeholder="Ma giao dich ngan hang" />
+          <button class="primary-btn" :disabled="submittingVietQr">
+            {{ submittingVietQr ? 'Dang xac nhan...' : 'Xac nhan da nhan tien' }}
+          </button>
+        </form>
 
-        <div v-if="isLoading" class="state-box">Đang tải...</div>
+        <form class="tool-card" @submit.prevent="checkIn">
+          <h2>Check-in ve</h2>
+          <input v-model.trim="checkInCode" placeholder="Ma ve hoac payload QR" required />
+          <button class="primary-btn" :disabled="checkingIn">
+            {{ checkingIn ? 'Dang check-in...' : 'Check-in' }}
+          </button>
+          <p v-if="checkInMessage" class="tool-message">{{ checkInMessage }}</p>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Danh sach booking</h2>
+          <button class="ghost-btn" @click="loadAll">Tai lai</button>
+        </div>
+        <div v-if="isLoading" class="state-box">Dang tai...</div>
         <div v-else-if="errorMessage" class="state-box error">{{ errorMessage }}</div>
         <div v-else class="table-wrap">
-          <table class="orders-table">
+          <table>
             <thead>
               <tr>
-                <th>Khách hàng</th>
-                <th>Địa điểm</th>
-                <th>Ngày đi</th>
-                <th>Số lượng</th>
-                <th>Tổng tiền</th>
-                <th>Mã vé</th>
-                <th>Trạng thái</th>
-                <th>Thao tác</th>
+                <th>Khach hang</th>
+                <th>Dia diem</th>
+                <th>Ngay di</th>
+                <th>Tien</th>
+                <th>Thanh toan</th>
+                <th>Trang thai</th>
+                <th>Ve</th>
+                <th>Thao tac</th>
               </tr>
             </thead>
             <tbody>
               <tr v-if="orders.length === 0">
-                <td colspan="8" class="empty-cell">Không có đơn vé nào.</td>
+                <td colspan="8" class="empty-cell">Khong co booking.</td>
               </tr>
               <tr v-for="order in orders" :key="order._id">
                 <td>
-                  <strong>{{ order.user?.parentName || order.user?.username || 'Người dùng' }}</strong>
+                  <strong>{{ order.user?.parentName || order.user?.username || 'Nguoi dung' }}</strong>
                   <span>{{ order.user?.email || '' }}</span>
                 </td>
                 <td>
-                  <strong>{{ order.place?.name || 'Địa điểm' }}</strong>
+                  <strong>{{ order.place?.name || 'Dia diem' }}</strong>
                   <span>{{ order.place?.address || '' }}</span>
                 </td>
                 <td>{{ formatDate(order.visitDate) }}</td>
-                <td>{{ totalQuantity(order) }} vé</td>
-                <td>{{ formatVnd(order.totalPrice) }}</td>
-                <td class="ticket-code">{{ order.ticketCode || '-' }}</td>
-                <td class="status-cell"><span :class="['status-badge', order.status]">{{ statusLabel(order.status) }}</span></td>
-                <td class="actions">
-                  <button v-if="order.status === 'unpaid'" @click="updateStatus(order, 'cancelled')" class="action-btn cancel">Hủy</button>
-                  <button v-if="order.status === 'pending'" @click="updateStatus(order, 'confirmed')" class="action-btn confirm">Xác nhận</button>
-                  <button v-if="order.status === 'pending' || order.status === 'confirmed'" @click="updateStatus(order, 'cancelled')" class="action-btn cancel">Hủy</button>
-                  <button v-if="order.status === 'confirmed'" @click="updateStatus(order, 'used')" class="action-btn used">Đã sử dụng</button>
+                <td>{{ formatVnd(order.totalAmount || order.totalPrice) }}</td>
+                <td>
+                  <strong>{{ order.payment?.provider || '-' }}</strong>
+                  <span>{{ order.payment?.orderRef || '' }}</span>
                 </td>
+                <td><span :class="['status-badge', order.status]">{{ statusLabel(order.status) }}</span></td>
+                <td>
+                  <div v-for="ticket in order.tickets || []" :key="ticket._id" class="ticket-code">
+                    {{ ticket.code }} - {{ statusLabel(ticket.status) }}
+                  </div>
+                </td>
+                <td class="actions">
+                  <button v-if="order.status === 'pending'" class="action-btn cancel" @click="updateStatus(order, 'cancelled')">Huy</button>
+                  <button v-if="order.status === 'paid'" class="action-btn refund" @click="updateStatus(order, 'refunded')">Hoan tien</button>
+                  <button v-if="['pending','paid'].includes(order.status)" class="action-btn expire" @click="updateStatus(order, 'expired')">Het han</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Doi soat thanh toan</h2>
+          <select v-model="paymentProvider" @change="loadPayments">
+            <option value="">Tat ca cong thanh toan</option>
+            <option value="vietqr">VietQR</option>
+            <option value="vnpay">VNPAY</option>
+          </select>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Ma thanh toan</th>
+                <th>Provider</th>
+                <th>So tien</th>
+                <th>Trang thai</th>
+                <th>Giao dich</th>
+                <th>Ngay tao</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="payments.length === 0">
+                <td colspan="6" class="empty-cell">Chua co thanh toan.</td>
+              </tr>
+              <tr v-for="payment in payments" :key="payment._id">
+                <td>{{ payment.orderRef }}</td>
+                <td>{{ payment.provider }}</td>
+                <td>{{ formatVnd(payment.amount) }}</td>
+                <td><span :class="['status-badge', payment.status]">{{ statusLabel(payment.status) }}</span></td>
+                <td>{{ payment.providerTransactionId || '-' }}</td>
+                <td>{{ formatDateTime(payment.createdAt) }}</td>
               </tr>
             </tbody>
           </table>
@@ -71,7 +137,13 @@
 </template>
 
 <script>
-import { getAdminTicketOrders, updateTicketOrderStatus } from '../api/tickets'
+import {
+  checkInTicket,
+  confirmVietQrPayment,
+  getAdminPayments,
+  getAdminTicketOrders,
+  updateTicketOrderStatus
+} from '../api/tickets'
 import { formatVnd } from '../utils/priceFormatter'
 import { getAuthUser } from '../utils/authSession'
 
@@ -80,67 +152,102 @@ export default {
   data() {
     return {
       orders: [],
+      payments: [],
       statusFilter: '',
+      paymentProvider: '',
       isLoading: false,
-      errorMessage: ''
+      errorMessage: '',
+      submittingVietQr: false,
+      checkingIn: false,
+      checkInCode: '',
+      checkInMessage: '',
+      vietQrForm: {
+        orderRef: '',
+        amount: '',
+        transactionId: ''
+      }
     }
   },
   mounted() {
     this.checkAdmin()
-    this.loadOrders()
+    this.loadAll()
   },
   methods: {
     checkAdmin() {
       const user = getAuthUser() || {}
-      if (user.role !== 'admin') {
-        this.$notify({ type: 'error', title: 'Không có quyền truy cập', message: 'Bạn cần tài khoản quản trị để mở trang này.' })
+      if (!['admin', 'staff'].includes(user.role)) {
+        this.$notify({ type: 'error', title: 'Khong co quyen', message: 'Ban can tai khoan admin hoac staff.' })
         this.$router.push('/')
       }
+    },
+    async loadAll() {
+      await Promise.all([this.loadOrders(), this.loadPayments()])
     },
     async loadOrders() {
       this.isLoading = true
       this.errorMessage = ''
       const res = await getAdminTicketOrders(this.statusFilter)
-      if (res.success) {
-        this.orders = res.data || []
-      } else {
-        this.errorMessage = res.error || 'Không thể tải danh sách đơn vé'
-      }
+      if (res.success) this.orders = res.data || []
+      else this.errorMessage = res.error || 'Khong the tai booking'
       this.isLoading = false
     },
-    async updateStatus(order, status) {
-      const label = this.statusLabel(status).toLowerCase()
-      const confirmed = await this.$confirm({
-        title: 'Cập nhật trạng thái vé',
-        message: `Cập nhật đơn vé này thành "${label}"?`,
-        confirmText: 'Cập nhật'
+    async loadPayments() {
+      const res = await getAdminPayments({ provider: this.paymentProvider })
+      if (res.success) this.payments = res.data || []
+    },
+    async confirmVietQr() {
+      this.submittingVietQr = true
+      const res = await confirmVietQrPayment({
+        orderRef: this.vietQrForm.orderRef,
+        amount: Number(this.vietQrForm.amount),
+        transactionId: this.vietQrForm.transactionId
       })
-      if (!confirmed) return
-
-      const res = await updateTicketOrderStatus(order._id, status)
+      this.submittingVietQr = false
       if (res.success) {
-        this.$notify({ type: 'success', title: 'Đã cập nhật vé', message: `Đơn vé đã được chuyển sang "${label}".` })
+        this.$notify({ type: 'success', title: 'Da xac nhan VietQR', message: 'Booking da duoc chuyen paid va sinh ve.' })
+        this.vietQrForm = { orderRef: '', amount: '', transactionId: '' }
+        await this.loadAll()
+      } else {
+        this.$notify({ type: 'error', title: 'Khong the xac nhan', message: res.error || 'VietQR khong hop le' })
+      }
+    },
+    async checkIn() {
+      this.checkingIn = true
+      this.checkInMessage = ''
+      const res = await checkInTicket({ ticketCode: this.checkInCode, qrPayload: this.checkInCode })
+      this.checkingIn = false
+      if (res.success) {
+        this.checkInMessage = res.message || 'Check-in thanh cong'
+        this.checkInCode = ''
         await this.loadOrders()
       } else {
-        this.$notify({ type: 'error', title: 'Không thể cập nhật vé', message: res.error || 'Không thể cập nhật trạng thái vé' })
+        this.checkInMessage = res.error || 'Check-in that bai'
       }
+    },
+    async updateStatus(order, status) {
+      const res = await updateTicketOrderStatus(order._id, status)
+      if (res.success) await this.loadAll()
+      else this.$notify({ type: 'error', title: 'Khong the cap nhat', message: res.error || 'Loi cap nhat trang thai' })
     },
     statusLabel(status) {
       const labels = {
-        unpaid: 'Chờ thanh toán',
-        pending: 'Chờ xác nhận',
-        confirmed: 'Đã xác nhận',
-        cancelled: 'Đã hủy',
-        used: 'Đã sử dụng'
+        pending: 'Cho thanh toan',
+        paid: 'Da thanh toan',
+        expired: 'Da het han',
+        cancelled: 'Da huy',
+        refunded: 'Da hoan tien',
+        used: 'Da su dung',
+        failed: 'That bai'
       }
       return labels[status] || status
-    },
-    totalQuantity(order) {
-      return (Number(order.adultQuantity) || 0) + (Number(order.childQuantity) || 0)
     },
     formatDate(value) {
       if (!value) return ''
       return new Date(value).toLocaleDateString('vi-VN')
+    },
+    formatDateTime(value) {
+      if (!value) return ''
+      return new Date(value).toLocaleString('vi-VN')
     },
     formatVnd
   }
@@ -153,184 +260,185 @@ export default {
   background: var(--tw-bg);
 }
 
-.content { padding: 0; }
-
-.page-hero {
-  position: relative;
-  padding: 34px 0 26px;
-  overflow: hidden;
+.content {
+  padding-top: 28px;
+  padding-bottom: 48px;
 }
 
-.page-hero::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image: url('~@/../public/Playground.jpg');
-  background-size: cover;
-  background-position: center;
-  transform: scale(1.02);
-}
-
-.page-hero::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.72), rgba(15, 23, 42, 0.35));
-}
-
-.page-hero-inner {
-  position: relative;
-  z-index: 1;
-  color: #ffffff;
-  text-align: center;
-}
-
-.page-hero h1 {
-  margin: 0 0 8px;
-  font-size: 2rem;
-  font-weight: 900;
-}
-
-.page-hero p {
-  margin: 0;
-  color: rgba(255, 255, 255, 0.9);
-  font-weight: 600;
-}
-
-.page-body {
-  padding-top: 26px;
-  padding-bottom: 46px;
-}
-
-.toolbar {
+.page-head,
+.panel-head,
+.admin-grid {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  gap: 14px;
-  margin-bottom: 16px;
+  align-items: flex-start;
+  gap: 16px;
 }
 
-.toolbar h2 {
+.page-head {
+  margin-bottom: 18px;
+}
+
+h1,
+h2,
+p {
   margin: 0;
+}
+
+h1 {
+  font-size: 1.7rem;
   color: var(--tw-text);
 }
 
-.toolbar select {
+h2 {
+  font-size: 1rem;
+  color: var(--tw-text);
+}
+
+p {
+  color: var(--tw-muted);
+}
+
+select,
+input {
   border: 1px solid var(--tw-border);
-  border-radius: 10px;
+  border-radius: 8px;
   padding: 10px 12px;
   background: #ffffff;
 }
 
-.state-box,
-.table-wrap {
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 18px;
+}
+
+.tool-card,
+.panel {
   background: #ffffff;
   border: 1px solid var(--tw-border);
   border-radius: 12px;
   box-shadow: var(--tw-shadow-sm);
 }
 
-.state-box {
-  padding: 24px;
-  text-align: center;
-  color: var(--tw-muted);
+.tool-card {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
 }
 
-.state-box.error {
-  color: #b91c1c;
-  background: #fef2f2;
+.panel {
+  margin-top: 18px;
+  overflow: hidden;
+}
+
+.panel-head {
+  align-items: center;
+  padding: 16px;
+  border-bottom: 1px solid var(--tw-border);
 }
 
 .table-wrap {
   overflow-x: auto;
 }
 
-.orders-table {
+table {
   width: 100%;
   border-collapse: collapse;
   min-width: 980px;
 }
 
-.orders-table th,
-.orders-table td {
-  padding: 14px 12px;
+th,
+td {
+  padding: 13px 12px;
   border-bottom: 1px solid var(--tw-border);
   text-align: left;
   vertical-align: top;
 }
 
-.orders-table td.status-cell {
-  vertical-align: middle;
-}
-
-.orders-table th {
+th {
   background: #f8fafc;
-  color: var(--tw-text);
-  font-size: 0.86rem;
+  color: #475569;
+  font-size: 0.78rem;
+  text-transform: uppercase;
 }
 
-.orders-table td span {
+td span {
   display: block;
+  margin-top: 4px;
   color: var(--tw-muted);
   font-size: 0.82rem;
-  margin-top: 4px;
-}
-
-.empty-cell {
-  text-align: center;
-  color: var(--tw-muted);
-}
-
-.ticket-code {
-  font-family: monospace;
-  font-weight: 800;
 }
 
 .status-badge {
   display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 132px;
-  min-height: 34px;
-  border-radius: 999px;
-  padding: 7px 14px;
-  font-weight: 800;
-  font-size: 0.8rem;
-  line-height: 1;
-  white-space: nowrap;
   border: 1px solid transparent;
-  margin-top: 0;
-  text-align: center;
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
 }
 
-.status-badge.unpaid { background: #f1f5f9; color: #334155; border-color: #cbd5e1; }
 .status-badge.pending { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
-.status-badge.confirmed { background: #dbeafe; color: #1e40af; border-color: #93c5fd; }
-.status-badge.cancelled { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
-.status-badge.used { background: #f3e8ff; color: #6b21a8; border-color: #c084fc; }
+.status-badge.paid { background: #dcfce7; color: #166534; border-color: #86efac; }
+.status-badge.used { background: #ede9fe; color: #5b21b6; border-color: #c4b5fd; }
+.status-badge.cancelled,
+.status-badge.failed { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+.status-badge.refunded { background: #e0f2fe; color: #075985; border-color: #7dd3fc; }
+.status-badge.expired { background: #f1f5f9; color: #475569; border-color: #cbd5e1; }
+
+.primary-btn,
+.ghost-btn,
+.action-btn {
+  border: none;
+  border-radius: 8px;
+  padding: 9px 12px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.primary-btn {
+  background: var(--tw-primary);
+  color: #ffffff;
+}
+
+.ghost-btn {
+  background: #f1f5f9;
+  color: var(--tw-text);
+}
 
 .actions {
   display: flex;
   gap: 8px;
-  flex-wrap: wrap;
 }
 
-.action-btn {
-  border: none;
-  border-radius: 8px;
-  padding: 8px 10px;
-  color: #ffffff;
-  font-weight: 800;
-  cursor: pointer;
+.action-btn.cancel { background: #fee2e2; color: #991b1b; }
+.action-btn.refund { background: #e0f2fe; color: #075985; }
+.action-btn.expire { background: #f1f5f9; color: #475569; }
+
+.state-box,
+.empty-cell {
+  padding: 20px;
+  color: var(--tw-muted);
+  text-align: center;
 }
 
-.action-btn.confirm { background: #059669; }
-.action-btn.cancel { background: #dc2626; }
-.action-btn.used { background: #4f46e5; }
+.state-box.error {
+  color: #b91c1c;
+}
 
-@media (max-width: 720px) {
-  .toolbar {
-    align-items: stretch;
+.ticket-code {
+  font-family: monospace;
+  font-size: 0.82rem;
+}
+
+.tool-message {
+  color: var(--tw-text);
+}
+
+@media (max-width: 760px) {
+  .admin-grid,
+  .page-head {
+    grid-template-columns: 1fr;
     flex-direction: column;
   }
 }
