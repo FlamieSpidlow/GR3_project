@@ -378,7 +378,7 @@ const populateBooking = (query) => query
   .populate('items.ticketType')
 
 const createBooking = async ({ user, payload, req }) => {
-  const { placeId, visitDate, note = '', paymentMethod = 'zalopay' } = payload || {}
+  const { placeId, visitDate, note = '', paymentMethod = 'vnpay' } = payload || {}
   if (!placeId) {
     const err = new Error('Thiếu địa điểm')
     err.statusCode = 400
@@ -403,7 +403,7 @@ const createBooking = async ({ user, payload, req }) => {
     err.statusCode = 400
     throw err
   }
-  const method = ['zalopay', 'vnpay', 'vietqr'].includes(paymentMethod) ? paymentMethod : 'zalopay'
+  const method = ['zalopay', 'vnpay', 'vietqr'].includes(paymentMethod) ? paymentMethod : 'vnpay'
   if (method === 'zalopay' && (!process.env.ZALOPAY_APP_ID || !process.env.ZALOPAY_KEY1 || !process.env.ZALOPAY_KEY2)) {
     const err = new Error('ZaloPay chưa được cấu hình')
     err.statusCode = 400
