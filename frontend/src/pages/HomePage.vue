@@ -5,7 +5,7 @@
         <div class="hero-inner tw-container-wide">
           <div class="hero-content">
             <h1>Khám phá khu vui chơi cho trẻ em</h1>
-            <p>Tìm những địa điểm và hoạt động thú vị cho bé</p>
+            <p>Tìm những địa điểm vui chơi thú vị cho bé</p>
           </div>
         </div>
       </section>
@@ -78,56 +78,6 @@
         </div>
       </section>
 
-      <section class="section-block section-activities">
-        <div class="tw-container-wide">
-          <div class="section-header centered">
-            <h2 class="tw-section-title">Các hoạt động vui chơi</h2>
-            <p class="tw-muted">Gợi ý các trải nghiệm phù hợp cho trẻ nhỏ</p>
-          </div>
-
-          <div class="activities-carousel">
-            <button
-              v-if="canSlideActivities"
-              type="button"
-              class="carousel-arrow left"
-              @click="slidePrevActivities"
-              aria-label="Previous"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <polyline points="15 18 9 12 15 6" />
-              </svg>
-            </button>
-            <button
-              v-if="canSlideActivities"
-              type="button"
-              class="carousel-arrow right"
-              @click="slideNextActivities"
-              aria-label="Next"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
-            </button>
-
-            <transition-group name="slide" tag="div" class="activities-grid">
-              <button
-                v-for="activity in displayedActivities"
-                :key="activity.id"
-                type="button"
-                class="activity-card"
-                @click="selectActivity(activity)"
-              >
-                <div class="activity-media">
-                  <img :src="activity.image" :alt="activity.label" />
-                </div>
-                <div class="activity-body">
-                  <h3 class="activity-title">{{ activity.label }}</h3>
-                </div>
-              </button>
-            </transition-group>
-          </div>
-        </div>
-      </section>
     </main>
   </div>
 </template>
@@ -135,7 +85,6 @@
 <script>
 import PlaceCard from '../components/PlaceCard.vue'
 import { getAllPlaces } from '../api/places'
-import { DEFAULT_ACTIVITIES, getFeaturedActivities } from '../api/tags'
 import { filterPlacesByCategory, getCategoryOptions } from '../utils/placeFilters'
 
 
@@ -147,9 +96,6 @@ export default {
       allPlaces: [],
       currentIndex: 0,
       displayCount: 3,
-      activityItems: [...DEFAULT_ACTIVITIES],
-      activityIndex: 0,
-      activityDisplayCount: 3,
       activeCategory: 'all',
       errorMessage: '',
       locationLoading: true
@@ -158,9 +104,6 @@ export default {
   computed: {
     canSlidePlaces() {
       return this.filteredPlaces.length > this.displayCount
-    },
-    canSlideActivities() {
-      return this.activityItems.length > this.activityDisplayCount
     },
     displayedPlaces() {
       if (this.filteredPlaces.length === 0) return []
@@ -177,20 +120,10 @@ export default {
     },
     categoryOptions() {
       return getCategoryOptions(this.allPlaces)
-    },
-    displayedActivities() {
-      if (!this.activityItems || this.activityItems.length === 0) return []
-      const result = []
-      for (let i = 0; i < this.activityDisplayCount; i++) {
-        const idx = (this.activityIndex + i) % this.activityItems.length
-        result.push(this.activityItems[idx])
-      }
-      return result
     }
   },
   mounted() {
     this.loadAllPlaces()
-    this.loadActivities()
   },
   beforeUnmount() {
     // no-op
@@ -231,38 +164,10 @@ export default {
         this.currentIndex = (this.currentIndex - 1 + this.filteredPlaces.length) % this.filteredPlaces.length
       }
     },
-    slideNextActivities() {
-      if (this.activityItems.length > this.activityDisplayCount) {
-        this.activityIndex = (this.activityIndex + 1) % this.activityItems.length
-      }
-    },
-    slidePrevActivities() {
-      if (this.activityItems.length > this.activityDisplayCount) {
-        this.activityIndex = (this.activityIndex - 1 + this.activityItems.length) % this.activityItems.length
-      }
-    },
-    async loadActivities() {
-      try {
-        const res = await getFeaturedActivities({ force: true })
-        this.activityItems = res.success && Array.isArray(res.data) && res.data.length > 0
-          ? res.data
-          : [...DEFAULT_ACTIVITIES]
-        this.activityIndex = 0
-      } catch (err) {
-        console.error('Load activities error:', err)
-        this.activityItems = [...DEFAULT_ACTIVITIES]
-        this.activityIndex = 0
-      }
-    },
     viewPlaceDetails(place) {
       this.$router.push({
         path: `/place/${place._id}`
       })
-    },
-    selectActivity(activity) {
-      const label = activity && (activity.label || activity.name)
-      if (!label) return
-      this.$router.push({ path: '/search', query: { q: label, activity: label } })
     }
   },
   watch: {
@@ -402,70 +307,6 @@ export default {
   margin: 0;
 }
 
-.section-activities .section-header {
-  margin-bottom: 14px;
-}
-
-.activities-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 26px;
-}
-
-.activity-card {
-  width: 100%;
-  text-align: left;
-  border: 1px solid var(--tw-border);
-  background: var(--tw-surface);
-  border-radius: 8px;
-  overflow: hidden;
-  cursor: pointer;
-  padding: 0;
-  font: inherit;
-  transition: border-color 0.15s ease, transform 0.15s ease;
-}
-
-.activity-card:hover {
-  transform: translateY(-2px);
-  border-color: #cbd5e1;
-}
-
-.activity-media {
-  width: 100%;
-  height: 220px;
-  overflow: hidden;
-}
-
-.activity-media img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.activity-body {
-  padding: 12px 12px 14px 12px;
-}
-
-.activity-title {
-  margin: 0 0 6px 0;
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--tw-text);
-}
-
-.activity-subtitle {
-  margin: 0;
-  color: var(--tw-muted);
-  font-size: 0.9rem;
-  line-height: 1.4;
-  display: -webkit-box;
-  line-clamp: 1;
-  -webkit-line-clamp: 1;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
 .places {
   padding: 0;
   width: 100%;
@@ -473,10 +314,6 @@ export default {
 
 .carousel-container {
   overflow: hidden;
-  position: relative;
-}
-
-.activities-carousel {
   position: relative;
 }
 
@@ -568,14 +405,6 @@ export default {
   .places .grid { grid-template-columns: repeat(2, 1fr); }
 }
 
-@media (max-width: 1100px) {
-  .activities-grid { grid-template-columns: repeat(2, 1fr); }
-}
-
-@media (max-width: 640px) {
-  .activities-grid { grid-template-columns: 1fr; }
-}
-
 @media (max-width: 480px) {
   .places .grid { grid-template-columns: 1fr; }
   .places { padding: 12px; }
@@ -641,8 +470,7 @@ export default {
     padding: 42px 0 34px;
   }
 
-  .places,
-  .activities {
+  .places {
     padding-top: 26px;
     padding-bottom: 30px;
   }
@@ -665,9 +493,6 @@ export default {
     height: 38px;
   }
 
-  .activity-media {
-    height: 170px;
-  }
 }
 
 </style>

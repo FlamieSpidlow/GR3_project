@@ -4,9 +4,7 @@ const User = require('../models/User')
 const Place = require('../models/Place')
 const Review = require('../models/Review')
 const Tag = require('../models/Tag')
-const Activity = require('../models/Activity')
 const ReviewImageSubmission = require('../models/ReviewImageSubmission')
-const DEFAULT_ACTIVITIES = require('../data/defaultActivities')
 const bcrypt = require('bcrypt')
 const multer = require('multer')
 const path = require('path')
@@ -39,8 +37,6 @@ const normalizeTag = (input) => {
     .trim()
 }
 
-const normalizeActivity = normalizeTag
-
 const upsertTags = async (tags) => {
   const list = Array.isArray(tags) ? tags : []
   if (list.length === 0) return
@@ -61,20 +57,6 @@ const upsertTags = async (tags) => {
   if (ops.length > 0) await Tag.bulkWrite(ops, { ordered: false })
 }
 
-const seedDefaultActivitiesIfEmpty = async () => {
-  const count = await Activity.countDocuments()
-  if (count > 0) return
-
-  await Activity.insertMany(DEFAULT_ACTIVITIES.map(activity => ({
-    name: activity.name,
-    nameNorm: normalizeActivity(activity.name),
-    image: activity.image,
-    description: '',
-    active: true,
-    sortOrder: activity.sortOrder
-  })))
-}
-
 // Cấu hình multer để upload ảnh
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -82,8 +64,7 @@ const storage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
-    const prefix = req.path && req.path.includes('/activities/') ? 'activity-' : 'place-'
-    cb(null, prefix + uniqueSuffix + path.extname(file.originalname))
+    cb(null, 'place-' + uniqueSuffix + path.extname(file.originalname))
   }
 })
 
@@ -134,9 +115,9 @@ router.get('/users/:id', async (req, res) => {
 // Thêm người dùng mới
 router.post('/users', async (req, res) => {
   try {
-    const { username, email, password, parentName, address, role } = req.body
+    const { username, email, password, parentName, address, phone, role } = req.body
     
-    if (!username || !email || !password || !parentName || !address) {
+    if (!username || !email || !password || !parentName || !address || !phone) {
       return res.status(400).json({ success: false, error: 'Thiếu thông tin bắt buộc' })
     }
 
@@ -153,6 +134,7 @@ router.post('/users', async (req, res) => {
       password: hashedPassword,
       parentName,
       address,
+      phone,
       role: role || 'user'
     })
 
@@ -171,7 +153,7 @@ router.post('/users', async (req, res) => {
 // Cập nhật người dùng (không cho đổi mật khẩu)
 router.put('/users/:id', async (req, res) => {
   try {
-    const { username, email, parentName, address } = req.body
+    const { username, email, parentName, address, phone } = req.body
     const user = await User.findById(req.params.id)
     
     if (!user) {
@@ -188,6 +170,7 @@ router.put('/users/:id', async (req, res) => {
     if (email) user.email = email
     if (parentName) user.parentName = parentName
     if (address) user.address = address
+    if (phone !== undefined) user.phone = String(phone || '').trim()
 
     await user.save()
     
@@ -228,108 +211,6 @@ router.delete('/users/:id', async (req, res) => {
 
 // ============== QUẢN LÝ ĐỊA ĐIỂM ==============
 
-// ============== QUẢN LÝ HOẠT ĐỘNG THÚ VỊ ==============
-
-router.get('/activities', async (req, res) => {
-  try {
-    await seedDefaultActivitiesIfEmpty()
-    const activities = await Activity.find({}).sort({ createdAt: -1, name: 1 })
-    res.json({ success: true, data: activities })
-  } catch (err) {
-    console.error('Get activities error:', err)
-    res.status(500).json({ success: false, error: 'Lỗi lấy danh sách hoạt động', details: err.message })
-  }
-})
-
-router.post('/activities', async (req, res) => {
-  try {
-    const { name, image = '', active = true } = req.body || {}
-    const trimmedName = String(name || '').trim()
-    const nameNorm = normalizeActivity(trimmedName)
-    if (!trimmedName || !nameNorm) {
-      return res.status(400).json({ success: false, error: 'Tên hoạt động là bắt buộc' })
-    }
-
-    const existing = await Activity.findOne({ nameNorm })
-    if (existing) {
-      return res.status(400).json({ success: false, error: 'Hoạt động này đã tồn tại' })
-    }
-
-    const activity = new Activity({
-      name: trimmedName,
-      nameNorm,
-      description: '',
-      image: String(image || '').trim(),
-      active: Boolean(active),
-      sortOrder: 0
-    })
-
-    await activity.save()
-    res.status(201).json({ success: true, message: 'Thêm hoạt động thành công', data: activity })
-  } catch (err) {
-    console.error('Create activity error:', err)
-    res.status(400).json({ success: false, error: 'Lỗi thêm hoạt động', details: err.message })
-  }
-})
-
-router.post('/activities/upload-image', upload.single('image'), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ success: false, error: 'Khong co file duoc upload' })
-    }
-    res.json({ success: true, data: { imageUrl: `/uploads/${req.file.filename}` } })
-  } catch (err) {
-    console.error('Upload activity image error:', err)
-    res.status(500).json({ success: false, error: 'Loi upload anh hoat dong', details: err.message })
-  }
-})
-
-router.put('/activities/:id', async (req, res) => {
-  try {
-    const activity = await Activity.findById(req.params.id)
-    if (!activity) {
-      return res.status(404).json({ success: false, error: 'Không tìm thấy hoạt động' })
-    }
-
-    const { name, image, active } = req.body || {}
-    if (name !== undefined) {
-      const trimmedName = String(name || '').trim()
-      const nameNorm = normalizeActivity(trimmedName)
-      if (!trimmedName || !nameNorm) {
-        return res.status(400).json({ success: false, error: 'Tên hoạt động là bắt buộc' })
-      }
-      const duplicate = await Activity.findOne({ nameNorm, _id: { $ne: activity._id } })
-      if (duplicate) {
-        return res.status(400).json({ success: false, error: 'Hoạt động này đã tồn tại' })
-      }
-      activity.name = trimmedName
-      activity.nameNorm = nameNorm
-    }
-    activity.description = ''
-    if (image !== undefined) activity.image = String(image || '').trim()
-    if (active !== undefined) activity.active = Boolean(active)
-    activity.sortOrder = 0
-
-    await activity.save()
-    res.json({ success: true, message: 'Cập nhật hoạt động thành công', data: activity })
-  } catch (err) {
-    console.error('Update activity error:', err)
-    res.status(400).json({ success: false, error: 'Lỗi cập nhật hoạt động', details: err.message })
-  }
-})
-
-router.delete('/activities/:id', async (req, res) => {
-  try {
-    const activity = await Activity.findByIdAndDelete(req.params.id)
-    if (!activity) {
-      return res.status(404).json({ success: false, error: 'Không tìm thấy hoạt động' })
-    }
-    res.json({ success: true, message: 'Xóa hoạt động thành công' })
-  } catch (err) {
-    console.error('Delete activity error:', err)
-    res.status(500).json({ success: false, error: 'Lỗi xóa hoạt động', details: err.message })
-  }
-})
 
 // Upload ảnh địa điểm (hỗ trợ nhiều ảnh)
 router.post('/tags', async (req, res) => {

@@ -27,12 +27,6 @@
             <p>Xem, thêm, sửa, xóa địa điểm</p>
           </router-link>
 
-          <router-link to="/admin/activities" class="admin-card tw-surface">
-            <div class="card-icon">A</div>
-            <h2>Quản lý hoạt động</h2>
-            <p>Thêm, sửa, xóa các hoạt động vui chơi trên trang chủ</p>
-          </router-link>
-
           <router-link to="/admin/tickets" class="admin-card tw-surface">
             <div class="card-icon">T</div>
             <h2>Quản lý vé</h2>

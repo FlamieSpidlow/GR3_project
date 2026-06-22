@@ -16,7 +16,6 @@ const AboutPage = () => import('../pages/AboutPage.vue')
 const AdminDashboard = () => import('../pages/AdminDashboard.vue')
 const AdminUsers = () => import('../pages/AdminUsers.vue')
 const AdminPlaces = () => import('../pages/AdminPlaces.vue')
-const AdminActivities = () => import('../pages/AdminActivities.vue')
 const AdminTickets = () => import('../pages/AdminTickets.vue')
 const MyTickets = () => import('../pages/MyTickets.vue')
 const TicketPayment = () => import('../pages/TicketPayment.vue')
@@ -39,7 +38,6 @@ const routes = [
   { path: '/admin', component: AdminDashboard, meta: { adminOnly: true } },
   { path: '/admin/users', component: AdminUsers, meta: { adminOnly: true } },
   { path: '/admin/places', component: AdminPlaces, meta: { adminOnly: true } },
-  { path: '/admin/activities', component: AdminActivities, meta: { adminOnly: true } },
   { path: '/admin/tickets', component: AdminTickets, meta: { adminOnly: true } }
 ]
 

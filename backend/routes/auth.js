@@ -13,6 +13,7 @@ const buildUserResponse = (user) => ({
   username: user.username,
   email: user.email,
   avatar: user.avatar,
+  phone: user.phone || '',
   parentName: user.parentName,
   address: user.address,
   lat: user.lat,
@@ -30,8 +31,8 @@ const signToken = (user) => jwt.sign(
 
 router.post('/register', async (req, res) => {
   try {
-    const { username, email, password, parentName, address } = req.body
-    if (!username || !email || !password || !parentName || !address) {
+    const { username, email, password, parentName, address, phone } = req.body
+    if (!username || !email || !password || !parentName || !address || !phone) {
       return res.status(400).json({ success: false, error: 'Thieu thong tin bat buoc' })
     }
 
@@ -42,6 +43,7 @@ router.post('/register', async (req, res) => {
       password: hashedPassword,
       parentName,
       address,
+      phone,
       role: 'user'
     })
 
@@ -151,8 +153,8 @@ router.post('/reset-password', async (req, res) => {
 
 router.put('/profile', authenticate, async (req, res) => {
   try {
-    const { parentName, address, email, avatar } = req.body
-    if (!parentName && !address && !email && !avatar) {
+    const { parentName, address, email, avatar, phone } = req.body
+    if (!parentName && !address && !email && !avatar && phone === undefined) {
       return res.status(400).json({ success: false, error: 'Khong co truong de cap nhat' })
     }
 
@@ -164,6 +166,7 @@ router.put('/profile', authenticate, async (req, res) => {
     }
     if (parentName) user.parentName = parentName
     if (address) user.address = address
+    if (phone !== undefined) user.phone = String(phone || '').trim()
     if (avatar) user.avatar = avatar
 
     await user.save()

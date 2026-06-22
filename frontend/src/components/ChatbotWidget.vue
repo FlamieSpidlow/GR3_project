@@ -34,7 +34,7 @@
         <div class="tw-chatbot__body" ref="bodyRef">
           <div v-if="messages.length === 0" class="tw-chatbot__empty">
             <h4>Hỏi về địa điểm phù hợp</h4>
-            <p>Bạn có thể hỏi về địa điểm, hoạt động hoặc tiện ích phù hợp.</p>
+            <p>Bạn có thể hỏi về địa điểm hoặc tiện ích phù hợp.</p>
             <div class="tw-chatbot__chips">
               <button type="button" class="tw-chatbot__chip" @click="useSuggestion('Địa điểm nào có tag Picnic?')">
                 Địa điểm có tag Picnic

@@ -45,19 +45,29 @@
           </div>
           
           <div class="filter-group">
-            <label class="filter-label range-label">
-              Khoảng cách
-              <span>{{ distanceFilterLabel }}</span>
-            </label>
-            <input
-              v-model.number="filters.distanceMax"
-              type="range"
-              min="1"
-              max="100"
-              step="1"
-              class="filter-range"
-              aria-label="Lọc theo khoảng cách"
-            />
+            <label class="filter-label">Khoảng cách</label>
+            <div class="filter-options">
+              <button 
+                :class="['filter-btn', { active: filters.distance === '' }]"
+                @click="filters.distance = ''"
+              >Tất cả</button>
+              <button 
+                :class="['filter-btn', { active: filters.distance === '0-5' }]"
+                @click="filters.distance = '0-5'"
+              >0-5 km</button>
+              <button 
+                :class="['filter-btn', { active: filters.distance === '5-10' }]"
+                @click="filters.distance = '5-10'"
+              >5-10 km</button>
+              <button 
+                :class="['filter-btn', { active: filters.distance === '10-20' }]"
+                @click="filters.distance = '10-20'"
+              >10-20 km</button>
+              <button 
+                :class="['filter-btn', { active: filters.distance === '20+' }]"
+                @click="filters.distance = '20+'"
+              >20+ km</button>
+            </div>
           </div>
           
           <div class="filter-group">
@@ -83,19 +93,33 @@
           </div>
           
           <div class="filter-group">
-            <label class="filter-label range-label">
-              Giá tiền
-              <span>{{ priceFilterLabel }}</span>
-            </label>
-            <input
-              v-model.number="filters.priceMax"
-              type="range"
-              min="0"
-              max="500000"
-              step="10000"
-              class="filter-range"
-              aria-label="Lọc theo giá tiền"
-            />
+            <label class="filter-label">Giá tiền</label>
+            <div class="filter-options">
+              <button 
+                :class="['filter-btn', { active: filters.price === '' }]"
+                @click="filters.price = ''"
+              >Tất cả</button>
+              <button 
+                :class="['filter-btn', { active: filters.price === 'free' }]"
+                @click="filters.price = 'free'"
+              >Miễn phí</button>
+              <button 
+                :class="['filter-btn', { active: filters.price === '0-50' }]"
+                @click="filters.price = '0-50'"
+              >&lt; 50k</button>
+              <button 
+                :class="['filter-btn', { active: filters.price === '50-100' }]"
+                @click="filters.price = '50-100'"
+              >50-100k</button>
+              <button 
+                :class="['filter-btn', { active: filters.price === '100-200' }]"
+                @click="filters.price = '100-200'"
+              >100-200k</button>
+              <button 
+                :class="['filter-btn', { active: filters.price === '200+' }]"
+                @click="filters.price = '200+'"
+              >200k+</button>
+            </div>
           </div>
           
           <div class="filter-group">
@@ -173,7 +197,7 @@ import { saveSearchHistory } from '../api/auth'
 import { clearAuthSession, getAuthToken } from '../utils/authSession'
 import { getBrowserLocationCached } from '../utils/clientCache'
 import PlaceCard from '../components/PlaceCard.vue'
-import { formatPrice, formatVnd, parsePriceValue } from '../utils/priceFormatter'
+import { formatPrice, parsePriceValue } from '../utils/priceFormatter'
 
 export default {
   name: 'SearchResults',
@@ -192,9 +216,9 @@ export default {
       userLocation: null,
       ageFilter: 3,
       filters: {
-        distanceMax: 100,
+        distance: '',
         rating: '',
-        priceMax: 500000,
+        price: '',
         indoor: ''
       }
     }
@@ -205,7 +229,6 @@ export default {
     if (age) {
       this.ageFilter = this.normalizeAge(age)
     }
-    this.applyFilterQuery(this.$route.query)
     if (query) {
       this.keyword = query
       this.initialKeyword = query
@@ -251,26 +274,6 @@ export default {
       if (!Number.isFinite(parsed)) return 3
       return Math.min(12, Math.max(1, parsed))
     },
-    normalizeDistanceMax(value) {
-      const parsed = Number(value)
-      if (!Number.isFinite(parsed)) return 100
-      return Math.min(100, Math.max(1, Math.round(parsed)))
-    },
-    normalizePriceMax(value) {
-      const parsed = Number(value)
-      if (!Number.isFinite(parsed)) return 500000
-      return Math.min(500000, Math.max(0, Math.round(parsed / 10000) * 10000))
-    },
-    applyFilterQuery(query) {
-      if (!query) return
-      this.filters.distanceMax = query.distance != null && query.distance !== ''
-        ? this.normalizeDistanceMax(query.distance)
-        : 100
-      this.filters.priceMax = query.price != null && query.price !== ''
-        ? this.normalizePriceMax(query.price)
-        : 500000
-      this.filters.indoor = query.indoor === 'indoor' || query.indoor === 'outdoor' ? query.indoor : ''
-    },
     runSearchFromControls() {
       const query = this.keyword.trim()
       if (!query) {
@@ -283,21 +286,6 @@ export default {
         ...this.$route.query,
         q: query,
         age: String(this.ageFilter)
-      }
-      if (this.filters.distanceMax < 100) {
-        nextQuery.distance = String(this.filters.distanceMax)
-      } else {
-        delete nextQuery.distance
-      }
-      if (this.filters.priceMax < 500000) {
-        nextQuery.price = String(this.filters.priceMax)
-      } else {
-        delete nextQuery.price
-      }
-      if (this.filters.indoor) {
-        nextQuery.indoor = this.filters.indoor
-      } else {
-        delete nextQuery.indoor
       }
       const currentQ = this.$route.query.q != null ? String(this.$route.query.q).trim() : ''
       const currentAge = this.$route.query.age != null ? String(this.$route.query.age) : ''
@@ -419,32 +407,39 @@ export default {
     },
     clearFilters() {
       this.filters = {
-        distanceMax: 100,
+        distance: '',
         rating: '',
-        priceMax: 500000,
+        price: '',
         indoor: ''
       }
     }
   },
   computed: {
     hasActiveFilters() {
-      return this.filters.distanceMax < 100 || this.filters.rating || this.filters.priceMax < 500000 || this.filters.indoor
-    },
-    distanceFilterLabel() {
-      return this.filters.distanceMax >= 100 ? 'Tất cả' : `Dưới ${this.filters.distanceMax} km`
-    },
-    priceFilterLabel() {
-      return this.filters.priceMax >= 500000 ? 'Tất cả' : `Dưới ${formatVnd(this.filters.priceMax)}`
+      return this.filters.distance || this.filters.rating || this.filters.price || this.filters.indoor
     },
     filteredResults() {
       let filtered = [...this.results]
       
-      // Filter by distance (p.distance is in meters, slider value is in km).
-      if (this.filters.distanceMax < 100) {
+      // Filter by distance (p.distance is in meters, filter values are in km)
+      if (this.filters.distance) {
+        let min, max
+        if (this.filters.distance === '20+') {
+          min = 20
+          max = Infinity
+        } else {
+          const parts = this.filters.distance.split('-').map(Number)
+          min = parts[0]
+          max = parts[1]
+        }
+
         filtered = filtered.filter(p => {
           if (p.distance === null || p.distance === undefined) return false
           const distanceKm = p.distance / 1000
-          return distanceKm <= this.filters.distanceMax
+          if (max === Infinity) {
+            return distanceKm >= min
+          }
+          return distanceKm >= min && distanceKm < max
         })
       }
       
@@ -455,10 +450,17 @@ export default {
       }
       
       // Filter by price
-      if (this.filters.priceMax < 500000) {
+      if (this.filters.price) {
         filtered = filtered.filter(p => {
           const price = this.parsePrice(p.price)
-          return price <= this.filters.priceMax
+          switch (this.filters.price) {
+            case 'free': return price === 0
+            case '0-50': return price > 0 && price <= 50000
+            case '50-100': return price > 50000 && price <= 100000
+            case '100-200': return price > 100000 && price <= 200000
+            case '200+': return price > 200000
+            default: return true
+          }
         })
       }
       
@@ -496,7 +498,6 @@ export default {
     '$route.query': {
       deep: true,
       handler(newQuery, oldQuery) {
-        this.applyFilterQuery(newQuery)
         const nextQ = newQuery && newQuery.q != null ? String(newQuery.q).trim() : ''
         const prevQ = oldQuery && oldQuery.q != null ? String(oldQuery.q).trim() : ''
         const nextAgeParam = newQuery && newQuery.age != null ? String(newQuery.age) : ''
@@ -690,26 +691,6 @@ export default {
   font-weight: 600;
   color: #374151;
   margin-bottom: 10px;
-}
-
-.range-label {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-}
-
-.range-label span {
-  color: var(--tw-primary);
-  font-size: 0.78rem;
-  font-weight: 800;
-  text-align: right;
-}
-
-.filter-range {
-  width: 100%;
-  accent-color: var(--tw-primary);
-  cursor: pointer;
 }
 
 .filter-options {

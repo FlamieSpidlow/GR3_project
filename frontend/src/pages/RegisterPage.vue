@@ -29,6 +29,15 @@
 
         <div class="input-wrap">
           <input
+            type="tel"
+            v-model="phone"
+            placeholder="Số điện thoại"
+            autocomplete="tel"
+          />
+        </div>
+
+        <div class="input-wrap">
+          <input
             type="password"
             v-model="password"
             placeholder="Mật khẩu"
@@ -82,6 +91,7 @@ export default {
     return {
       username: '',
       email: '',
+      phone: '',
       password: '',
       confirmPassword: '',
       parentName: '',
@@ -95,7 +105,7 @@ export default {
       this.errorMessage = ''
       
       // Validation
-      if (!this.username || !this.email || !this.password || !this.confirmPassword || !this.parentName || !this.address) {
+      if (!this.username || !this.email || !this.phone || !this.password || !this.confirmPassword || !this.parentName || !this.address) {
         this.errorMessage = 'Vui lòng điền đầy đủ thông tin'
         return
       }
@@ -115,6 +125,7 @@ export default {
         const response = await registerUser({
           username: this.username,
           email: this.email,
+          phone: this.phone,
           password: this.password,
           parentName: this.parentName,
           address: this.address
@@ -386,4 +397,11 @@ export default {
 }
 
 .site-header { position: relative; z-index: 10; }
+
+.input-wrap input[type="tel"] {
+  background-image: url('data:image/svg+xml;utf8,<svg fill="%239ca3af" height="18" viewBox="0 0 24 24" width="18" xmlns="http://www.w3.org/2000/svg"><path d="M6.6 10.8c1.4 2.7 3.9 5.1 6.6 6.6l2.2-2.2c.3-.3.8-.4 1.2-.3 1.3.4 2.6.6 4 .6.7 0 1.2.5 1.2 1.2v3.5c0 .7-.5 1.2-1.2 1.2C10.4 22 2 13.6 2 3.4 2 2.7 2.5 2.2 3.2 2.2h3.5c.7 0 1.2.5 1.2 1.2 0 1.4.2 2.7.6 4 .1.4 0 .9-.3 1.2l-1.6 2.2z"/></svg>');
+  background-repeat: no-repeat;
+  background-position: 14px center;
+  background-size: 18px;
+}
 </style>

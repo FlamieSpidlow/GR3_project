@@ -357,7 +357,7 @@ const getDirectRecommendation = async (question) => {
   if (linkedPlaces.length === 0) return { answer: NO_DATA_RESPONSE, places: [] }
 
   const names = linkedPlaces.map(p => p.name).join(', ')
-  const kind = isSwimmingIntent(question) ? 'có hoạt động bơi lội hoặc công viên nước' : 'miễn phí'
+  const kind = isSwimmingIntent(question) ? 'có bơi lội hoặc công viên nước' : 'miễn phí'
   return {
     answer: `Bạn có thể tham khảo ${names}. Đây là các địa điểm ${kind}.`,
     places: linkedPlaces

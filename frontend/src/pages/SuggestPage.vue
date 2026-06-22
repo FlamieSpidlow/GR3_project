@@ -34,7 +34,7 @@
 
       <div class="location-found-banner" v-if="nearbyCount > 0">
         <span class="status-dot"></span>
-        <p>Đã tìm thấy các địa điểm vui chơi gần bạn. Hiện tại có <strong>{{ nearbyCount }}</strong> địa điểm đang hoạt động!</p>
+        <p>Đã tìm thấy các địa điểm vui chơi gần bạn. Hiện tại có <strong>{{ nearbyCount }}</strong> địa điểm đang hiển thị!</p>
       </div>
 
       <div class="location-warning" v-if="isLocating && !userLocation">

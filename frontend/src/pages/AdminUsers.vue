@@ -25,6 +25,7 @@
               <tr>
                 <th>Username</th>
                 <th>Email</th>
+                <th>Số điện thoại</th>
                 <th>Họ tên phụ huynh</th>
                 <th>Địa chỉ</th>
                 <th>Vai trò</th>
@@ -36,6 +37,7 @@
               <tr v-for="user in users" :key="user._id">
                 <td>{{ user.username }}</td>
                 <td>{{ user.email }}</td>
+                <td>{{ user.phone || '' }}</td>
                 <td>{{ user.parentName }}</td>
                 <td>{{ user.address }}</td>
                 <td><span :class="['role-badge', user.role]">{{ user.role }}</span></td>
@@ -61,6 +63,10 @@
               <div class="form-group">
                 <label>Email *</label>
                 <input v-model="formData.email" type="email" required />
+              </div>
+              <div class="form-group">
+                <label>Số điện thoại *</label>
+                <input v-model="formData.phone" type="tel" required />
               </div>
               <div class="form-group" v-if="showAddModal">
                 <label>Mật khẩu *</label>
@@ -102,6 +108,7 @@ export default {
       formData: {
         username: '',
         email: '',
+        phone: '',
         password: '',
         parentName: '',
         address: ''
@@ -147,6 +154,7 @@ export default {
       this.formData = {
         username: user.username,
         email: user.email,
+        phone: user.phone || '',
         password: '',
         parentName: user.parentName,
         address: user.address
@@ -191,6 +199,7 @@ export default {
       this.formData = {
         username: '',
         email: '',
+        phone: '',
         password: '',
         parentName: '',
         address: ''

@@ -45,6 +45,9 @@
           <div class="input-wrap">
             <input type="email" v-model="email" placeholder="Email" autocomplete="email" />
           </div>
+          <div class="input-wrap">
+            <input type="tel" v-model="phone" placeholder="Số điện thoại" autocomplete="tel" />
+          </div>
 
           <button class="tw-btn tw-btn-primary" @click="save" :disabled="isLoading">
             {{ isLoading ? 'Đang lưu...' : 'Lưu thay đổi' }}
@@ -69,6 +72,7 @@ export default {
       avatarPreview: '',
       address: '',
       email: '',
+      phone: '',
       isLoading: false,
       errorMessage: ''
     }
@@ -83,6 +87,7 @@ export default {
       this.avatarPreview = u.avatar || ''
       this.address = u.address || ''
       this.email = u.email || ''
+      this.phone = u.phone || ''
     } else {
       // Fallback to current session data
       const user = getAuthUserRaw()
@@ -93,6 +98,7 @@ export default {
         this.avatarPreview = u.avatar || ''
         this.address = u.address || ''
         this.email = u.email || ''
+        this.phone = u.phone || ''
       } else {
         // If no user in session, redirect to login
         this.$router.push('/login')
@@ -113,10 +119,10 @@ export default {
     },
     async save() {
       this.errorMessage = ''
-      if (!this.parentName || !this.address || !this.email) { this.errorMessage = 'Vui lòng điền đầy đủ thông tin'; return }
+      if (!this.parentName || !this.address || !this.email || !this.phone) { this.errorMessage = 'Vui lòng điền đầy đủ thông tin'; return }
       this.isLoading = true
       try {
-        const payload = { parentName: this.parentName, address: this.address, email: this.email }
+        const payload = { parentName: this.parentName, address: this.address, email: this.email, phone: this.phone }
         if (this.avatar) payload.avatar = this.avatar
         const res = await updateProfile(payload)
         if (res.success) {
