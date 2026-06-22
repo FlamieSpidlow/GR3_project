@@ -8,7 +8,7 @@
       <router-view />
     </main>
 
-    <ChatbotWidget />
+    <ChatbotWidget v-if="!isAdmin" />
 
     <AppFooter />
   </div>
@@ -21,7 +21,31 @@ import ChatbotWidget from './components/ChatbotWidget.vue'
 
 export default {
   name: 'App',
-  components: { NavBar, AppFooter, ChatbotWidget }
+  components: { NavBar, AppFooter, ChatbotWidget },
+  data() {
+    return {
+      isAdmin: false
+    }
+  },
+  mounted() {
+    this.syncRole()
+  },
+  watch: {
+    $route() {
+      this.syncRole()
+    }
+  },
+  methods: {
+    syncRole() {
+      try {
+        const raw = sessionStorage.getItem('user')
+        const user = raw ? JSON.parse(raw) : null
+        this.isAdmin = !!(user && user.role === 'admin')
+      } catch {
+        this.isAdmin = false
+      }
+    }
+  }
 }
 </script>
 
