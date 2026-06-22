@@ -322,6 +322,27 @@ router.delete('/activities/:id', async (req, res) => {
 })
 
 // Upload ảnh địa điểm (hỗ trợ nhiều ảnh)
+router.post('/tags', async (req, res) => {
+  try {
+    const name = String(req.body?.name || '').trim()
+    const nameNorm = normalizeTag(name)
+    if (!name || !nameNorm) {
+      return res.status(400).json({ success: false, error: 'Ten tag la bat buoc' })
+    }
+
+    const existing = await Tag.findOne({ nameNorm })
+    if (existing) {
+      return res.status(400).json({ success: false, error: 'Tag nay da ton tai' })
+    }
+
+    const tag = await Tag.create({ name, nameNorm })
+    res.status(201).json({ success: true, message: 'Them tag thanh cong', data: tag })
+  } catch (err) {
+    console.error('Create tag error:', err)
+    res.status(400).json({ success: false, error: 'Loi them tag', details: err.message })
+  }
+})
+
 router.post('/places/upload-image', upload.array('images', 10), async (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {

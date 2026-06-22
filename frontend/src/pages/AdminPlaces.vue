@@ -45,6 +45,31 @@
 
         <hr class="divider" />
 
+        <div class="tag-admin-section">
+          <div class="tag-admin-header">
+            <div>
+              <h3>Tag địa điểm</h3>
+              <p>Thêm tag mới để sử dụng khi tạo hoặc chỉnh sửa địa điểm.</p>
+            </div>
+          </div>
+          <div class="tag-admin-form">
+            <input
+              v-model="newTagName"
+              type="text"
+              placeholder="VD: Khu vui chơi nước"
+              @keyup.enter="addTag"
+            />
+            <button class="btn btn-primary" type="button" @click="addTag" :disabled="isAddingTag">
+              {{ isAddingTag ? 'Đang thêm...' : 'Thêm tag' }}
+            </button>
+          </div>
+          <div class="tag-admin-list" v-if="availableTags.length > 0">
+            <span v-for="tag in availableTags" :key="tag" class="tag-pill">{{ tag }}</span>
+          </div>
+        </div>
+
+        <hr class="divider" />
+
         <div class="activities-admin-section">
           <div class="activities-admin-header">
             <div>
@@ -287,6 +312,7 @@ import {
   updatePlace,
   deletePlace,
   getAllTags,
+  createTag,
   searchGoongPlaces,
   addPlaceFromGoong,
   getAllActivities,
@@ -362,6 +388,8 @@ export default {
         'Lịch sử', 'Văn hóa'
       ],
       availableTags: [],
+      newTagName: '',
+      isAddingTag: false,
       fallbackParkingOptions: ['Có (ô tô, xe máy)', 'Có bãi đỗ xe gần địa điểm', 'Chỉ xe máy', 'Không có'],
       fallbackFoodOptions: ['Có quán ăn', 'Có quán ăn gần đó', 'Cho phép picnic', 'Có quán ăn & cho phép picnic', 'Không'],
       fallbackFacilityOptions: ['WC, khu nghỉ', 'Chỉ WC', 'Không'],
@@ -429,6 +457,27 @@ export default {
         this.availableTags = apiTags.length ? this.mergeTags(apiTags) : [...this.fallbackTags]
       } else {
         this.availableTags = [...this.fallbackTags]
+      }
+    },
+    async addTag() {
+      const name = String(this.newTagName || '').trim()
+      if (!name) {
+        this.$notify({ type: 'warning', title: 'Thiếu tên tag', message: 'Vui lòng nhập tên tag cần thêm.' })
+        return
+      }
+
+      this.isAddingTag = true
+      const res = await createTag(name)
+      this.isAddingTag = false
+
+      if (res && res.success && res.data) {
+        const tagName = res.data.name || name
+        this.availableTags = this.mergeTags(this.availableTags, [tagName])
+        this.formData.tags = this.mergeTags(this.formData.tags, [tagName])
+        this.newTagName = ''
+        this.$notify({ type: 'success', title: 'Đã thêm tag', message: `Tag "${tagName}" đã được thêm.` })
+      } else {
+        this.$notify({ type: 'error', title: 'Không thể thêm tag', message: res?.error || 'Đã có lỗi xảy ra.' })
       }
     },
     async loadActivities() {
@@ -997,6 +1046,62 @@ export default {
   border: none;
   border-top: 1px solid var(--tw-border);
   margin: 25px 0;
+}
+
+.tag-admin-section {
+  background: var(--tw-surface);
+  border: 1px solid var(--tw-border);
+  padding: 20px;
+  border-radius: var(--tw-radius-lg);
+  margin-bottom: 20px;
+  box-shadow: var(--tw-shadow-sm);
+}
+
+.tag-admin-header {
+  margin-bottom: 14px;
+}
+
+.tag-admin-header h3 {
+  margin: 0 0 6px 0;
+  font-size: 18px;
+  color: var(--tw-text);
+}
+
+.tag-admin-header p {
+  margin: 0;
+  color: var(--tw-muted);
+}
+
+.tag-admin-form {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.tag-admin-form input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--tw-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: var(--tw-text);
+}
+
+.tag-admin-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.tag-pill {
+  border: 1px solid var(--tw-border);
+  border-radius: 999px;
+  background: #f8fafc;
+  color: var(--tw-text);
+  padding: 6px 10px;
+  font-size: 0.86rem;
+  font-weight: 700;
 }
 
 .activities-admin-section {
