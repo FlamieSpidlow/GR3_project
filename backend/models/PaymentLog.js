@@ -3,7 +3,7 @@ const mongoose = require('mongoose')
 const paymentLogSchema = new mongoose.Schema({
   payment: { type: mongoose.Schema.Types.ObjectId, ref: 'Payment', index: true },
   booking: { type: mongoose.Schema.Types.ObjectId, ref: 'Booking', index: true },
-  provider: { type: String, enum: ['vnpay', 'vietqr', 'zalopay', 'admin'], required: true, index: true },
+  provider: { type: String, enum: ['payos', 'vietqr', 'vnpay', 'zalopay', 'admin'], required: true, index: true },
   event: { type: String, required: true },
   idempotencyKey: { type: String, required: true, unique: true },
   valid: { type: Boolean, default: false },

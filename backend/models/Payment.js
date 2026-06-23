@@ -3,7 +3,7 @@ const mongoose = require('mongoose')
 const paymentSchema = new mongoose.Schema({
   booking: { type: mongoose.Schema.Types.ObjectId, ref: 'Booking', required: true, unique: true },
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
-  provider: { type: String, enum: ['vnpay', 'vietqr', 'zalopay'], required: true, index: true },
+  provider: { type: String, enum: ['payos', 'vietqr', 'vnpay', 'zalopay'], required: true, index: true },
   status: {
     type: String,
     enum: ['pending', 'pending_review', 'success', 'paid', 'expired', 'cancelled', 'refunded', 'failed'],

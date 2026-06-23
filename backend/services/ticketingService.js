@@ -8,7 +8,7 @@ const Ticket = require('../models/Ticket')
 const TicketType = require('../models/TicketType')
 const { createUserNotification } = require('./notificationService')
 
-const BOOKING_TTL_MINUTES = Number.parseInt(process.env.BOOKING_TTL_MINUTES || '15', 10)
+const BOOKING_TTL_MINUTES = Number.parseInt(process.env.BOOKING_TTL_MINUTES || '60', 10)
 
 const removeVietnameseAccents = (value) => String(value || '')
   .normalize('NFD')
@@ -121,6 +121,21 @@ const verifyZalopayCallback = (payload) => {
   return signZalopay(payload.data, key2).toLowerCase() === String(payload.mac).toLowerCase()
 }
 
+const signPayosData = (data, checksumKey = process.env.PAYOS_CHECKSUM_KEY) => {
+  if (!checksumKey) throw new Error('PAYOS_CHECKSUM_KEY is not configured')
+  const signData = Object.keys(data || {})
+    .filter(key => data[key] !== undefined && data[key] !== null && data[key] !== '')
+    .sort()
+    .map(key => `${key}=${data[key]}`)
+    .join('&')
+  return crypto.createHmac('sha256', checksumKey).update(signData, 'utf8').digest('hex')
+}
+
+const verifyPayosWebhook = (payload) => {
+  if (!payload?.data || !payload?.signature) return false
+  return safeCompare(signPayosData(payload.data), payload.signature)
+}
+
 const getPublicOrigin = (req) => {
   const configured = process.env.FRONTEND_PUBLIC_ORIGIN || process.env.APP_PUBLIC_ORIGIN
   if (configured) return configured.replace(/\/$/, '')
@@ -154,6 +169,16 @@ const createUniquePaymentOrderRef = async () => {
     if (!await Payment.exists({ orderRef: code })) return code
   }
   throw new Error('Cannot create unique payment orderRef')
+}
+
+const createPayosOrderCode = () => String((Date.now() % 10000000) * 100 + crypto.randomInt(10, 99))
+
+const createUniquePayosOrderRef = async () => {
+  for (let i = 0; i < 8; i += 1) {
+    const code = createPayosOrderCode()
+    if (!await Payment.exists({ orderRef: code })) return code
+  }
+  throw new Error('Cannot create unique payOS orderCode')
 }
 
 const zalopayDatePrefix = (date = new Date()) => {
@@ -319,6 +344,60 @@ const buildVietQr = (payment) => {
   }
 }
 
+const createPayosPayment = async ({ payment, booking, req }) => {
+  const clientId = process.env.PAYOS_CLIENT_ID
+  const apiKey = process.env.PAYOS_API_KEY
+  const createUrl = process.env.PAYOS_CREATE_URL || 'https://api-merchant.payos.vn/v2/payment-requests'
+  if (!clientId || !apiKey || !process.env.PAYOS_CHECKSUM_KEY) return { payUrl: '', qrUrl: '', rawRequest: null, rawResponse: null }
+
+  const origin = getPublicOrigin(req)
+  const orderCode = Number(payment.orderRef)
+  const description = String(process.env.PAYOS_DESCRIPTION_PREFIX || `TW${payment.orderRef}`).slice(0, 25)
+  const requestBody = {
+    orderCode,
+    amount: payment.amount,
+    description,
+    items: (booking.items || []).map(line => ({
+      name: String(line.name || 'Ve TheWeekend').slice(0, 100),
+      quantity: line.quantity || 1,
+      price: line.unitPrice || 0
+    })),
+    cancelUrl: `${origin}/ticket-payment/${booking._id}?provider=payos&status=cancelled`,
+    returnUrl: `${origin}/ticket-payment/${booking._id}?provider=payos&status=success`,
+    expiredAt: Math.floor(payment.expiresAt.getTime() / 1000)
+  }
+  requestBody.signature = signPayosData({
+    amount: requestBody.amount,
+    cancelUrl: requestBody.cancelUrl,
+    description: requestBody.description,
+    orderCode: requestBody.orderCode,
+    returnUrl: requestBody.returnUrl
+  })
+
+  const response = await fetch(createUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-client-id': clientId,
+      'x-api-key': apiKey
+    },
+    body: JSON.stringify(requestBody)
+  })
+  const rawResponse = await response.json().catch(() => ({}))
+  if (!response.ok || rawResponse.code !== '00') {
+    const err = new Error(rawResponse.desc || 'Khong tao duoc thanh toan payOS')
+    err.statusCode = 400
+    err.details = rawResponse
+    throw err
+  }
+  return {
+    payUrl: rawResponse.data?.checkoutUrl || '',
+    qrUrl: rawResponse.data?.qrCode || '',
+    rawRequest: requestBody,
+    rawResponse
+  }
+}
+
 const createZalopayPayment = async ({ payment, booking, req }) => {
   const appId = process.env.ZALOPAY_APP_ID
   const key1 = process.env.ZALOPAY_KEY1
@@ -403,6 +482,10 @@ const assertBookingPayable = async (booking, payment, provider) => {
   }
 
   await expirePendingBooking(booking, payment)
+  if (provider === 'vietqr' && booking.status === 'expired' && payment && payment.status === 'expired') {
+    return
+  }
+
   if (booking.status !== 'pending') {
     const err = new Error(`Booking is not payable in status ${booking.status}`)
     err.statusCode = 400
@@ -429,7 +512,7 @@ const populateBooking = (query) => query
   .populate('items.ticketType')
 
 const createBooking = async ({ user, payload, req }) => {
-  const { placeId, visitDate, note = '', paymentMethod = 'vietqr' } = payload || {}
+  const { placeId, visitDate, note = '', paymentMethod = 'payos' } = payload || {}
   if (!placeId) {
     const err = new Error('Thiếu địa điểm')
     err.statusCode = 400
@@ -454,14 +537,9 @@ const createBooking = async ({ user, payload, req }) => {
     err.statusCode = 400
     throw err
   }
-  const method = ['zalopay', 'vnpay', 'vietqr'].includes(paymentMethod) ? paymentMethod : 'vietqr'
-  if (method === 'zalopay' && (!process.env.ZALOPAY_APP_ID || !process.env.ZALOPAY_KEY1 || !process.env.ZALOPAY_KEY2)) {
-    const err = new Error('ZaloPay chưa được cấu hình')
-    err.statusCode = 400
-    throw err
-  }
-  if (method === 'vnpay' && (!process.env.VNPAY_TMN_CODE || !process.env.VNPAY_HASH_SECRET)) {
-    const err = new Error('VNPAY chưa được cấu hình')
+  const method = ['payos', 'vietqr'].includes(paymentMethod) ? paymentMethod : 'payos'
+  if (method === 'payos' && (!process.env.PAYOS_CLIENT_ID || !process.env.PAYOS_API_KEY || !process.env.PAYOS_CHECKSUM_KEY)) {
+    const err = new Error('payOS chua duoc cau hinh')
     err.statusCode = 400
     throw err
   }
@@ -496,18 +574,17 @@ const createBooking = async ({ user, payload, req }) => {
     provider: method,
     status: method === 'vietqr' ? 'pending_review' : 'pending',
     amount: booking.totalAmount,
-    orderRef: method === 'zalopay' ? await createUniqueZalopayOrderRef() : await createUniquePaymentOrderRef(),
+    orderRef: method === 'payos' ? await createUniquePayosOrderRef() : await createUniquePaymentOrderRef(),
     expiresAt,
     rawRequest: { placeId, visitDate, items: payload.items, adultQuantity: payload.adultQuantity, childQuantity: payload.childQuantity }
   })
 
-  if (method === 'zalopay') {
-    const zalopay = await createZalopayPayment({ payment, booking, req })
-    payment.payUrl = zalopay.payUrl
-    payment.qrUrl = zalopay.qrUrl
-    payment.rawRequest = { ...payment.rawRequest, zalopayRequest: zalopay.rawRequest, zalopayResponse: zalopay.rawResponse }
-  } else if (method === 'vnpay') {
-    payment.payUrl = buildVnpayPayUrl({ payment, req })
+  if (method === 'payos') {
+    const payos = await createPayosPayment({ payment, booking, req })
+    payment.payUrl = payos.payUrl
+    payment.qrUrl = payos.qrUrl
+    payment.transferContent = payment.orderRef
+    payment.rawRequest = { ...payment.rawRequest, payosRequest: payos.rawRequest, payosResponse: payos.rawResponse }
   } else {
     const vietQr = buildVietQr(payment)
     payment.qrUrl = vietQr.qrUrl
@@ -698,6 +775,39 @@ const handleVnpayPayload = async (payload, source = 'return') => {
   return { success: true, code: '00', message: 'Confirm success', booking: populated }
 }
 
+const handlePayosWebhook = async (payload) => {
+  const data = payload?.data || {}
+  const orderRef = String(data.orderCode || '')
+  const idempotencyKey = `payos:webhook:${orderRef}:${data.reference || data.paymentLinkId || payload?.code || 'unknown'}`
+  if (!verifyPayosWebhook(payload)) {
+    await logPaymentEvent({ provider: 'payos', event: 'webhook', idempotencyKey, valid: false, message: 'Invalid signature', payload })
+    return { success: false, code: '97', message: 'Invalid signature' }
+  }
+  if (!payload.success || payload.code !== '00' || data.code !== '00') {
+    await logPaymentEvent({ provider: 'payos', event: 'webhook', idempotencyKey, valid: true, message: data.desc || payload.desc || 'payOS event ignored', payload })
+    return { success: true, code: '00', message: 'Ignored non-success payOS event' }
+  }
+  const payment = await Payment.findOne({ orderRef, provider: 'payos' })
+  if (!payment) {
+    await logPaymentEvent({ provider: 'payos', event: 'webhook', idempotencyKey, valid: false, message: 'Payment not found', payload })
+    return { success: false, code: '01', message: 'Payment not found' }
+  }
+  const amount = Number(data.amount || 0)
+  if (amount !== payment.amount) {
+    const booking = await Booking.findById(payment.booking)
+    await logPaymentEvent({ payment, booking, provider: 'payos', event: 'webhook', idempotencyKey, valid: false, message: 'Amount mismatch', payload })
+    return { success: false, code: '04', message: 'Amount mismatch', booking }
+  }
+  const populated = await markPaymentPaid({
+    payment,
+    payload,
+    providerTransactionId: data.reference || data.paymentLinkId,
+    idempotencyKey,
+    provider: 'payos'
+  })
+  return { success: true, code: '00', message: 'Success', booking: populated }
+}
+
 const handleZalopayCallback = async (payload) => {
   const idempotencyKey = `zalopay:callback:${payload?.data || 'missing'}`
   if (!verifyZalopayCallback(payload)) {
@@ -812,17 +922,21 @@ module.exports = {
   buildVietQr,
   createBooking,
   createUniqueZalopayOrderRef,
+  createUniquePayosOrderRef,
   confirmVietQr,
   rejectVietQr,
   ensureDefaultTicketTypes,
   extractPaymentOrderRef,
   getPublicOrigin,
+  handlePayosWebhook,
   handleZalopayCallback,
   handleVnpayPayload,
   parsePriceValue,
   populateBooking,
+  createPayosPayment,
   createZalopayPayment,
   verifySepayWebhookRequest,
+  verifyPayosWebhook,
   verifyZalopayCallback,
   verifyVnpayPayload
 }

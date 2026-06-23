@@ -100,9 +100,8 @@
           <h2>Doi soat thanh toan</h2>
           <select v-model="paymentProvider" @change="loadPayments">
             <option value="">Tat ca cong thanh toan</option>
-            <option value="zalopay">ZaloPay</option>
+            <option value="payos">PayOS</option>
             <option value="vietqr">VietQR</option>
-            <option value="vnpay">VNPAY</option>
           </select>
         </div>
         <div class="table-wrap">

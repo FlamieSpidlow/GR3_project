@@ -11,6 +11,7 @@ const {
   createBooking,
   ensureDefaultTicketTypes,
   getPublicOrigin,
+  handlePayosWebhook,
   handleZalopayCallback,
   handleVnpayPayload,
   populateBooking,
@@ -188,6 +189,15 @@ router.post('/admin/vietqr/reject', authenticate, requireAdmin, async (req, res)
   }
 })
 
+router.post('/payos/webhook', async (req, res) => {
+  try {
+    const result = await handlePayosWebhook(req.body || {})
+    res.json({ success: result.success, code: result.code, message: result.message })
+  } catch (err) {
+    console.error('payOS webhook error:', err)
+    res.status(err.statusCode || 500).json({ success: false, error: err.message || 'Loi webhook payOS' })
+  }
+})
 router.post('/vietqr/webhook', async (req, res) => {
   try {
     if (!verifySepayWebhookRequest(req)) {

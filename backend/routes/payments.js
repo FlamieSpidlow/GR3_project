@@ -8,7 +8,10 @@ const {
   buildVietQr,
   buildVnpayPayUrl,
   createUniqueZalopayOrderRef,
+  createUniquePayosOrderRef,
+  createPayosPayment,
   createZalopayPayment,
+  handlePayosWebhook,
   handleZalopayCallback,
   handleVnpayPayload,
   confirmVietQr,
@@ -58,7 +61,7 @@ const preparePayment = async ({ bookingId, user, provider, req }) => {
       user: user._id,
       provider,
       amount: booking.totalAmount,
-      orderRef: provider === 'zalopay' ? await createUniqueZalopayOrderRef() : await getUniqueOrderRef(),
+      orderRef: provider === 'payos' ? await createUniquePayosOrderRef() : provider === 'zalopay' ? await createUniqueZalopayOrderRef() : await getUniqueOrderRef(),
       expiresAt: booking.expiresAt
     })
   }
@@ -70,6 +73,9 @@ const preparePayment = async ({ bookingId, user, provider, req }) => {
   }
 
   payment.provider = provider
+  if (provider === 'payos' && !/^\d+$/.test(String(payment.orderRef || ''))) {
+    payment.orderRef = await createUniquePayosOrderRef()
+  }
   if (provider === 'zalopay' && !/^\d{6}/.test(String(payment.orderRef || ''))) {
     payment.orderRef = await createUniqueZalopayOrderRef()
   }
@@ -78,7 +84,18 @@ const preparePayment = async ({ bookingId, user, provider, req }) => {
   payment.qrUrl = ''
   payment.transferContent = ''
 
-  if (provider === 'zalopay') {
+  if (provider === 'payos') {
+    if (!process.env.PAYOS_CLIENT_ID || !process.env.PAYOS_API_KEY || !process.env.PAYOS_CHECKSUM_KEY) {
+      const err = new Error('payOS chua duoc cau hinh')
+      err.statusCode = 400
+      throw err
+    }
+    const payos = await createPayosPayment({ payment, booking, req })
+    payment.payUrl = payos.payUrl
+    payment.qrUrl = payos.qrUrl
+    payment.transferContent = payment.orderRef
+    payment.rawRequest = { ...payment.rawRequest, payosRequest: payos.rawRequest, payosResponse: payos.rawResponse }
+  } else if (provider === 'zalopay') {
     if (!process.env.ZALOPAY_APP_ID || !process.env.ZALOPAY_KEY1 || !process.env.ZALOPAY_KEY2) {
       const err = new Error('ZaloPay chưa được cấu hình')
       err.statusCode = 400
@@ -109,6 +126,27 @@ const preparePayment = async ({ bookingId, user, provider, req }) => {
   return { booking, payment }
 }
 
+router.post('/payos/create', authenticate, async (req, res) => {
+  try {
+    const bookingId = req.body?.bookingId || req.body?.id
+    if (!bookingId) return res.status(400).json({ success: false, error: 'Thieu bookingId' })
+    const data = await preparePayment({ bookingId, user: req.user, provider: 'payos', req })
+    res.json({ success: true, data })
+  } catch (err) {
+    console.error('Create payOS payment error:', err)
+    res.status(err.statusCode || 500).json({ success: false, error: err.message || 'Loi tao thanh toan payOS' })
+  }
+})
+
+router.post('/payos/webhook', async (req, res) => {
+  try {
+    const result = await handlePayosWebhook(req.body || {})
+    res.json({ success: result.success, code: result.code, message: result.message })
+  } catch (err) {
+    console.error('payOS webhook error:', err)
+    res.status(err.statusCode || 500).json({ success: false, error: err.message || 'Loi webhook payOS' })
+  }
+})
 router.post('/vnpay/create', authenticate, async (req, res) => {
   try {
     const bookingId = req.body?.bookingId || req.body?.id

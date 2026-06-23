@@ -416,8 +416,11 @@
 
           <div class="form-group payment-method-fixed">
             <label>Phuong thuc thanh toan</label>
-            <div class="fixed-payment-badge">VietQR</div>
-            <small>Thanh toan bang QR chuyen khoan. SePay se tu dong xac nhan khi tien vao.</small>
+            <select v-model="ticketForm.paymentMethod" class="payment-method-select">
+              <option value="payos">PayOS</option>
+              <option value="vietqr">VietQR</option>
+            </select>
+            <small>PayOS tu dong xac nhan thanh toan. VietQR dung QR chuyen khoan va doi soat theo webhook/admin.</small>
           </div>
 
           <div class="ticket-summary">
@@ -469,11 +472,8 @@
             <div v-if="paymentQrImage && createdTicketOrder.payment?.provider === 'vietqr' && !createdTicketOrder.payment?.qrUrl && createdTicketOrder.payment?.transferContent" class="transfer-hint">
               QR này chứa nội dung chuyển khoản. Để có QR ngân hàng tự điền số tiền/tài khoản, cấu hình VIETQR_BANK_ID và VIETQR_ACCOUNT_NO ở backend.
             </div>
-            <div v-if="paymentQrImage && createdTicketOrder.payment?.provider === 'zalopay'" class="transfer-hint">
-              Quét QR này bằng ZaloPay hoặc app ngân hàng được hỗ trợ. Sau khi ZaloPay xác nhận thành công, vé điện tử sẽ tự xuất hiện trong mục Vé của tôi.
-            </div>
-            <div v-if="paymentQrImage && createdTicketOrder.payment?.provider === 'vnpay'" class="transfer-hint">
-              Quét QR này bằng app ngân hàng có hỗ trợ VNPAY. Sau khi VNPAY xác nhận thành công, vé điện tử sẽ tự xuất hiện trong mục Vé của tôi.
+            <div v-if="paymentQrImage && createdTicketOrder.payment?.provider === 'payos'" class="transfer-hint">
+              Quét QR này bằng PayOS hoặc app ngân hàng được hỗ trợ. Sau khi PayOS xác nhận thành công, vé điện tử sẽ tự xuất hiện trong mục Vé của tôi.
             </div>
             <div v-if="createdTicketOrder.payment?.provider === 'vietqr'" class="transfer-hint">
               VietQR chỉ được ghi nhận thành công khi hệ thống nhận webhook ngân hàng hoặc admin xác nhận giao dịch. Chuyển khoản xong có thể mất vài phút để đối soát.
@@ -671,7 +671,7 @@ export default {
         adultQuantity: 1,
         childQuantity: 0,
         note: '',
-        paymentMethod: 'vietqr'
+        paymentMethod: 'payos'
       }
     }
   },
@@ -808,7 +808,7 @@ export default {
         adultQuantity: 1,
         childQuantity: 0,
         note: '',
-        paymentMethod: 'vietqr'
+        paymentMethod: 'payos'
       }
       this.showTicketModal = true
     },
@@ -847,7 +847,7 @@ export default {
         adultQuantity: adult,
         childQuantity: child,
         note: this.ticketForm.note,
-        paymentMethod: 'vietqr'
+        paymentMethod: this.ticketForm.paymentMethod || 'payos'
       })
 
       this.ticketSubmitting = false
@@ -861,17 +861,15 @@ export default {
           message: `Đơn vé tại ${this.place.name || 'địa điểm'} đã được tạo. Vui lòng thanh toán để chờ xác nhận.`,
           persist: false
         })
-        if (payment.provider === 'zalopay' || payment.provider === 'vnpay') {
+        if (payment.provider === 'payos') {
           if (!payment.qrUrl && !payment.payUrl) {
-            this.ticketError = `${payment.provider === 'zalopay' ? 'ZaloPay' : 'VNPAY'} chưa được cấu hình hoặc chưa tạo được QR thanh toán.`
+            this.ticketError = 'PayOS chưa được cấu hình hoặc chưa tạo được QR thanh toán.'
             this.ticketSuccess = ''
             return
           }
           await this.createPaymentQr(res.data)
           this.startPaymentStatusWatcher(res.data)
-          this.ticketSuccess = payment.provider === 'zalopay'
-            ? 'Đã tạo đơn vé. Vui lòng quét QR ZaloPay để thanh toán.'
-            : 'Đã tạo đơn vé. Vui lòng quét QR VNPAY bằng app ngân hàng để thanh toán.'
+          this.ticketSuccess = 'Đã tạo thanh toán PayOS. Vui lòng quét QR hoặc mở liên kết để thanh toán.'
           return
         }
 
@@ -884,7 +882,7 @@ export default {
     },
     async createPaymentQr(order) {
       const payment = order?.payment || {}
-      if (payment.provider === 'zalopay' && payment.qrUrl) {
+      if (payment.provider === 'payos' && payment.qrUrl) {
         if (/^(https?:|data:image\/)/i.test(payment.qrUrl)) {
           this.paymentQrImage = payment.qrUrl
         } else {
@@ -897,16 +895,7 @@ export default {
         return
       }
 
-      if (payment.provider === 'zalopay' && payment.payUrl) {
-        this.paymentQrImage = await QRCode.toDataURL(payment.payUrl, {
-          width: 240,
-          margin: 2,
-          color: { dark: '#0f172a', light: '#ffffff' }
-        })
-        return
-      }
-
-      if (payment.provider === 'vnpay' && payment.payUrl) {
+      if (payment.provider === 'payos' && payment.payUrl) {
         this.paymentQrImage = await QRCode.toDataURL(payment.payUrl, {
           width: 240,
           margin: 2,
