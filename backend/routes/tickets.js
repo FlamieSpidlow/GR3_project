@@ -15,6 +15,7 @@ const {
   handleVnpayPayload,
   populateBooking,
   rejectVietQr,
+  extractPaymentOrderRef,
   verifySepayWebhookRequest
 } = require('../services/ticketingService')
 
@@ -193,14 +194,14 @@ router.post('/vietqr/webhook', async (req, res) => {
       return res.status(401).json({ success: false, error: 'Invalid webhook secret' })
     }
     const body = req.body || {}
-    const orderRef = body.orderRef || body.content || body.transferContent || body.description
+    const orderRef = extractPaymentOrderRef(body.orderRef || body.code || body.content || body.transferContent || body.description)
     const amount = Number(body.amount || body.transferAmount || body.creditAmount)
     const transactionId = body.transactionId || body.reference || body.refNo || ''
     if (!orderRef || !Number.isFinite(amount)) {
       return res.status(400).json({ success: false, error: 'Invalid VietQR payload' })
     }
     const booking = await confirmVietQr({
-      orderRef: String(orderRef).trim(),
+      orderRef,
       amount,
       transactionId: String(transactionId || ''),
       payload: body,

@@ -131,12 +131,29 @@ const getPublicOrigin = (req) => {
 
 const createCode = (prefix) => `${prefix}-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`
 
+const createPaymentOrderRef = () => `TWPAY${Date.now().toString(36).toUpperCase()}${crypto.randomBytes(4).toString('hex').toUpperCase()}`
+
+const extractPaymentOrderRef = (value) => {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  const match = raw.match(/\bTWPAY[A-Z0-9]{3,30}\b/i) || raw.match(/\bTWPAY-[A-Z0-9]+-[A-Z0-9]+\b/i)
+  return match ? match[0].toUpperCase() : raw
+}
+
 const createUniqueCode = async (Model, field, prefix) => {
   for (let i = 0; i < 8; i += 1) {
     const code = createCode(prefix)
     if (!await Model.exists({ [field]: code })) return code
   }
   throw new Error(`Cannot create unique ${field}`)
+}
+
+const createUniquePaymentOrderRef = async () => {
+  for (let i = 0; i < 8; i += 1) {
+    const code = createPaymentOrderRef()
+    if (!await Payment.exists({ orderRef: code })) return code
+  }
+  throw new Error('Cannot create unique payment orderRef')
 }
 
 const zalopayDatePrefix = (date = new Date()) => {
@@ -479,7 +496,7 @@ const createBooking = async ({ user, payload, req }) => {
     provider: method,
     status: method === 'vietqr' ? 'pending_review' : 'pending',
     amount: booking.totalAmount,
-    orderRef: method === 'zalopay' ? await createUniqueZalopayOrderRef() : await createUniqueCode(Payment, 'orderRef', 'TWPAY'),
+    orderRef: method === 'zalopay' ? await createUniqueZalopayOrderRef() : await createUniquePaymentOrderRef(),
     expiresAt,
     rawRequest: { placeId, visitDate, items: payload.items, adultQuantity: payload.adultQuantity, childQuantity: payload.childQuantity }
   })
@@ -798,6 +815,7 @@ module.exports = {
   confirmVietQr,
   rejectVietQr,
   ensureDefaultTicketTypes,
+  extractPaymentOrderRef,
   getPublicOrigin,
   handleZalopayCallback,
   handleVnpayPayload,

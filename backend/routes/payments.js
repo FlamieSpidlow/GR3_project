@@ -12,10 +12,11 @@ const {
   handleZalopayCallback,
   handleVnpayPayload,
   confirmVietQr,
+  extractPaymentOrderRef,
   verifySepayWebhookRequest
 } = require('../services/ticketingService')
 
-const createOrderRef = () => `TWPAY-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`
+const createOrderRef = () => `TWPAY${Date.now().toString(36).toUpperCase()}${crypto.randomBytes(4).toString('hex').toUpperCase()}`
 
 const getUniqueOrderRef = async () => {
   for (let i = 0; i < 8; i += 1) {
@@ -181,7 +182,7 @@ router.post('/vietqr/webhook', async (req, res) => {
     }
 
     const body = req.body || {}
-    const orderRef = String(body.orderRef || body.content || body.transferContent || body.description || '').trim()
+    const orderRef = extractPaymentOrderRef(body.orderRef || body.code || body.content || body.transferContent || body.description)
     const amount = Number(body.amount || body.transferAmount || body.creditAmount)
     const transactionId = body.transactionId || body.reference || body.refNo || ''
     if (!orderRef || !Number.isFinite(amount)) return res.status(400).json({ success: false, error: 'Invalid VietQR payload' })
