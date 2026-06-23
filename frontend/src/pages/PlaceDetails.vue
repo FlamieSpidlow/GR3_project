@@ -416,11 +416,8 @@
 
           <div class="form-group payment-method-fixed">
             <label>Phuong thuc thanh toan</label>
-            <select v-model="ticketForm.paymentMethod" class="payment-method-select">
-              <option value="payos">PayOS</option>
-              <option value="vietqr">VietQR</option>
-            </select>
-            <small>PayOS tu dong xac nhan thanh toan. VietQR dung QR chuyen khoan va doi soat theo webhook/admin.</small>
+            <div class="fixed-payment-badge">PayOS</div>
+            <small>Thanh toan bang QR PayOS. He thong se tu dong xac nhan khi giao dich thanh cong.</small>
           </div>
 
           <div class="ticket-summary">
@@ -670,8 +667,7 @@ export default {
         visitDate: '',
         adultQuantity: 1,
         childQuantity: 0,
-        note: '',
-        paymentMethod: 'payos'
+        note: ''
       }
     }
   },
@@ -807,8 +803,7 @@ export default {
         visitDate: this.minVisitDate,
         adultQuantity: 1,
         childQuantity: 0,
-        note: '',
-        paymentMethod: 'payos'
+        note: ''
       }
       this.showTicketModal = true
     },
@@ -847,7 +842,7 @@ export default {
         adultQuantity: adult,
         childQuantity: child,
         note: this.ticketForm.note,
-        paymentMethod: this.ticketForm.paymentMethod || 'payos'
+        paymentMethod: 'payos'
       })
 
       this.ticketSubmitting = false

@@ -37,7 +37,7 @@
               </div>
               <div>
                 <span>Tổng tiền</span>
-                <strong>{{ formatVnd(order.totalPrice) }}</strong>
+                <strong>{{ formatVnd(order.totalAmount || order.totalPrice) }}</strong>
               </div>
               <div>
                 <span>Mã vé</span>
@@ -66,8 +66,16 @@
 
             <p v-if="order.note" class="ticket-note">Ghi chú: {{ order.note }}</p>
 
-            <div v-if="canCancel(order)" class="ticket-actions">
+            <div class="ticket-actions">
               <button
+                type="button"
+                class="detail-ticket-btn"
+                @click="openTicketDetails(order)"
+              >
+                Chi tiết vé
+              </button>
+              <button
+                v-if="canCancel(order)"
                 type="button"
                 class="cancel-ticket-btn"
                 :disabled="cancellingOrderId === order._id"
@@ -89,6 +97,63 @@
         <img :src="paymentQrImages[previewOrder._id]" class="qr-large" alt="Mã QR thanh toán" />
       </div>
     </div>
+    <div v-if="detailOrder" class="detail-modal-overlay" @click.self="closeTicketDetails">
+      <div class="detail-modal">
+        <button type="button" class="qr-modal-close" @click="closeTicketDetails" aria-label="Đóng">×</button>
+        <div class="detail-modal-head">
+          <h2>Chi tiết vé</h2>
+          <span :class="['status-badge', detailOrder.status]">{{ statusLabel(detailOrder.status) }}</span>
+        </div>
+
+        <div class="detail-summary">
+          <div>
+            <span>Địa điểm</span>
+            <strong>{{ detailOrder.place?.name || 'Địa điểm' }}</strong>
+            <p>{{ detailOrder.place?.address || 'Địa chỉ chưa cập nhật' }}</p>
+          </div>
+          <div>
+            <span>Ngày đi</span>
+            <strong>{{ formatDate(detailOrder.visitDate) }}</strong>
+          </div>
+          <div>
+            <span>Số lượng</span>
+            <strong>{{ totalQuantity(detailOrder) }} vé</strong>
+          </div>
+          <div>
+            <span>Tổng tiền</span>
+            <strong>{{ formatVnd(detailOrder.totalAmount || detailOrder.totalPrice) }}</strong>
+          </div>
+          <div>
+            <span>Mã đơn</span>
+            <strong>{{ detailOrder.code || detailOrder.ticketCode || detailOrder._id }}</strong>
+          </div>
+          <div>
+            <span>Thanh toán</span>
+            <strong>{{ detailOrder.payment?.provider || '-' }}</strong>
+            <p>{{ detailOrder.payment?.orderRef || '' }}</p>
+          </div>
+        </div>
+
+        <div v-if="(detailOrder.tickets || []).length" class="issued-ticket-list">
+          <div v-for="ticket in detailOrder.tickets" :key="ticket._id || ticket.code" class="issued-ticket">
+            <img
+              v-if="ticketQrImages[ticket.code]"
+              :src="ticketQrImages[ticket.code]"
+              class="issued-ticket-qr"
+              alt="QR ve"
+            />
+            <div class="issued-ticket-info">
+              <span>{{ ticket.name || 'Vé' }}</span>
+              <strong>{{ ticket.code }}</strong>
+              <p>{{ statusLabel(ticket.status) }}</p>
+            </div>
+          </div>
+        </div>
+        <div v-else class="detail-empty">
+          Vé điện tử sẽ hiển thị sau khi thanh toán được xác nhận.
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -108,6 +173,7 @@ export default {
       paymentQrImages: {},
       ticketQrImages: {},
       previewOrder: null,
+      detailOrder: null,
       errorMessage: '',
       cancellingOrderId: ''
     }
@@ -176,6 +242,12 @@ export default {
     closeQrPreview() {
       this.previewOrder = null
     },
+    openTicketDetails(order) {
+      this.detailOrder = order
+    },
+    closeTicketDetails() {
+      this.detailOrder = null
+    },
     canCancel(order) {
       return ['pending'].includes(order?.status)
     },
@@ -204,7 +276,7 @@ export default {
       this.cancellingOrderId = ''
     },
     totalQuantity(order) {
-      return (Number(order.adultQuantity) || 0) + (Number(order.childQuantity) || 0)
+      return Number(order.totalQuantity) || (Number(order.adultQuantity) || 0) + (Number(order.childQuantity) || 0)
     },
     formatDate(value) {
       if (!value) return ''
@@ -514,7 +586,23 @@ export default {
 .ticket-actions {
   display: flex;
   justify-content: flex-end;
+  gap: 10px;
   margin-top: 16px;
+}
+
+.detail-ticket-btn {
+  border: 1px solid #2563eb;
+  border-radius: 8px;
+  padding: 9px 13px;
+  background: #2563eb;
+  color: #ffffff;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.detail-ticket-btn:hover {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
 }
 
 .cancel-ticket-btn {
@@ -537,6 +625,113 @@ export default {
   opacity: 0.65;
 }
 
+.detail-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.62);
+}
+
+.detail-modal {
+  position: relative;
+  width: min(760px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
+}
+
+.detail-modal-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  margin: 6px 42px 18px 0;
+}
+
+.detail-modal-head h2 {
+  margin: 0;
+  color: var(--tw-text);
+}
+
+.detail-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.detail-summary div {
+  min-width: 0;
+  border: 1px solid var(--tw-border);
+  border-radius: 10px;
+  padding: 12px;
+  background: #f8fafc;
+}
+
+.detail-summary span,
+.issued-ticket-info span {
+  display: block;
+  color: var(--tw-muted);
+  font-size: 0.82rem;
+  margin-bottom: 5px;
+}
+
+.detail-summary strong,
+.issued-ticket-info strong {
+  display: block;
+  color: var(--tw-text);
+  overflow-wrap: anywhere;
+}
+
+.detail-summary p,
+.issued-ticket-info p,
+.detail-empty {
+  margin: 5px 0 0;
+  color: var(--tw-muted);
+}
+
+.issued-ticket-list {
+  display: grid;
+  gap: 12px;
+}
+
+.issued-ticket {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid var(--tw-border);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.issued-ticket-qr {
+  width: 116px;
+  height: 116px;
+  flex: 0 0 auto;
+  padding: 8px;
+  background: #ffffff;
+  border: 1px solid var(--tw-border);
+  border-radius: 10px;
+}
+
+.issued-ticket-info {
+  min-width: 0;
+}
+
+.detail-empty {
+  border: 1px dashed #94a3b8;
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+}
+
 @media (max-width: 780px) {
   .ticket-main,
   .ticket-code-box {
@@ -546,11 +741,26 @@ export default {
   .ticket-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+
+  .detail-summary {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 520px) {
   .ticket-grid {
     grid-template-columns: 1fr;
+  }
+
+  .ticket-actions,
+  .issued-ticket {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .detail-ticket-btn,
+  .cancel-ticket-btn {
+    width: 100%;
   }
 }
 </style>

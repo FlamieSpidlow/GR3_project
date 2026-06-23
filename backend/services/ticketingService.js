@@ -6,6 +6,7 @@ const PaymentLog = require('../models/PaymentLog')
 const Place = require('../models/Place')
 const Ticket = require('../models/Ticket')
 const TicketType = require('../models/TicketType')
+const { sendTicketConfirmationEmail } = require('./emailService')
 const { createUserNotification } = require('./notificationService')
 
 const BOOKING_TTL_MINUTES = Number.parseInt(process.env.BOOKING_TTL_MINUTES || '60', 10)
@@ -729,6 +730,8 @@ const markPaymentPaid = async ({ payment, payload, providerTransactionId, idempo
     title: 'Đặt vé thành công',
     message: `Thanh toán đơn ${booking.code} đã được xác nhận. Vé điện tử đã sẵn sàng trong mục Vé của tôi.`
   })
+
+  await sendTicketConfirmationEmail(booking._id)
 
   return populateBooking(Booking.findById(booking._id))
 }
