@@ -124,7 +124,7 @@ const verifyZalopayCallback = (payload) => {
 const signPayosData = (data, checksumKey = process.env.PAYOS_CHECKSUM_KEY) => {
   if (!checksumKey) throw new Error('PAYOS_CHECKSUM_KEY is not configured')
   const signData = Object.keys(data || {})
-    .filter(key => data[key] !== undefined && data[key] !== null && data[key] !== '')
+    .filter(key => data[key] !== undefined && data[key] !== null)
     .sort()
     .map(key => `${key}=${data[key]}`)
     .join('&')
@@ -733,6 +733,36 @@ const markPaymentPaid = async ({ payment, payload, providerTransactionId, idempo
   return populateBooking(Booking.findById(booking._id))
 }
 
+const getPayosPaymentInfo = async (orderCode) => {
+  const clientId = process.env.PAYOS_CLIENT_ID
+  const apiKey = process.env.PAYOS_API_KEY
+  if (!clientId || !apiKey) return null
+  const response = await fetch(`https://api-merchant.payos.vn/v2/payment-requests/${encodeURIComponent(orderCode)}`, {
+    headers: {
+      'x-client-id': clientId,
+      'x-api-key': apiKey
+    }
+  })
+  const payload = await response.json().catch(() => ({}))
+  if (!response.ok || payload.code !== '00') return null
+  return payload.data || null
+}
+
+const refreshPayosPaymentStatus = async (payment) => {
+  if (!payment || payment.provider !== 'payos' || isPaymentSuccessful(payment)) return null
+  const data = await getPayosPaymentInfo(payment.orderRef)
+  if (!data) return null
+  const status = String(data.status || '').toUpperCase()
+  if (status !== 'PAID') return data
+  return markPaymentPaid({
+    payment,
+    payload: { source: 'payos_status_lookup', data },
+    providerTransactionId: data.transactions?.[0]?.reference || data.paymentLinkId,
+    idempotencyKey: `payos:status:${payment.orderRef}:${data.paymentLinkId || status}`,
+    provider: 'payos'
+  })
+}
+
 const handleVnpayPayload = async (payload, source = 'return') => {
   const orderRef = payload.vnp_TxnRef
   const payment = await Payment.findOne({ orderRef, provider: 'vnpay' })
@@ -933,6 +963,7 @@ module.exports = {
   handleVnpayPayload,
   parsePriceValue,
   populateBooking,
+  refreshPayosPaymentStatus,
   createPayosPayment,
   createZalopayPayment,
   verifySepayWebhookRequest,

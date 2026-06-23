@@ -15,6 +15,7 @@ const {
   handleZalopayCallback,
   handleVnpayPayload,
   populateBooking,
+  refreshPayosPaymentStatus,
   rejectVietQr,
   extractPaymentOrderRef,
   verifySepayWebhookRequest
@@ -260,10 +261,20 @@ router.get('/vnpay/return', async (req, res) => {
 
 router.get('/:id/payment-status', authenticate, async (req, res) => {
   try {
-    const booking = await populateBooking(
+    let booking = await populateBooking(
       Booking.findOne({ _id: req.params.id, user: req.user._id })
     )
     if (!booking) return res.status(404).json({ success: false, error: 'Không tìm thấy đơn vé' })
+    if (booking.payment?.provider === 'payos' && ['pending', 'pending_review'].includes(booking.payment.status)) {
+      try {
+        await refreshPayosPaymentStatus(booking.payment)
+        booking = await populateBooking(
+          Booking.findOne({ _id: req.params.id, user: req.user._id })
+        )
+      } catch (payosErr) {
+        console.warn('Refresh payOS payment status failed:', payosErr.message)
+      }
+    }
     const data = await addTickets(booking)
     res.json({
       success: true,
