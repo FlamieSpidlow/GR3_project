@@ -19,7 +19,7 @@
           </div>
 
           <div class="search-age">
-            <label>Độ tuổi phù hợp: <strong>{{ ageFilter }}</strong></label>
+            <label>Độ tuổi của bé: <strong>{{ ageFilter }} tuổi</strong></label>
             <input
               v-model.number="ageFilter"
               type="range"
@@ -418,7 +418,15 @@ export default {
       if (this.filters.priceMax < this.priceMaxLimit) {
         filtered = filtered.filter(p => this.parsePrice(p.price) <= this.filters.priceMax)
       }
-      
+
+      // Sắp xếp theo khoảng cách từ gần đến xa (địa điểm không có khoảng cách xếp cuối)
+      filtered.sort((a, b) => {
+        if (a.distance == null && b.distance == null) return 0
+        if (a.distance == null) return 1
+        if (b.distance == null) return -1
+        return a.distance - b.distance
+      })
+
       return filtered
     },
     paginatedResults() {

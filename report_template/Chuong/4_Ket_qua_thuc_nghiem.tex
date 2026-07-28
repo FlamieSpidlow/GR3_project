@@ -1,0 +1,957 @@
+﻿\documentclass[../DoAn.tex]{subfiles}
+\begin{document}
+\chapter{Phân tích thiết kế, triển khai và đánh giá hệ thống}
+
+\section{Thiết kế kiến trúc}
+
+\subsection{Lựa chọn kiến trúc phần mềm}
+
+TheWeekend được thiết kế theo kiến trúc client-server. Trong kiến trúc này, frontend web và ứng dụng Android scanner đóng vai trò client, còn backend được xây dựng bằng Node.js và Express đóng vai trò cung cấp REST API cho các nghiệp vụ của hệ thống. Dữ liệu nghiệp vụ được lưu trữ trong MongoDB và được truy cập thông qua các model Mongoose ở phía backend. Các dịch vụ bên ngoài như Goong API, Gemini API, PayOS và email/thông báo được tích hợp thông qua tầng service của backend.
+
+Cách tổ chức này giúp tách biệt phần giao diện, phần xử lý nghiệp vụ và phần lưu trữ dữ liệu. Frontend web tập trung vào các màn hình phục vụ khách, người dùng đã đăng nhập, quản trị viên và nhân viên. Ứng dụng Android scanner tập trung vào nghiệp vụ quét mã QR, xác minh vé và ghi nhận check-in. Backend đảm nhiệm xác thực, phân quyền, xử lý nghiệp vụ, thao tác với cơ sở dữ liệu và gọi các dịch vụ ngoài khi cần thiết. Nhờ đó, các client khác nhau có thể dùng chung một lớp API và cùng tuân theo cơ chế phân quyền của hệ thống.
+
+Kiến trúc này phù hợp với bốn nhóm actor của TheWeekend. Khách có thể truy cập các trang công khai và thực hiện đăng ký, đăng nhập. Người dùng đã đăng nhập có thể tìm kiếm địa điểm, xem chi tiết, nhận gợi ý, hỏi đáp với chatbot, đánh giá, lưu yêu thích, đặt vé và xem vé. Quản trị viên sử dụng các chức năng quản lý người dùng, địa điểm, ảnh đánh giá, vé và thanh toán. Nhân viên sử dụng chức năng kiểm tra vé và ứng dụng scanner để thực hiện check-in. Sơ đồ kiến trúc tổng thể của hệ thống được minh họa trong Hình~\ref{fig:architecture-overview}.
+
+\begin{figure}[H]
+    \centering
+    \IfFileExists{figures/architecture_overview.png}{\includegraphics[width=\textwidth,height=0.85\textheight,keepaspectratio]{figures/architecture_overview.png}}{\fbox{\parbox{0.9\textwidth}{\centering [Hình chưa sẵn sàng: \texttt{architecture\_overview.png}]}}}
+    \caption{Sơ đồ kiến trúc tổng thể hệ thống TheWeekend}
+    \label{fig:architecture-overview}
+\end{figure}
+
+\subsection{Thiết kế tổng quan}
+
+Ở mức tổng quan, TheWeekend được chia thành các phân hệ chính theo nhóm nghiệp vụ. Các phân hệ này bao gồm tài khoản và xác thực, địa điểm, gợi ý và chatbot, đánh giá và ảnh đánh giá, yêu thích, đặt vé và thanh toán, vé QR và check-in, quản trị và thông báo. Mỗi phân hệ đảm nhiệm một nhóm chức năng riêng nhưng vẫn liên kết với nhau thông qua dữ liệu người dùng, địa điểm, vé và trạng thái giao dịch. Sơ đồ phân hệ tổng quan được trình bày trong Hình~\ref{fig:module-overview}.
+
+\begin{figure}[H]
+    \centering
+    \IfFileExists{figures/module_overview.png}{\includegraphics[width=\textwidth,height=0.85\textheight,keepaspectratio]{figures/module_overview.png}}{\fbox{\parbox{0.9\textwidth}{\centering [Hình chưa sẵn sàng: \texttt{module\_overview.png}]}}}
+    \caption{Sơ đồ phân hệ tổng quan của TheWeekend}
+    \label{fig:module-overview}
+\end{figure}
+
+
+\begin{table}[H]
+\centering
+\caption{Các phân hệ chính của TheWeekend}
+\label{tab:theweekend-modules}
+\scriptsize
+\renewcommand{\arraystretch}{1.15}
+\setlength{\tabcolsep}{3pt}
+\begin{tabularx}{\textwidth}{|L{2.4cm}|Y|L{2.4cm}|L{3.0cm}|}
+\hline
+\textbf{Phân hệ} & \textbf{Chức năng chính} & \textbf{Actor sử dụng} & \textbf{Thành phần tiêu biểu} \\
+\hline
+Tài khoản và xác thực & Đăng ký, đăng nhập, đăng nhập Google, quên mật khẩu, đặt lại mật khẩu, cập nhật hồ sơ, đổi mật khẩu, cập nhật vị trí và phân quyền. & Khách, người dùng, quản trị viên, nhân viên & Route xác thực, model người dùng, trang tài khoản. \\
+\hline
+Địa điểm & Tìm kiếm, xem danh sách, xem chi tiết, tìm gần vị trí, quản trị địa điểm và thêm địa điểm từ Goong. & Khách, người dùng, quản trị viên & Route địa điểm, service Goong, model địa điểm, trang địa điểm. \\
+\hline
+Gợi ý và chatbot & Gợi ý địa điểm và hỏi đáp dựa trên dữ liệu nội bộ của hệ thống. & Người dùng & Trang gợi ý, widget chatbot, route và service chatbot. \\
+\hline
+Đánh giá và ảnh đánh giá & Xem, gửi, sửa, xóa đánh giá; gửi ảnh đánh giá; quản trị viên duyệt hoặc từ chối ảnh. & Người dùng, quản trị viên & Route đánh giá, model đánh giá, model ảnh đánh giá. \\
+\hline
+Yêu thích & Lưu hoặc bỏ lưu địa điểm yêu thích và xem danh sách yêu thích. & Người dùng & Trường yêu thích của người dùng, route tài khoản, trang yêu thích. \\
+\hline
+Đặt vé và thanh toán & Lấy loại vé, tạo booking, tạo thanh toán PayOS, kiểm tra trạng thái thanh toán và xem đơn vé. & Người dùng, quản trị viên, nhân viên & Route vé, service ticketing, model booking/payment/ticket type. \\
+\hline
+Vé QR và check-in & Phát hành vé QR, xác minh vé và ghi nhận vé đã sử dụng. & Người dùng, nhân viên, quản trị viên & Model vé, route check-in, ứng dụng Android scanner. \\
+\hline
+Quản trị & Quản lý người dùng, địa điểm, tag, ảnh đánh giá, đơn vé, thanh toán và loại vé. & Quản trị viên, nhân viên với nghiệp vụ vé & Route quản trị, trang quản trị người dùng, địa điểm và vé. \\
+\hline
+Thông báo & Tạo, xem, đánh dấu đã đọc và xóa thông báo người dùng. & Người dùng & Route thông báo, service thông báo, model notification. \\
+\hline
+\end{tabularx}
+\end{table}
+
+Bảng~\ref{tab:theweekend-modules} cho thấy các phân hệ của TheWeekend được tổ chức theo nghiệp vụ và actor sử dụng. Các phân hệ không hoạt động tách rời hoàn toàn mà có quan hệ dữ liệu với nhau. Ví dụ, phân hệ đặt vé sử dụng dữ liệu người dùng, địa điểm và loại vé; phân hệ check-in sử dụng dữ liệu vé đã phát hành; phân hệ chatbot sử dụng dữ liệu địa điểm, đánh giá và tag để hỗ trợ trả lời câu hỏi của người dùng.
+
+\subsection{Thiết kế chi tiết gói}
+
+Mã nguồn của TheWeekend được tổ chức thành ba khu vực chính: backend, frontend và Android scanner. Backend chứa các route API, model dữ liệu, service nghiệp vụ, middleware xác thực và thư mục lưu ảnh tải lên. Frontend chứa các trang giao diện, component dùng lại, lớp gọi API, router và các hàm tiện ích. Ứng dụng Android scanner chứa các lớp xử lý giao diện chính, gọi API, lưu phiên đăng nhập và quét mã QR. Cách tổ chức gói chính của hệ thống được minh họa trong Hình~\ref{fig:package-diagram}.
+
+\begin{figure}[H]
+    \centering
+    \IfFileExists{figures/package_diagram.png}{\includegraphics[width=\textwidth,height=0.85\textheight,keepaspectratio]{figures/package_diagram.png}}{\fbox{\parbox{0.9\textwidth}{\centering [Hình chưa sẵn sàng: \texttt{package\_diagram.png}]}}}
+    \caption{Sơ đồ tổ chức gói chính của hệ thống}
+    \label{fig:package-diagram}
+\end{figure}
+
+
+\begin{table}[H]
+\centering
+\caption{Các gói và module chính trong mã nguồn}
+\label{tab:package-modules}
+\scriptsize
+\renewcommand{\arraystretch}{1.15}
+\setlength{\tabcolsep}{3pt}
+\begin{tabularx}{\textwidth}{|L{2.2cm}|L{2.5cm}|Y|L{3.2cm}|}
+\hline
+\textbf{Khu vực} & \textbf{Gói/module} & \textbf{Vai trò} & \textbf{Ví dụ thành phần} \\
+\hline
+Backend & \texttt{routes} & Định nghĩa REST API theo nhóm nghiệp vụ. & Xác thực, địa điểm, đánh giá, vé, quản trị. \\
+\hline
+Backend & \texttt{models} & Định nghĩa schema Mongoose cho dữ liệu nghiệp vụ. & User, Place, Review, Booking, Payment, Ticket. \\
+\hline
+Backend & \texttt{services} & Xử lý nghiệp vụ hoặc tích hợp dịch vụ ngoài. & Goong, chatbot, ticketing, email, notification. \\
+\hline
+Backend & \texttt{middleware} & Xác thực và phân quyền request. & Middleware auth và kiểm tra vai trò. \\
+\hline
+Backend & \texttt{uploads} & Lưu trữ ảnh được tải lên. & Ảnh địa điểm và ảnh đánh giá. \\
+\hline
+Frontend & \texttt{pages} & Chứa các màn hình chính của ứng dụng web. & Trang chủ, chi tiết địa điểm, gợi ý, vé, quản trị. \\
+\hline
+Frontend & \texttt{components} & Chứa component dùng lại trong giao diện. & Navbar, place card, chatbot, ticket card, data table. \\
+\hline
+Frontend & \texttt{api} & Cung cấp các hàm gọi API backend. & Auth, places, reviews, tickets, admin. \\
+\hline
+Frontend & \texttt{router} & Định tuyến và kiểm soát truy cập theo vai trò. & Router guard cho user/admin/staff. \\
+\hline
+Frontend & \texttt{utils} & Chứa hàm tiện ích cho API base, session, định dạng và xử lý hiển thị. & API base, auth session, format giá. \\
+\hline
+Scanner Android & Package Java & Xử lý đăng nhập, gọi API, quét QR, xác minh và check-in vé. & MainActivity, ApiClient, SessionManager. \\
+\hline
+Scanner Android & Resources & Lưu cấu hình giao diện Android. & Values và drawable. \\
+\hline
+\end{tabularx}
+\end{table}
+
+Bảng~\ref{tab:package-modules} tóm tắt vai trò của các gói chính. Backend được tổ chức theo hướng tách route, model, service và middleware, giúp tách phần định tuyến API khỏi xử lý nghiệp vụ và dữ liệu. Frontend được tổ chức theo trang, component và API client, phù hợp với cách xây dựng giao diện theo component. Scanner Android có phạm vi nhỏ hơn, tập trung vào đăng nhập, lưu phiên, quét QR và gửi yêu cầu xác minh vé tới backend.
+
+\section{Thiết kế chi tiết}
+
+\subsection{Thiết kế giao diện}
+
+Giao diện của TheWeekend được chia thành ba nhóm chính: giao diện người dùng, giao diện quản trị và giao diện Android scanner. Giao diện người dùng phục vụ các thao tác tìm kiếm địa điểm, xem chi tiết, nhận gợi ý, hỏi đáp, đánh giá, yêu thích, đặt vé và xem vé. Giao diện quản trị phục vụ quản lý người dùng, địa điểm, ảnh đánh giá, vé và thanh toán. Giao diện Android scanner phục vụ nhân viên hoặc quản trị viên trong quy trình quét QR và check-in vé.
+
+Về nguyên tắc trình bày, nhóm giao diện người dùng ưu tiên bố cục dễ tra cứu, các khối thông tin địa điểm rõ ràng, nút thao tác như xem chi tiết, lưu yêu thích, đánh giá và đặt vé được đặt gần ngữ cảnh sử dụng. Nhóm giao diện quản trị ưu tiên dạng bảng, biểu mẫu và thao tác quản lý dữ liệu để thuận tiện theo dõi nhiều bản ghi. Nhóm giao diện scanner tập trung vào thao tác nhanh, hiển thị trạng thái xác minh vé và phản hồi kết quả check-in rõ ràng. Màu sắc và nút thao tác được sử dụng nhất quán theo từng nhóm chức năng; các thông báo phản hồi được hiển thị sau các thao tác cần xác nhận như gửi đánh giá, tạo đơn vé, thanh toán hoặc check-in.
+
+
+\begin{table}[H]
+\centering
+\caption{Các màn hình chính của hệ thống}
+\label{tab:ui-screens}
+\scriptsize
+\renewcommand{\arraystretch}{1.15}
+\setlength{\tabcolsep}{3pt}
+\begin{tabularx}{\textwidth}{|L{2.5cm}|L{3.0cm}|Y|}
+\hline
+\textbf{Nhóm giao diện} & \textbf{Màn hình} & \textbf{Chức năng chính} \\
+\hline
+Người dùng & Trang chủ & Hiển thị nội dung chính và dữ liệu khám phá. \\
+\hline
+Người dùng & Tìm kiếm/danh sách địa điểm & Tra cứu địa điểm và xem danh sách kết quả. \\
+\hline
+Người dùng & Chi tiết địa điểm & Xem thông tin địa điểm, đánh giá, yêu thích và đặt vé nếu có. \\
+\hline
+Người dùng & Gợi ý địa điểm & Hiển thị địa điểm được gợi ý từ dữ liệu hệ thống. \\
+\hline
+Người dùng & Chatbot & Hỏi đáp với chatbot dựa trên dữ liệu nội bộ. \\
+\hline
+Người dùng & Yêu thích, vé và thanh toán & Xem địa điểm đã lưu, theo dõi đơn vé, xem vé QR và trạng thái thanh toán. \\
+\hline
+Người dùng & Tài khoản & Đăng nhập, đăng ký, quên mật khẩu, đặt lại mật khẩu, sửa hồ sơ và đổi mật khẩu. \\
+\hline
+Quản trị & Dashboard và quản lý dữ liệu & Quản lý người dùng, địa điểm, ảnh đánh giá, vé và thanh toán. \\
+\hline
+Android scanner & Đăng nhập, quét QR và check-in & Nhập API URL, đăng nhập, quét mã QR, hiển thị kết quả xác minh và xác nhận vào cổng. \\
+\hline
+\end{tabularx}
+\end{table}
+
+Bảng~\ref{tab:ui-screens} liệt kê các màn hình chính đã xác nhận trong phạm vi triển khai. Các màn hình này bao quát ba nhóm giao diện chính của hệ thống: giao diện người dùng, giao diện quản trị và giao diện Android scanner. Giao diện được tổ chức theo từng luồng nghiệp vụ, ưu tiên các thao tác rõ ràng, thông tin phản hồi trực tiếp và phân tách khu vực người dùng với khu vực quản trị.
+
+\subsection{Thiết kế lớp}
+
+Các model chính của TheWeekend được định nghĩa bằng Mongoose ở backend. Các model này biểu diễn những thực thể nghiệp vụ như người dùng, địa điểm, đánh giá, đơn đặt vé, thanh toán, vé điện tử và thông báo. Sơ đồ quan hệ các model chính được trình bày trong Hình~\ref{fig:schema-diagram}.
+
+\begin{figure}[H]
+    \centering
+    \IfFileExists{figures/schema_diagram.png}{\includegraphics[width=\textwidth,height=0.85\textheight,keepaspectratio]{figures/schema_diagram.png}}{\fbox{\parbox{0.9\textwidth}{\centering [Hình chưa sẵn sàng: \texttt{schema\_diagram.png}]}}}
+    \caption{Sơ đồ quan hệ các model chính trong hệ thống}
+    \label{fig:schema-diagram}
+\end{figure}
+
+
+\begin{table}[H]
+\centering
+\caption{Các model chính của hệ thống}
+\label{tab:main-models}
+\scriptsize
+\renewcommand{\arraystretch}{1.15}
+\setlength{\tabcolsep}{3pt}
+\begin{tabularx}{\textwidth}{|L{2.8cm}|Y|Y|}
+\hline
+\textbf{Model} & \textbf{Vai trò nghiệp vụ} & \textbf{Quan hệ hoặc dữ liệu liên quan} \\
+\hline
+\texttt{User} & Lưu tài khoản, hồ sơ, vai trò, vị trí, lịch sử tìm kiếm và yêu thích. & Được tham chiếu bởi đánh giá, booking, payment, ticket, notification và ảnh đánh giá. \\
+\hline
+\texttt{Place} & Lưu thông tin địa điểm vui chơi. & Liên quan category, review, booking, ticket, ticket type và ảnh đánh giá. \\
+\hline
+\texttt{Review} & Lưu đánh giá của người dùng cho địa điểm. & Tham chiếu người dùng và địa điểm; liên quan ảnh đánh giá. \\
+\hline
+\makecell[l]{\texttt{ReviewImage}\\\texttt{Submission}} & Lưu ảnh đánh giá được gửi và trạng thái xử lý. & Tham chiếu review, địa điểm, người gửi và người duyệt. \\
+\hline
+\texttt{Category}, \texttt{Tag} & Phân loại địa điểm, hỗ trợ tìm kiếm, gợi ý và chatbot. & Được sử dụng cùng dữ liệu địa điểm. \\
+\hline
+\texttt{Booking} & Lưu đơn đặt vé. & Tham chiếu người dùng, địa điểm, payment và các loại vé trong đơn. \\
+\hline
+\makecell[l]{\texttt{Payment},\\\texttt{PaymentLog}} & Lưu giao dịch thanh toán PayOS và log sự kiện thanh toán. & Liên quan booking, người dùng và trạng thái giao dịch. \\
+\hline
+\makecell[l]{\texttt{Ticket},\\\texttt{TicketType}} & Lưu vé điện tử, QR payload và loại vé của địa điểm. & Tham chiếu booking, người dùng, địa điểm và loại vé. \\
+\hline
+\texttt{Notification} & Lưu thông báo cho người dùng. & Tham chiếu người nhận thông báo. \\
+\hline
+\end{tabularx}
+\end{table}
+
+Bảng~\ref{tab:main-models} thể hiện các model nghiệp vụ chính và quan hệ giữa chúng. Nhóm model địa điểm và đánh giá phục vụ nghiệp vụ tìm kiếm, xem chi tiết và phản hồi của người dùng. Nhóm model booking, payment, payment log, ticket type và ticket phục vụ quy trình đặt vé, thanh toán, phát hành vé QR và check-in. Model notification phục vụ việc ghi nhận thông báo gắn với từng người dùng.
+
+\subsection{Thiết kế cơ sở dữ liệu}
+
+TheWeekend sử dụng MongoDB để lưu trữ dữ liệu và Mongoose để định nghĩa schema ở tầng backend. Mỗi model Mongoose tương ứng với một collection trong cơ sở dữ liệu. Cách tổ chức này phù hợp với dữ liệu dạng document, trong đó các thực thể như địa điểm, đánh giá, booking, payment và ticket có nhiều nhóm thuộc tính nghiệp vụ khác nhau.
+
+
+\begin{table}[H]
+\centering
+\caption{Các collection chính trong cơ sở dữ liệu}
+\label{tab:mongodb-collections}
+\scriptsize
+\renewcommand{\arraystretch}{1.15}
+\setlength{\tabcolsep}{3pt}
+\begin{tabularx}{\textwidth}{|L{2.8cm}|Y|Y|Y|}
+\hline
+\textbf{Collection} & \textbf{Mục đích} & \textbf{Quan hệ chính} & \textbf{Nghiệp vụ sử dụng} \\
+\hline
+\texttt{users} & Lưu tài khoản và hồ sơ người dùng. & Được nhiều collection tham chiếu. & Xác thực, phân quyền, yêu thích, đánh giá, đặt vé, check-in. \\
+\hline
+\texttt{places} & Lưu địa điểm và thông tin mô tả. & Liên quan category, review, booking, ticket. & Tìm kiếm, chi tiết, gợi ý, quản trị địa điểm. \\
+\hline
+\makecell[l]{\texttt{reviews},\\\texttt{reviewimage}\\\texttt{submissions}} & Lưu đánh giá và ảnh đánh giá chờ xử lý hoặc đã xử lý. & Tham chiếu người dùng, địa điểm và review. & Đánh giá địa điểm, duyệt hoặc từ chối ảnh. \\
+\hline
+\texttt{categories}, \texttt{tags} & Lưu danh mục và tag. & Dùng cùng dữ liệu địa điểm. & Phân loại, tìm kiếm, gợi ý và quản trị tag. \\
+\hline
+\texttt{homecontents} & Lưu nội dung trang chủ. & Chưa thấy quan hệ model trực tiếp. & Hiển thị nội dung trang chủ. \\
+\hline
+\makecell[l]{\texttt{bookings},\\\texttt{payments},\\\texttt{paymentlogs}} & Lưu đơn đặt vé, giao dịch và log thanh toán. & Tham chiếu người dùng, địa điểm, booking và payment. & Đặt vé, thanh toán PayOS, quản trị giao dịch. \\
+\hline
+\makecell[l]{\texttt{tickets},\\\texttt{tickettypes}} & Lưu vé điện tử và loại vé. & Tham chiếu booking, người dùng, địa điểm và ticket type. & Vé QR, chọn loại vé và check-in. \\
+\hline
+\texttt{notifications} & Lưu thông báo. & Tham chiếu người dùng. & Thông báo người dùng. \\
+\hline
+\end{tabularx}
+\end{table}
+
+Bảng~\ref{tab:mongodb-collections} trình bày các collection chính của hệ thống. Các collection được tổ chức theo các cụm nghiệp vụ: tài khoản, địa điểm và đánh giá, đặt vé và thanh toán, vé QR và thông báo. Trong mô hình dữ liệu có các trạng thái liên quan đến booking, payment và ticket như pending, paid, expired, cancelled, refunded hoặc used. Tuy nhiên, chính sách nghiệp vụ chi tiết về hủy vé, hoàn tiền và vòng đời đầy đủ của booking/payment/ticket chưa đủ dữ liệu để kết luận. Vì vậy, báo cáo chỉ mô tả các trạng thái ở mức mô hình dữ liệu.
+
+Quan hệ giữa các collection được thể hiện qua các trường tham chiếu trong schema Mongoose. Cụ thể, một người dùng (\texttt{User}) là chủ thể tạo ra các đánh giá, đơn đặt vé, thanh toán, vé và thông báo gắn với mình; danh sách địa điểm yêu thích được lưu trực tiếp dưới dạng mảng định danh địa điểm trong tài liệu người dùng, không phải một collection riêng. Một địa điểm (\texttt{Place}) liên kết tới một danh mục (\texttt{Category}) và một tập thẻ (\texttt{Tag}), đồng thời được tham chiếu bởi đánh giá, loại vé (\texttt{TicketType}), đơn đặt vé và vé. Một đơn đặt vé (\texttt{Booking}) tham chiếu tới người dùng, địa điểm, một giao dịch thanh toán (\texttt{Payment}) và là gốc để sinh ra các vé (\texttt{Ticket}) sau khi thanh toán thành công. Một giao dịch thanh toán gắn với một đơn đặt vé và được ghi vết qua các bản ghi nhật ký thanh toán (\texttt{PaymentLog}). Mỗi vé tham chiếu tới đơn đặt vé, người dùng và địa điểm, đồng thời là đối tượng được sử dụng trong nghiệp vụ check-in. Mỗi đánh giá (\texttt{Review}) có thể đi kèm các ảnh đánh giá chờ duyệt (\texttt{ReviewImageSubmission}). Sơ đồ quan hệ tổng quát đã được trình bày trong Hình~\ref{fig:schema-diagram}.
+
+Về chỉ mục, các schema hiện đã định nghĩa nhiều chỉ mục phục vụ ràng buộc duy nhất và truy vấn theo nghiệp vụ. Bảng~\ref{tab:db-indexes} tổng hợp các chỉ mục chính theo từng collection. Cần lưu ý rằng collection \texttt{places} hiện chỉ có ràng buộc duy nhất trên \texttt{placeId} mà chưa có chỉ mục phục vụ tìm kiếm theo tên, địa chỉ, thẻ hoặc danh mục; việc bổ sung các chỉ mục này được nêu như một đề xuất tối ưu, chưa được triển khai trong phạm vi đồ án.
+
+\begingroup
+\scriptsize
+\renewcommand{\arraystretch}{1.35}
+\setlength{\tabcolsep}{5pt}
+\begin{longtable}{|L{3.0cm}|L{6.1cm}|L{4.5cm}|}
+\caption{Các chỉ mục chính theo collection}\label{tab:db-indexes}\\
+\hline
+\textbf{Collection} & \textbf{Chỉ mục/ràng buộc chính} & \textbf{Mục đích} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Collection} & \textbf{Chỉ mục/ràng buộc chính} & \textbf{Mục đích} \\
+\hline
+\endhead
+\texttt{users} & Duy nhất: \texttt{username}, \texttt{email}; duy nhất thưa: \texttt{googleId}. & Bảo đảm tài khoản và email không trùng; hỗ trợ đăng nhập Google. \\
+\hline
+\texttt{places} & Duy nhất: \texttt{placeId}. Chưa có chỉ mục cho \texttt{name}, \texttt{address}, \texttt{tags}, \texttt{category}. & Định danh địa điểm theo nguồn dữ liệu; chỉ mục tìm kiếm là đề xuất tối ưu. \\
+\hline
+\texttt{categories} & Duy nhất: \texttt{name}, \texttt{nameNorm}; ghép \texttt{(active, sortOrder, name)}. & Tránh trùng danh mục; liệt kê danh mục đang hoạt động. \\
+\hline
+\texttt{tags} & Duy nhất: \texttt{nameNorm}; chỉ mục \texttt{name}. & Tránh trùng thẻ và hỗ trợ tra cứu thẻ. \\
+\hline
+\texttt{reviews} & Chỉ mục \texttt{place}, \texttt{user}. & Lấy đánh giá theo địa điểm và theo người dùng. \\
+\hline
+\makecell[l]{\texttt{reviewimage}\\\texttt{submissions}} & Ghép \texttt{(review,} \texttt{createdAt)}, \texttt{(place,} \texttt{createdAt)}, \texttt{(status,} \texttt{createdAt)}. & Truy vấn ảnh đánh giá theo review, địa điểm và trạng thái duyệt. \\
+\hline
+\texttt{bookings} & Duy nhất: \texttt{code}; chỉ mục \texttt{user}, \texttt{place}, \texttt{visitDate}, \texttt{status}, \texttt{expiresAt}; ghép \texttt{(user, createdAt)}, \texttt{(place, visitDate)}. & Định danh đơn; truy vấn đơn theo người dùng, địa điểm, ngày đi và trạng thái. \\
+\hline
+\texttt{payments} & Duy nhất: \texttt{orderRef}, ghép duy nhất \texttt{(provider, orderRef)}; chỉ mục \texttt{booking}, \texttt{user}, \texttt{provider}, \texttt{status}, \texttt{providerTransactionId}, \texttt{expiresAt}; ghép \texttt{(booking, createdAt)}. & Định danh giao dịch và đối chiếu webhook; truy vấn giao dịch theo đơn và trạng thái. \\
+\hline
+\texttt{paymentlogs} & Duy nhất: \texttt{idempotencyKey}; chỉ mục \texttt{payment}, \texttt{booking}, \texttt{provider}; ghép \texttt{(provider, event, createdAt)}. & Chống xử lý trùng webhook; lưu vết sự kiện thanh toán. \\
+\hline
+\texttt{tickets} & Duy nhất: \texttt{code}, ghép duy nhất \texttt{(booking, lineIndex)}; chỉ mục \texttt{booking}, \texttt{user}, \texttt{place}, \texttt{visitDate}, \texttt{status}. & Định danh vé; tra cứu vé theo đơn, người dùng, địa điểm và trạng thái phục vụ check-in. \\
+\hline
+\texttt{tickettypes} & Chỉ mục \texttt{place}; ghép \texttt{(place, audience, active)}. & Lấy loại vé đang hoạt động theo địa điểm và nhóm đối tượng. \\
+\hline
+\texttt{notifications} & Chỉ mục \texttt{user}; ghép \texttt{(user, createdAt)}, \texttt{(user, read, createdAt)}. & Lấy thông báo theo người dùng và theo trạng thái đã đọc. \\
+\hline
+\end{longtable}
+\endgroup
+
+\section{Xây dựng ứng dụng}
+
+\subsection{Thư viện và công cụ sử dụng}
+
+Trong quá trình xây dựng TheWeekend, các thư viện và công cụ được lựa chọn theo từng thành phần của hệ thống. Frontend sử dụng các thư viện phục vụ xây dựng giao diện, định tuyến và gọi API. Backend sử dụng các thư viện phục vụ xây dựng REST API, kết nối cơ sở dữ liệu, xác thực, upload ảnh, gửi email và tích hợp dịch vụ ngoài. Ứng dụng Android scanner sử dụng các thư viện phục vụ giao diện Android, gọi API và quét mã QR. Bảng~\ref{tab:implementation-libraries} trình bày các thư viện và công cụ chính được sử dụng trong quá trình triển khai.
+
+
+\begin{table}[H]
+\centering
+\caption{Thư viện và công cụ sử dụng trong triển khai}
+\label{tab:implementation-libraries}
+\scriptsize
+\renewcommand{\arraystretch}{1.15}
+\setlength{\tabcolsep}{3pt}
+\begin{tabularx}{\textwidth}{|L{2.8cm}|L{2.3cm}|L{2.2cm}|Y|}
+\hline
+\textbf{Thư viện/công cụ} & \textbf{Phần sử dụng} & \textbf{Phiên bản} & \textbf{Vai trò trong triển khai} \\
+\hline
+Vue 3 & Frontend & \texttt{\string^3.2.13} & Xây dựng giao diện web theo component. \\
+\hline
+Vue Router & Frontend & \texttt{\string^4.6.3} & Định tuyến trang và kiểm soát truy cập theo vai trò ở phía giao diện. \\
+\hline
+Axios & Frontend & \texttt{\string^1.13.2} & Gọi API, chủ yếu trong nhóm chức năng quản trị. \\
+\hline
+Fetch API & Frontend & Theo trình duyệt & Gọi API cho nghiệp vụ người dùng, địa điểm, vé, chatbot và thông báo. \\
+\hline
+\texttt{qrcode} & Frontend/Backend & \texttt{\string^1.5.4} & Hỗ trợ biểu diễn hoặc tạo mã QR cho vé. \\
+\hline
+Node.js & Backend & Theo môi trường chạy & Môi trường chạy backend. \\
+\hline
+Express & Backend & \texttt{\string^5.1.0} & Xây dựng REST API cho các nghiệp vụ của hệ thống. \\
+\hline
+Mongoose & Backend & \texttt{\string^8.19.4} & Định nghĩa schema và thao tác với MongoDB. \\
+\hline
+bcrypt & Backend & \texttt{\string^6.0.0} & Băm mật khẩu trong nghiệp vụ tài khoản. \\
+\hline
+jsonwebtoken & Backend & \texttt{\string^9.0.3} & Tạo và kiểm tra JWT trong xác thực/phân quyền. \\
+\hline
+multer & Backend & \texttt{\string^2.0.2} & Xử lý upload ảnh địa điểm hoặc ảnh đánh giá. \\
+\hline
+node-fetch & Backend & \texttt{\string^2.6.7} & Gọi dịch vụ ngoài từ backend. \\
+\hline
+nodemailer & Backend & \texttt{\string^6.9.4} & Gửi email liên quan đến nghiệp vụ hệ thống. \\
+\hline
+google-auth-library & Backend & \texttt{\string^10.7.0} & Hỗ trợ đăng nhập Google. \\
+\hline
+concurrently & Công cụ phát triển & Theo \texttt{package.json} & Chạy đồng thời frontend và backend khi phát triển cục bộ. \\
+\hline
+Android Gradle Plugin & Scanner Android & Theo \texttt{build.gradle} & Build ứng dụng Android scanner. \\
+\hline
+AppCompat & Scanner Android & \texttt{1.7.0} & Hỗ trợ giao diện Android. \\
+\hline
+OkHttp & Scanner Android & \texttt{4.12.0} & Gửi request từ scanner tới backend. \\
+\hline
+ZXing Android Embedded & Scanner Android & \texttt{4.3.0} & Quét mã QR bằng camera. \\
+\hline
+\end{tabularx}
+\end{table}
+
+Bảng~\ref{tab:implementation-libraries} chỉ tập trung vào vai trò triển khai của các thư viện và công cụ. Phần nền tảng lý thuyết của các công nghệ chính đã được trình bày ở Chương 3, do đó mục này không lặp lại mô tả lý thuyết mà nhấn mạnh vị trí sử dụng trong hệ thống.
+
+\subsection{Kết quả đạt được}
+
+Dựa trên các yêu cầu chức năng đã phân tích ở Chương 2, hệ thống TheWeekend đã xây dựng các nhóm chức năng chính liên quan đến tài khoản, địa điểm, gợi ý, chatbot, đánh giá, yêu thích, đặt vé, thanh toán, vé QR, check-in và quản trị. Từ cấu trúc mã nguồn hiện có, có thể thống kê ở mức tổng quan một số thành phần triển khai chính như trong Bảng~\ref{tab:implementation-stats}. Bảng này chỉ phản ánh số lượng thành phần theo thư mục và phân hệ đã xác định, không thay thế cho thống kê số dòng mã nguồn hoặc đánh giá độ phức tạp triển khai. Hiện chưa đủ dữ liệu để thống kê chính xác số dòng code hoặc dung lượng mã nguồn theo từng phân hệ.
+
+Tiếp theo, Bảng~\ref{tab:implementation-results} đối chiếu các nhóm yêu cầu với thành phần triển khai tương ứng trong hệ thống. Bảng này tập trung vào kết quả xây dựng chức năng; kết quả kiểm thử thủ công được trình bày riêng ở Mục~\ref{sec:testing}. Báo cáo không đưa ra kết quả kiểm thử định lượng vì chưa thực hiện kiểm thử hiệu năng hoặc kiểm thử tải.
+
+\begin{table}[H]
+\centering
+\caption{Thống kê tổng quan thành phần triển khai}
+\label{tab:implementation-stats}
+\small
+\renewcommand{\arraystretch}{1.15}
+\setlength{\tabcolsep}{4pt}
+\begin{tabularx}{\textwidth}{|L{3.6cm}|L{2.4cm}|Y|}
+\hline
+\textbf{Hạng mục} & \textbf{Số lượng} & \textbf{Cơ sở thống kê} \\
+\hline
+Model chính & 13 & Các file model trong thư mục \texttt{backend/models}. \\
+\hline
+Nhóm route/API & 11 & Các file route trong thư mục \texttt{backend/routes}. \\
+\hline
+Trang frontend chính & 19 & Các file \texttt{.vue} trong thư mục \texttt{frontend/src/pages}. \\
+\hline
+Phân hệ chính & 9 & Các phân hệ nghiệp vụ đã mô tả trong Bảng~\ref{tab:theweekend-modules}. \\
+\hline
+Màn hình scanner chính & 3 & Đăng nhập, quét QR và hiển thị kết quả xác minh/check-in. \\
+\hline
+\end{tabularx}
+\end{table}
+
+
+
+\begin{table}[H]
+\centering
+\caption{Đối chiếu yêu cầu chức năng và thành phần đã xây dựng}
+\label{tab:implementation-results}
+\scriptsize
+\renewcommand{\arraystretch}{1.15}
+\setlength{\tabcolsep}{3pt}
+\begin{tabularx}{\textwidth}{|L{2.8cm}|Y|L{2.0cm}|Y|}
+\hline
+\textbf{Nhóm chức năng} & \textbf{Mô tả kết quả triển khai} & \textbf{Trạng thái} & \textbf{Ghi chú} \\
+\hline
+Tài khoản và phân quyền & Đăng ký, đăng nhập, đăng nhập Google, quên/đặt lại mật khẩu, hồ sơ, đổi mật khẩu; phân quyền user/admin/staff. & Đã triển khai & Có route, model người dùng, middleware và route guard tương ứng. \\
+\hline
+Địa điểm & Tìm kiếm, xem danh sách, xem chi tiết và xem địa điểm gần vị trí. & Đã triển khai & Có API search, nearby, all và details/place. \\
+\hline
+Gợi ý địa điểm & Hiển thị danh sách địa điểm được gợi ý dựa trên dữ liệu nội bộ. & Đã triển khai & Chưa có đánh giá định lượng về cơ chế gợi ý. \\
+\hline
+Chatbot & Hỏi đáp dựa trên dữ liệu nội bộ và Gemini API. & Đã triển khai & Có truy hồi dữ liệu MongoDB và gọi Gemini API. \\
+\hline
+Đánh giá và ảnh đánh giá & Xem, tạo, sửa, xóa, phản ứng với đánh giá; gửi và duyệt/từ chối ảnh đánh giá. & Đã triển khai & Có trạng thái pending, approved và rejected cho ảnh. \\
+\hline
+Yêu thích & Lưu hoặc bỏ lưu địa điểm yêu thích. & Đã triển khai & Lưu theo thông tin yêu thích trong tài khoản người dùng. \\
+\hline
+Đặt vé, thanh toán và vé QR & Tạo booking, tạo giao dịch PayOS, kiểm tra trạng thái, phát hành vé QR. & Đã triển khai & Có webhook và kiểm tra trạng thái thanh toán; không mô tả chính sách hủy/hoàn tiền. \\
+\hline
+Check-in QR & Xác minh vé và ghi nhận vé đã sử dụng bằng web/admin API và Android scanner. & Đã triển khai & Nhân viên hoặc quản trị viên được phép check-in. \\
+\hline
+Quản trị và thông báo & Quản lý người dùng, địa điểm, ảnh đánh giá, vé, thanh toán; tạo và xem thông báo. & Đã triển khai & Phân quyền theo vai trò. \\
+\hline
+\end{tabularx}
+\end{table}
+
+Đối với nhóm chức năng địa điểm, quy trình tìm kiếm và xem chi tiết bắt đầu khi người dùng nhập từ khóa hoặc chọn tiêu chí lọc trên frontend. Frontend gửi yêu cầu tới backend, backend truy vấn dữ liệu địa điểm trong MongoDB và trả về danh sách kết quả. Khi người dùng chọn một địa điểm, frontend tiếp tục gọi API chi tiết để hiển thị thông tin đầy đủ, đánh giá và các dữ liệu liên quan. Luồng tương tác này được minh họa trong Hình~\ref{fig:sequence-place-search-detail}.
+
+\begin{figure}[H]
+    \centering
+    \IfFileExists{figures/sequence_place_search_detail.png}{\includegraphics[width=\textwidth,height=0.85\textheight,keepaspectratio]{figures/sequence_place_search_detail.png}}{\fbox{\parbox{0.9\textwidth}{\centering [Hình chưa sẵn sàng: \texttt{sequence\_place\_search\_detail.png}]}}}
+    \caption{Sequence diagram quy trình tìm kiếm và xem chi tiết địa điểm}
+    \label{fig:sequence-place-search-detail}
+\end{figure}
+
+Quy trình gợi ý địa điểm sử dụng dữ liệu nội bộ của hệ thống, bao gồm thông tin người dùng, vị trí nếu có, dữ liệu địa điểm, tag và đánh giá. Khi người dùng mở trang gợi ý, frontend gửi yêu cầu tới backend; backend xử lý các tiêu chí liên quan và trả về danh sách địa điểm phù hợp để frontend hiển thị. Đây là cơ chế gợi ý dựa trên dữ liệu nội bộ, chưa trình bày như một thuật toán đã được đánh giá định lượng. Luồng này được minh họa trong Hình~\ref{fig:sequence-place-suggestion}.
+
+\begin{figure}[H]
+    \centering
+    \IfFileExists{figures/sequence_place_suggestion.png}{\includegraphics[width=\textwidth,height=0.85\textheight,keepaspectratio]{figures/sequence_place_suggestion.png}}{\fbox{\parbox{0.9\textwidth}{\centering [Hình chưa sẵn sàng: \texttt{sequence\_place\_suggestion.png}]}}}
+    \caption{Sequence diagram quy trình gợi ý địa điểm}
+    \label{fig:sequence-place-suggestion}
+\end{figure}
+
+Quy trình đặt vé và thanh toán là một trong các luồng nghiệp vụ trung tâm của hệ thống. Người dùng chọn loại vé và ngày tham quan, frontend gửi yêu cầu tạo booking tới backend, backend tạo thông tin booking và payment, sau đó tạo yêu cầu thanh toán qua PayOS. Khi PayOS xác nhận giao dịch, backend cập nhật trạng thái thanh toán, cập nhật booking và phát hành vé QR. Luồng tương tác giữa các thành phần được minh họa trong Hình~\ref{fig:sequence-payment}.
+
+\begin{figure}[H]
+    \centering
+    \IfFileExists{figures/sequence_payment.png}{\includegraphics[width=\textwidth,height=0.85\textheight,keepaspectratio]{figures/sequence_payment.png}}{\fbox{\parbox{0.9\textwidth}{\centering [Hình chưa sẵn sàng: \texttt{sequence\_payment.png}]}}}
+    \caption{Sequence diagram quy trình đặt vé và thanh toán PayOS}
+    \label{fig:sequence-payment}
+\end{figure}
+
+Quy trình check-in vé được thực hiện thông qua ứng dụng Android scanner. Nhân viên hoặc quản trị viên đăng nhập vào scanner, quét mã QR trên vé, gửi mã vé tới backend để xác minh và xác nhận check-in nếu vé hợp lệ. Backend cập nhật trạng thái vé và lưu thông tin người thực hiện check-in. Luồng này được minh họa trong Hình~\ref{fig:sequence-checkin}.
+
+\begin{figure}[H]
+    \centering
+    \IfFileExists{figures/sequence_checkin.png}{\includegraphics[width=\textwidth,height=0.85\textheight,keepaspectratio]{figures/sequence_checkin.png}}{\fbox{\parbox{0.9\textwidth}{\centering [Hình chưa sẵn sàng: \texttt{sequence\_checkin.png}]}}}
+    \caption{Sequence diagram quy trình quét QR và check-in vé}
+    \label{fig:sequence-checkin}
+\end{figure}
+
+\subsection{Minh họa các chức năng chính}
+
+Ngoài các sơ đồ mô tả luồng xử lý, báo cáo bổ sung một số ảnh chụp giao diện để minh họa kết quả xây dựng các chức năng chính. Các hình dưới đây tập trung vào những màn hình đại diện cho luồng người dùng, luồng đặt vé/thanh toán, khu vực quản trị và ứng dụng Android scanner.
+
+Hình~\ref{fig:screenshot-home} minh họa trang chủ của TheWeekend. Trang chủ đóng vai trò điểm vào chính của hệ thống, hiển thị thông điệp giới thiệu, số liệu tổng quan ở mức giao diện và các nhóm địa điểm vui chơi để người dùng bắt đầu khám phá.
+
+\begin{figure}[H]
+    \centering
+    \IfFileExists{figures/screenshot_home.png}{\includegraphics[width=0.95\textwidth]{figures/screenshot_home.png}}{\fbox{\parbox{0.9\textwidth}{\centering [Cần bổ sung ảnh giao diện trang chủ]}}}
+    \caption{Giao diện trang chủ TheWeekend}
+    \label{fig:screenshot-home}
+\end{figure}
+
+Luồng tìm kiếm và xem thông tin địa điểm được minh họa trong Hình~\ref{fig:screenshot-search} và Hình~\ref{fig:screenshot-place-detail}. Người dùng có thể nhập từ khóa, lọc theo tiêu chí phù hợp, mở trang chi tiết để xem thông tin địa điểm, giá vé, tiện ích, vị trí và các thao tác liên quan.
+
+\begin{figure}[H]
+    \centering
+    \IfFileExists{figures/screenshot_search.png}{\includegraphics[width=0.95\textwidth]{figures/screenshot_search.png}}{\fbox{\parbox{0.9\textwidth}{\centering [Cần bổ sung ảnh giao diện tìm kiếm]}}}
+    \caption{Giao diện tìm kiếm địa điểm}
+    \label{fig:screenshot-search}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \IfFileExists{figures/screenshot_place_detail.png}{\includegraphics[width=0.95\textwidth]{figures/screenshot_place_detail.png}}{\fbox{\parbox{0.9\textwidth}{\centering [Cần bổ sung ảnh giao diện chi tiết địa điểm]}}}
+    \caption{Giao diện chi tiết địa điểm}
+    \label{fig:screenshot-place-detail}
+\end{figure}
+
+Hình~\ref{fig:screenshot-reviews} minh họa khu vực đánh giá từ người dùng. Phần này giúp người dùng tham khảo phản hồi về địa điểm và hỗ trợ chức năng gửi đánh giá trong phạm vi hệ thống.
+
+\begin{figure}[H]
+    \centering
+    \IfFileExists{figures/screenshot_reviews.png}{\includegraphics[width=0.95\textwidth]{figures/screenshot_reviews.png}}{\fbox{\parbox{0.9\textwidth}{\centering [Cần bổ sung ảnh giao diện đánh giá]}}}
+    \caption{Giao diện đánh giá địa điểm}
+    \label{fig:screenshot-reviews}
+\end{figure}
+
+Hình~\ref{fig:screenshot-suggestion} và Hình~\ref{fig:screenshot-chatbot} thể hiện hai chức năng hỗ trợ tra cứu theo ngữ cảnh. Trang gợi ý hiển thị các địa điểm phù hợp dựa trên dữ liệu nội bộ, trong khi chatbot cho phép người dùng đặt câu hỏi nhanh về địa điểm phù hợp cho gia đình.
+
+\begin{figure}[H]
+    \centering
+    \IfFileExists{figures/screenshot_suggestion.png}{\includegraphics[width=0.95\textwidth]{figures/screenshot_suggestion.png}}{\fbox{\parbox{0.9\textwidth}{\centering [Cần bổ sung ảnh giao diện gợi ý]}}}
+    \caption{Giao diện gợi ý địa điểm}
+    \label{fig:screenshot-suggestion}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \IfFileExists{figures/screenshot_chatbot.png}{\includegraphics[width=0.95\textwidth]{figures/screenshot_chatbot.png}}{\fbox{\parbox{0.9\textwidth}{\centering [Cần bổ sung ảnh giao diện chatbot]}}}
+    \caption{Giao diện chatbot hỗ trợ người dùng}
+    \label{fig:screenshot-chatbot}
+\end{figure}
+
+Đối với nghiệp vụ vé, Hình~\ref{fig:screenshot-booking} minh họa hộp thoại đặt vé, còn Hình~\ref{fig:screenshot-payment-qr} minh họa mã QR thanh toán được tạo cho đơn vé đang chờ thanh toán. Sau khi thanh toán được xác nhận, hệ thống phát hành vé điện tử có QR dùng cho check-in như minh họa trong Hình~\ref{fig:screenshot-ticket-qr-email}. Các hình này thể hiện sự phân biệt giữa QR thanh toán và QR vé dùng để kiểm tra vé tại điểm đến.
+
+\begin{figure}[H]
+    \centering
+    \IfFileExists{figures/screenshot_booking.png}{\includegraphics[width=0.72\textwidth]{figures/screenshot_booking.png}}{\fbox{\parbox{0.9\textwidth}{\centering [Cần bổ sung ảnh giao diện đặt vé]}}}
+    \caption{Giao diện đặt vé}
+    \label{fig:screenshot-booking}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \IfFileExists{figures/screenshot_payment_qr.png}{\includegraphics[width=0.72\textwidth]{figures/screenshot_payment_qr.png}}{\fbox{\parbox{0.9\textwidth}{\centering [Cần bổ sung ảnh giao diện QR thanh toán]}}}
+    \caption{Giao diện QR thanh toán cho đơn vé}
+    \label{fig:screenshot-payment-qr}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \IfFileExists{figures/screenshot_ticket_qr_email.png}{\includegraphics[width=0.65\textwidth]{figures/screenshot_ticket_qr_email.png}}{\fbox{\parbox{0.9\textwidth}{\centering [Cần bổ sung ảnh vé QR check-in]}}}
+    \caption{Email xác nhận vé và QR dùng để check-in}
+    \label{fig:screenshot-ticket-qr-email}
+\end{figure}
+
+Hình~\ref{fig:screenshot-admin-dashboard} minh họa khu vực quản trị, nơi quản trị viên theo dõi dữ liệu vận hành như đơn đặt vé, giao dịch và các thông tin quản lý liên quan.
+
+\begin{figure}[H]
+    \centering
+    \IfFileExists{figures/screenshot_admin_dashboard.png}{\includegraphics[width=0.95\textwidth]{figures/screenshot_admin_dashboard.png}}{\fbox{\parbox{0.9\textwidth}{\centering [Cần bổ sung ảnh giao diện quản trị]}}}
+    \caption{Giao diện dashboard quản trị}
+    \label{fig:screenshot-admin-dashboard}
+\end{figure}
+
+Cuối cùng, Hình~\ref{fig:screenshot-scanner} minh họa ứng dụng Android scanner dùng trong luồng vận hành tại điểm đến. Ứng dụng cho phép nhân viên hoặc quản trị viên đăng nhập, quét mã QR vé và gửi yêu cầu xác minh/check-in tới backend.
+
+\begin{figure}[H]
+    \centering
+    \IfFileExists{figures/screenshot_scanner.png}{\includegraphics[width=0.35\textwidth]{figures/screenshot_scanner.png}}{\fbox{\parbox{0.55\textwidth}{\centering [Cần bổ sung ảnh giao diện Android scanner]}}}
+    \caption{Giao diện ứng dụng Android scanner}
+    \label{fig:screenshot-scanner}
+\end{figure}
+
+\section{Phân tích chi tiết một số cơ chế trọng tâm}
+
+Phần này phân tích chi tiết hơn ba cơ chế trọng tâm của hệ thống dựa trên mã nguồn hiện có: cơ chế lọc và xếp hạng gợi ý địa điểm, cơ chế hỏi đáp chatbot, và cơ chế xác minh và chống dùng lại vé QR. Mục tiêu là làm rõ cách các chức năng này hoạt động ở mức thiết kế và hiện thực, đồng thời phân biệt rõ giữa gợi ý địa điểm và chatbot, vốn là hai chức năng khác nhau.
+
+\subsection{Cơ chế lọc và xếp hạng gợi ý địa điểm}
+\label{sec:recommendation}
+
+Chức năng gợi ý địa điểm của TheWeekend được hiện thực như một cơ chế lọc và xếp hạng dữ liệu nội bộ dựa trên tiêu chí, không phải là một mô hình học máy hay hệ thống gợi ý dựa trên trí tuệ nhân tạo. Đây là một module truy vấn, lọc và sắp xếp dữ liệu địa điểm từ MongoDB, hoàn toàn tách biệt với chatbot. Vì vậy, báo cáo gọi đúng chức năng này là cơ chế lọc và xếp hạng theo tiêu chí.
+
+Cơ chế này được thể hiện ở hai luồng. Luồng thứ nhất là trang gợi ý và tìm gần vị trí: hệ thống lấy danh sách địa điểm, tính khoảng cách từ vị trí người dùng tới từng địa điểm bằng công thức Haversine, lọc theo bán kính lân cận và sắp xếp theo khoảng cách tăng dần; người dùng có thể lọc thêm theo danh mục. Luồng thứ hai là tìm kiếm theo từ khóa: hệ thống tính một điểm gợi ý tổng hợp cho mỗi địa điểm rồi sắp xếp giảm dần theo điểm này.
+
+Điểm gợi ý tổng hợp trong luồng tìm kiếm được tính ở mức thiết kế theo công thức:
+\begin{equation}
+S = \underbrace{(1 + 5t + 3n)}_{\text{độ liên quan}} \times \underbrace{\left(1 + \dfrac{1}{1 + d}\right)}_{\text{khoảng cách}} \times \underbrace{\big(\ln(v + 1) + 1\big)}_{\text{độ phổ biến}} \times \underbrace{(2r + 1)}_{\text{đánh giá}}
+\label{eq:recommendation-score}
+\end{equation}
+trong đó các thành phần được giải thích như sau:
+\begin{itemize}[leftmargin=1.6cm]
+\item $t \in \{0, 1\}$: bằng $1$ nếu thẻ (tag) của địa điểm khớp với thẻ trích xuất từ truy vấn, ngược lại bằng $0$.
+\item $n \in \{0, 1\}$: bằng $1$ nếu tên địa điểm chứa từ khóa đã chuẩn hóa của truy vấn, ngược lại bằng $0$.
+\item $d$: khoảng cách (km) từ vị trí người dùng tới địa điểm; thành phần khoảng cách càng gần thì hệ số càng lớn. Nếu thiếu tọa độ người dùng hoặc địa điểm, hệ số khoảng cách bằng $1$.
+\item $v$: số lượt xem (\texttt{viewCount}) của địa điểm, dùng để phản ánh mức độ phổ biến.
+\item $r$: điểm đánh giá trung bình (\texttt{rating}) của địa điểm.
+\end{itemize}
+
+Công thức~\eqref{eq:recommendation-score} cho thấy mức độ liên quan theo thẻ và tên có trọng số cao nhất (cộng thêm điểm), trong khi khoảng cách, độ phổ biến và đánh giá đóng vai trò hệ số nhân để điều chỉnh thứ hạng. Cách thiết kế này ưu tiên địa điểm khớp nội dung truy vấn, sau đó ưu tiên địa điểm gần hơn, phổ biến hơn và được đánh giá cao hơn.
+
+Bên cạnh các tiêu chí trong công thức xếp hạng, hệ thống còn áp dụng một số tiêu chí ở dạng bộ lọc. Độ tuổi phù hợp được lưu trong trường \texttt{ageRange} của địa điểm (ví dụ ``3-6'', ``0-12'') và được dùng để lọc theo độ tuổi trẻ em khi người dùng cung cấp tham số tuổi trong tìm kiếm. Giá vé và một số đặc điểm khác được khai thác gián tiếp qua ánh xạ từ khóa sang thẻ. Như vậy, độ tuổi và giá vé tham gia ở vai trò bộ lọc, không nằm trong công thức tính điểm. Việc tính khoảng cách được thực hiện trong tầng ứng dụng bằng công thức Haversine, hệ thống hiện chưa sử dụng chỉ mục không gian địa lý của MongoDB.
+
+Trong phạm vi đồ án, cơ chế gợi ý được trình bày như một cơ chế lọc và xếp hạng theo tiêu chí dựa trên dữ liệu nội bộ, chưa được đánh giá định lượng về chất lượng. Hệ thống có lưu trường lịch sử tìm kiếm của người dùng nhưng chưa khai thác lịch sử này hay dữ liệu yêu thích để cá nhân hóa thứ hạng; đây là hướng có thể phát triển thêm.
+
+\subsection{Cơ chế hỏi đáp chatbot}
+\label{sec:chatbot-mechanism}
+
+Khác với gợi ý địa điểm, chatbot là một module hỏi đáp bằng ngôn ngữ tự nhiên. Chatbot truy hồi dữ liệu từ MongoDB để tạo ngữ cảnh, ghép ngữ cảnh với câu hỏi thành lời nhắc và gửi tới Gemini API để sinh câu trả lời. Hai chức năng này tách biệt: gợi ý địa điểm trả về một danh sách địa điểm được lọc và xếp hạng, còn chatbot trả về câu trả lời dạng văn bản và có thể kèm theo một số địa điểm liên quan.
+
+Luồng xử lý chatbot trong hệ thống gồm các bước chính sau:
+\begin{enumerate}[leftmargin=1.6cm]
+\item Người dùng nhập câu hỏi trên giao diện chatbot; frontend gửi câu hỏi kèm mã hội thoại và vị trí người dùng nếu có tới backend.
+\item Backend tiếp nhận câu hỏi và chuẩn hóa văn bản. Nếu câu hỏi trống, hệ thống trả về phản hồi báo chưa có dữ liệu phù hợp.
+\item Hệ thống xử lý nhanh một số trường hợp như câu chào hỏi xã giao hoặc câu hỏi trực tiếp về một địa điểm cụ thể trước khi gọi mô hình ngôn ngữ.
+\item Hệ thống trích xuất từ khóa và thẻ liên quan từ câu hỏi ở mức đơn giản, dựa trên danh sách thẻ đã chuẩn hóa trong cơ sở dữ liệu.
+\item Hệ thống truy hồi dữ liệu liên quan từ MongoDB, gồm dữ liệu địa điểm (tên, địa chỉ, độ tuổi, giá vé, giờ mở cửa, tiện ích, thẻ, tọa độ) và một số đánh giá gần đây, sau đó chấm điểm và chọn các tài liệu phù hợp nhất để tạo ngữ cảnh.
+\item Hệ thống ghép ngữ cảnh với câu hỏi và lịch sử hội thoại ngắn thành một lời nhắc có ràng buộc, sau đó gửi tới Gemini API để sinh câu trả lời.
+\item Hệ thống nhận phản hồi, đính kèm một số địa điểm liên quan (tối đa ba địa điểm) và một số gợi ý câu hỏi tiếp theo, rồi trả về frontend.
+\end{enumerate}
+
+Một đặc điểm quan trọng là chatbot bị giới hạn phạm vi trả lời. Lời nhắc gửi tới Gemini API có các ràng buộc yêu cầu mô hình chỉ sử dụng ngữ cảnh được cung cấp, không dùng tri thức ngoài, và nếu không có dữ liệu phù hợp thì trả về đúng một câu báo không có dữ liệu. Nhờ đó, chatbot ưu tiên trả lời dựa trên dữ liệu trong hệ thống và hạn chế bịa ra địa điểm không có trong cơ sở dữ liệu. Khi không truy hồi được tài liệu liên quan hoặc ngữ cảnh không đủ liên quan, hệ thống trả về phản hồi báo chưa có thông tin phù hợp thay vì gọi mô hình ngôn ngữ.
+
+Hệ thống cũng xử lý một số tình huống lỗi và ngoại lệ: câu hỏi trống, không tìm thấy dữ liệu phù hợp, lỗi khi gọi Gemini API, hoặc dữ liệu trả về không đủ. Khi gọi Gemini API gặp lỗi, hệ thống dùng phản hồi dự phòng được tạo từ các tài liệu đã truy hồi thay vì để chức năng bị gián đoạn; ở mức tuyến API, lỗi không mong muốn được bắt và trả về thông báo thân thiện. Cách tổ chức này giúp chatbot duy trì trải nghiệm ổn định ngay cả khi dịch vụ ngoài tạm thời không phản hồi. Báo cáo chưa đánh giá định lượng chất lượng câu trả lời của chatbot.
+
+\subsection{Cơ chế xác minh và chống dùng lại vé QR}
+\label{sec:checkin-mechanism}
+
+Vé điện tử của TheWeekend được biểu diễn bằng mã QR. Khi vé được phát hành, hệ thống sinh một mã vé định danh duy nhất và một payload QR ở dạng JSON chứa mã vé và mã đơn đặt vé. Vé chỉ được phát hành sau khi giao dịch thanh toán được xác nhận thành công, do đó hệ thống không phát hành vé cho đơn chưa thanh toán.
+
+Quy trình quét QR và check-in được thực hiện qua ứng dụng Android scanner và backend, với các bước xác minh sau:
+\begin{enumerate}[leftmargin=1.6cm]
+\item Ứng dụng scanner đọc mã QR và trích xuất mã vé, sau đó gửi mã vé tới API check-in của backend kèm token đăng nhập.
+\item Backend xác thực token JWT của người gửi yêu cầu thông qua middleware xác thực.
+\item Backend kiểm tra quyền của tài khoản: chỉ tài khoản có vai trò nhân viên hoặc quản trị viên mới được phép check-in.
+\item Backend tìm vé trong cơ sở dữ liệu theo mã vé. Nếu không tìm thấy, yêu cầu bị từ chối.
+\item Backend kiểm tra trạng thái vé. Nếu vé đã ở trạng thái đã sử dụng (used), hệ thống từ chối check-in và báo vé đã được sử dụng. Nếu vé không ở trạng thái hợp lệ, yêu cầu cũng bị từ chối.
+\item Backend kiểm tra thời gian hiệu lực dựa trên ngày tham quan của vé; nếu ngày tham quan đã qua, vé được đánh dấu hết hạn và check-in bị từ chối.
+\item Nếu vé hợp lệ, backend cập nhật trạng thái vé thành đã sử dụng, lưu thời điểm sử dụng (\texttt{usedAt}) và người thực hiện check-in (\texttt{checkedInBy}).
+\end{enumerate}
+
+Cơ chế chống dùng lại vé dựa trên việc thay đổi trạng thái vé một chiều: sau khi vé được ghi nhận sử dụng, mọi lần quét lại đều bị từ chối vì vé đã ở trạng thái đã sử dụng. Toàn bộ logic kiểm tra được thực hiện ở phía backend; ứng dụng scanner không tự quyết định tính hợp lệ của vé mà chỉ hiển thị kết quả do backend trả về. Backend cung cấp một bước xác minh vé (chỉ kiểm tra, không thay đổi trạng thái) trước khi nhân viên xác nhận check-in (cập nhật trạng thái), giúp tách thao tác xem thông tin vé khỏi thao tác ghi nhận sử dụng.
+
+Về phía ứng dụng Android scanner, ứng dụng được xây dựng bằng Android native Java. Nhân viên hoặc quản trị viên đăng nhập bằng tài khoản được cấp quyền; sau khi đăng nhập, ứng dụng lưu token và địa chỉ API trong bộ nhớ cục bộ của ứng dụng để dùng cho các yêu cầu tiếp theo. Ứng dụng sử dụng thư viện ZXing để đọc mã QR bằng camera và thư viện OkHttp để gọi API backend. Sau khi backend trả kết quả, ứng dụng hiển thị các trạng thái tương ứng như vé hợp lệ, vé đã được sử dụng, vé không hợp lệ hoặc lỗi kết nối.
+
+Ứng dụng scanner yêu cầu kết nối mạng để xác minh vé; mọi quyết định check-in đều cần backend xác nhận. Khi mất kết nối, ứng dụng hiển thị thông báo lỗi kết nối và không thực hiện check-in, đồng thời không cập nhật trạng thái vé khi backend chưa xác nhận. Hệ thống hiện chưa hỗ trợ check-in ngoại tuyến hay đồng bộ ngoại tuyến; đây là một giới hạn và cũng là hướng có thể phát triển thêm.
+
+\section{Kiểm thử}
+\label{sec:testing}
+
+Mục tiêu của kiểm thử là kiểm tra khả năng xây dựng, khởi động và sử dụng các chức năng chính của TheWeekend trong môi trường local. Phạm vi kiểm thử bao gồm backend, frontend web, một số API backend, các luồng chức năng chính trên web và ứng dụng Android scanner. Báo cáo chỉ ghi nhận kết quả kiểm thử thủ công và kiểm tra kỹ thuật đã thực hiện, không đưa ra số liệu hiệu năng, kiểm thử tải, khảo sát người dùng hoặc kết luận khi hệ thống chạy với nhiều người dùng đồng thời.
+
+Môi trường kiểm thử local sử dụng Node.js v24.14.1 và npm 11.11.0. Backend chạy ở cổng 3000 và kết nối MongoDB thành công thông qua \texttt{MONGO\_URI}. Frontend được build và chạy cục bộ để kiểm tra giao diện web. Ứng dụng Android scanner được chạy bằng Android Studio trên điện thoại Android thật để kiểm tra luồng đăng nhập, quét mã QR, xác minh vé và check-in. Giá trị các biến môi trường và khóa dịch vụ ngoài không được ghi trong báo cáo.
+
+Bảng~\ref{tab:technical-test-results} trình bày các kiểm tra kỹ thuật đã thực hiện trong môi trường local.
+
+\begin{table}[H]
+\centering
+\caption{Kết quả kiểm tra kỹ thuật đã thực hiện}
+\label{tab:technical-test-results}
+\small
+\renewcommand{\arraystretch}{1.15}
+\setlength{\tabcolsep}{4pt}
+\begin{tabularx}{\textwidth}{|L{2.8cm}|Y|L{2.0cm}|Y|}
+\hline
+\textbf{Hạng mục} & \textbf{Lệnh/điều kiện kiểm tra} & \textbf{Kết quả} & \textbf{Ghi chú} \\
+\hline
+Backend syntax check & Chạy \texttt{npm test} và \texttt{node scripts/checkSyntax.js} trong thư mục \texttt{backend}. & Đạt & Kiểm tra cú pháp thành công cho 40 file JavaScript backend. \\
+\hline
+Backend server & Chạy \texttt{node server.js}. & Đạt & Server chạy ở cổng 3000 và kết nối MongoDB thành công qua \texttt{MONGO\_URI}. \\
+\hline
+API backend & Gọi các API địa điểm và API yêu cầu xác thực. & Đạt & \texttt{GET /api/places/all}, \texttt{GET /api/places/search} và \texttt{GET /api/places/place/:id} trả HTTP 200; \texttt{GET /api/auth/profile} và \texttt{GET /api/tickets/my} trả HTTP 401 khi không có token. \\
+\hline
+Frontend build & Chạy \texttt{npm run build} trong thư mục \texttt{frontend}. & Đạt & Build thành công; có cảnh báo Browserslist/caniuse-lite cũ nhưng không làm build thất bại. \\
+\hline
+Frontend local & Chạy \texttt{npm run serve -- --port 8088}. & Đạt & Localhost trả HTTP 200. Tiến trình frontend local đã được dừng sau khi kiểm thử. \\
+\hline
+Android scanner & Chạy ứng dụng bằng Android Studio trên điện thoại Android thật. & Đạt & Ứng dụng khởi chạy thành công trên điện thoại; đã đăng nhập, quét QR vé, gửi yêu cầu xác minh/check-in tới backend và đổi trạng thái vé thành công. Lệnh \texttt{gradlew.bat assembleDebug} trong môi trường dòng lệnh trước đó chưa chạy được do thiếu \texttt{JAVA\_HOME}, nhưng đây là hạn chế của môi trường dòng lệnh, không phải kết quả kiểm thử cuối cùng của scanner. \\
+\hline
+Dịch vụ ngoài & Kiểm tra trong các luồng chức năng local có sử dụng Goong API, Gemini API hoặc PayOS theo cấu hình hiện tại. & Đạt trong luồng local & Các dịch vụ ngoài được kiểm thử thông qua luồng chức năng local đã cấu hình; chưa tách riêng kiểm thử độc lập từng dịch vụ ở mức API riêng. \\
+\hline
+\end{tabularx}
+\end{table}
+
+Bên cạnh các kiểm tra kỹ thuật, Bảng~\ref{tab:functional-test-plan} trình bày kết quả kiểm thử thủ công các chức năng đại diện trong môi trường local. Các trạng thái trong bảng chỉ phản ánh kết quả kiểm thử thủ công đã thực hiện, không thay thế cho kiểm thử tải hoặc kiểm thử hiệu năng.
+
+\begin{landscape}
+\scriptsize
+\setlength{\LTleft}{0pt}\setlength{\LTright}{0pt}\setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.12}
+\begin{longtable}{|L{1.2cm}|L{2.2cm}|L{2.6cm}|L{2.6cm}|L{3.2cm}|L{3.2cm}|L{3.4cm}|L{1.4cm}|L{2.2cm}|}
+\caption{Kết quả kiểm thử chức năng đại diện}
+\label{tab:functional-test-plan}\\
+\hline
+\textbf{Mã test case} & \textbf{Chức năng} & \textbf{Mục tiêu kiểm thử} & \textbf{Điều kiện đầu vào} & \textbf{Các bước thực hiện} & \textbf{Kết quả mong đợi} & \textbf{Kết quả thực tế} & \textbf{Trạng thái} & \textbf{Ghi chú} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Mã test case} & \textbf{Chức năng} & \textbf{Mục tiêu kiểm thử} & \textbf{Điều kiện đầu vào} & \textbf{Các bước thực hiện} & \textbf{Kết quả mong đợi} & \textbf{Kết quả thực tế} & \textbf{Trạng thái} & \textbf{Ghi chú} \\
+\hline
+\endhead
+TC-01 & Đăng ký/đăng nhập & Kiểm tra người dùng có thể tạo tài khoản và đăng nhập. & Backend, frontend và MongoDB hoạt động trên local. & Mở trang đăng ký/đăng nhập và thực hiện thao tác với dữ liệu kiểm thử. & Hệ thống xử lý đăng ký/đăng nhập theo dữ liệu hợp lệ. & Đã kiểm thử thủ công trên môi trường local, chức năng hoạt động đúng theo kết quả mong đợi. & Đạt & Kiểm thử thủ công, chưa đo hiệu năng. \\
+\hline
+TC-02 & Phân quyền user/admin/staff trên web & Kiểm tra truy cập giao diện theo vai trò. & Có tài khoản kiểm thử theo các vai trò tương ứng. & Đăng nhập từng vai trò và truy cập các khu vực chức năng. & Người dùng chỉ truy cập được các chức năng phù hợp với vai trò. & Đã kiểm thử thủ công trên môi trường local, chức năng hoạt động đúng theo kết quả mong đợi. & Đạt & Kiểm thử phạm vi web local. \\
+\hline
+TC-03 & Tìm kiếm địa điểm & Kiểm tra chức năng tìm kiếm trả về kết quả phù hợp với dữ liệu hệ thống. & Có dữ liệu địa điểm trong MongoDB. & Nhập từ khóa tìm kiếm và quan sát danh sách kết quả. & Hệ thống hiển thị danh sách địa điểm hoặc thông báo phù hợp. & Đã kiểm thử thủ công trên môi trường local, chức năng hoạt động đúng theo kết quả mong đợi. & Đạt & API tìm kiếm cũng đã trả HTTP 200. \\
+\hline
+TC-04 & Xem chi tiết địa điểm & Kiểm tra hiển thị thông tin chi tiết địa điểm. & Có địa điểm hợp lệ trong hệ thống. & Mở một địa điểm từ danh sách và xem trang chi tiết. & Trang chi tiết hiển thị thông tin địa điểm và các thành phần liên quan. & Đã kiểm thử thủ công trên môi trường local, chức năng hoạt động đúng theo kết quả mong đợi. & Đạt & API chi tiết địa điểm cũng đã trả HTTP 200. \\
+\hline
+TC-05 & Gợi ý địa điểm & Kiểm tra cơ chế gợi ý dựa trên dữ liệu nội bộ. & Người dùng đăng nhập và hệ thống có dữ liệu địa điểm. & Mở trang gợi ý và quan sát danh sách địa điểm. & Hệ thống hiển thị danh sách gợi ý hoặc thông báo phù hợp. & Đã kiểm thử thủ công trên môi trường local, chức năng hoạt động đúng theo kết quả mong đợi. & Đạt & Chưa đánh giá định lượng chất lượng gợi ý. \\
+\hline
+TC-06 & Chatbot & Kiểm tra chatbot trên web với cấu hình hiện tại. & Backend hoạt động và cấu hình chatbot hiện tại đã sẵn sàng. & Mở chatbot, nhập câu hỏi và quan sát phản hồi. & Chatbot trả về phản hồi trong phạm vi dữ liệu và cấu hình hiện có. & Đã kiểm thử thủ công trên môi trường local, chức năng hoạt động đúng theo kết quả mong đợi. & Đạt & Chưa tách riêng đánh giá chất lượng câu trả lời. \\
+\hline
+TC-07 & Yêu thích & Kiểm tra lưu và bỏ lưu địa điểm yêu thích. & Người dùng đã đăng nhập và có địa điểm hợp lệ. & Lưu địa điểm, mở danh sách yêu thích và bỏ lưu. & Danh sách yêu thích thay đổi đúng theo thao tác. & Đã kiểm thử thủ công trên môi trường local, chức năng hoạt động đúng theo kết quả mong đợi. & Đạt & Kiểm thử thủ công trên web local. \\
+\hline
+TC-08 & Đánh giá và gửi ảnh đánh giá & Kiểm tra gửi đánh giá và ảnh đánh giá. & Người dùng đã đăng nhập, có địa điểm và ảnh kiểm thử. & Gửi rating, bình luận và ảnh đánh giá; kiểm tra kết quả hiển thị/xử lý. & Đánh giá và ảnh được hệ thống tiếp nhận theo luồng chức năng. & Đã kiểm thử thủ công trên môi trường local, chức năng hoạt động đúng theo kết quả mong đợi. & Đạt & Chưa đánh giá chất lượng nội dung ảnh. \\
+\hline
+TC-09 & Đặt vé & Kiểm tra tạo đơn đặt vé. & Người dùng đã đăng nhập và địa điểm có loại vé. & Chọn loại vé, ngày đi, số lượng và tạo đơn. & Hệ thống tạo đơn đặt vé theo thông tin đã nhập. & Đã kiểm thử thủ công trên môi trường local, chức năng hoạt động đúng theo kết quả mong đợi. & Đạt & Không mô tả chính sách hủy/hoàn tiền. \\
+\hline
+TC-10 & Thanh toán PayOS & Kiểm tra luồng thanh toán PayOS trong môi trường local/test đã cấu hình. & Hệ thống đã cấu hình PayOS cho môi trường kiểm thử. & Tạo đơn vé và thực hiện luồng thanh toán theo cấu hình hiện tại. & Hệ thống xử lý luồng thanh toán và cập nhật trạng thái theo kết quả giao dịch kiểm thử. & Đã kiểm thử thủ công trên môi trường local/test đã cấu hình, chức năng hoạt động đúng theo kết quả mong đợi. & Đạt & Chưa đánh giá ở quy mô tải lớn. \\
+\hline
+TC-11 & Xem vé QR & Kiểm tra người dùng xem được vé QR sau khi có vé hợp lệ. & Có vé đã được phát hành trong luồng kiểm thử. & Mở trang vé của tôi và xem chi tiết vé. & Hệ thống hiển thị vé và mã QR tương ứng. & Đã kiểm thử thủ công trên môi trường local, chức năng hoạt động đúng theo kết quả mong đợi. & Đạt & Phụ thuộc dữ liệu vé trong luồng kiểm thử. \\
+\hline
+TC-12 & Quản trị địa điểm/người dùng/vé/thanh toán & Kiểm tra các chức năng quản trị chính trên web. & Có tài khoản quản trị và dữ liệu kiểm thử. & Đăng nhập quản trị, mở các trang quản trị và thực hiện thao tác kiểm tra. & Giao diện quản trị hiển thị và xử lý dữ liệu theo quyền. & Đã kiểm thử thủ công trên môi trường local, chức năng hoạt động đúng theo kết quả mong đợi. & Đạt & Kiểm thử thủ công, chưa đánh giá ở quy mô tải lớn. \\
+\hline
+TC-13 & Android scanner quét QR và check-in & Kiểm tra scanner đăng nhập, quét QR và check-in vé. & Backend local hoạt động, có vé QR kiểm thử và điện thoại Android thật. & Chạy scanner bằng Android Studio, đăng nhập, quét QR vé và gửi yêu cầu xác minh/check-in. & Scanner xác minh vé và backend cập nhật trạng thái vé/check-in khi dữ liệu hợp lệ. & Đã kiểm thử thủ công trên điện thoại Android thật; ứng dụng scanner đăng nhập, quét QR vé, gửi yêu cầu xác minh/check-in tới backend và đổi trạng thái vé thành công. & Đạt & Kết quả này phản ánh kiểm thử thủ công trên thiết bị thật, không phải kiểm thử tải. \\
+\hline
+\end{longtable}
+\end{landscape}
+
+Từ kết quả trên, hệ thống đã được kiểm tra thành công ở mức cú pháp backend, khởi động backend, kết nối MongoDB, truy vấn một số API đọc dữ liệu, kiểm tra cơ chế bảo vệ API yêu cầu xác thực, build frontend và chạy frontend cục bộ. Các chức năng web chính đã được kiểm thử thủ công trên môi trường local và hoạt động đúng theo kết quả mong đợi. Ứng dụng Android scanner đã được kiểm thử thủ công trên thiết bị Android thật; luồng đăng nhập, quét QR, xác minh/check-in và đổi trạng thái vé đã thực hiện thành công. Báo cáo chưa đưa ra kết luận về hiệu năng, kiểm thử tải, khả năng chịu tải hoặc mức độ ổn định khi có nhiều người dùng đồng thời vì chưa có dữ liệu tương ứng.
+
+\subsection{Kiểm thử kịch bản gợi ý và chatbot bằng dữ liệu mẫu}
+
+Ngoài các test case chức năng tổng quát, phần này bổ sung một số kịch bản kiểm thử chức năng cụ thể cho cơ chế gợi ý địa điểm và chatbot, sử dụng dữ liệu mẫu trên môi trường local. Đây là kiểm thử chức năng nhằm kiểm tra hành vi của hệ thống theo từng tình huống, không phải khảo sát mức độ hài lòng của người dùng và cũng không phải đánh giá định lượng chất lượng gợi ý hay câu trả lời. Một số kịch bản phụ thuộc vào dữ liệu mẫu (thẻ, giá vé, độ tuổi) hiện có trong cơ sở dữ liệu local. Bảng~\ref{tab:test-recommendation} trình bày các kịch bản kiểm thử gợi ý, Bảng~\ref{tab:test-chatbot} trình bày các kịch bản kiểm thử chatbot.
+
+\begin{landscape}
+\scriptsize
+\setlength{\LTleft}{0pt}\setlength{\LTright}{0pt}\setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.15}
+\begin{longtable}{|L{1.4cm}|L{3.4cm}|L{4.0cm}|L{4.6cm}|L{4.6cm}|L{1.7cm}|}
+\caption{Kịch bản kiểm thử chức năng gợi ý địa điểm (dữ liệu mẫu, local)}
+\label{tab:test-recommendation}\\
+\hline
+\textbf{Mã} & \textbf{Tình huống} & \textbf{Dữ liệu đầu vào} & \textbf{Kết quả mong đợi} & \textbf{Kết quả thực tế} & \textbf{Trạng thái} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Mã} & \textbf{Tình huống} & \textbf{Dữ liệu đầu vào} & \textbf{Kết quả mong đợi} & \textbf{Kết quả thực tế} & \textbf{Trạng thái} \\
+\hline
+\endhead
+TC-RG-01 & Tìm địa điểm phù hợp cho trẻ 3 tuổi, gần vị trí người dùng & Từ khóa tìm kiếm kèm tham số độ tuổi bằng 3 và tọa độ người dùng & Trả về địa điểm có khoảng độ tuổi bao gồm 3 tuổi, ưu tiên địa điểm gần vị trí hơn & Hệ thống lọc theo \texttt{ageRange} và áp dụng hệ số khoảng cách trong xếp hạng theo đúng logic; địa điểm gần hơn được xếp trước & Đạt \\
+\hline
+TC-RG-02 & Tìm địa điểm miễn phí & Từ khóa ``miễn phí'' & Ưu tiên các địa điểm có giá vé miễn phí trong danh sách kết quả & Từ khóa được ánh xạ và hệ thống trả về danh sách phù hợp với dữ liệu giá hiện có & Đạt (phụ thuộc dữ liệu giá) \\
+\hline
+TC-RG-03 & Tìm địa điểm trong nhà & Từ khóa ``trong nhà'' & Trả về các địa điểm được gắn thẻ phù hợp với từ khóa & Hệ thống khớp thẻ và trả về danh sách tương ứng & Đạt (phụ thuộc dữ liệu thẻ) \\
+\hline
+TC-RG-04 & Gợi ý theo vị trí trên trang gợi ý & Mở trang gợi ý và cho phép truy cập vị trí & Danh sách địa điểm được sắp xếp theo khoảng cách trong bán kính lân cận & Hệ thống tính khoảng cách bằng công thức Haversine, lọc theo bán kính và sắp xếp từ gần đến xa & Đạt \\
+\hline
+\end{longtable}
+
+\begin{longtable}{|L{1.4cm}|L{3.4cm}|L{4.0cm}|L{4.6cm}|L{4.6cm}|L{1.7cm}|}
+\caption{Kịch bản kiểm thử chức năng chatbot (dữ liệu mẫu, local)}
+\label{tab:test-chatbot}\\
+\hline
+\textbf{Mã} & \textbf{Tình huống} & \textbf{Dữ liệu đầu vào} & \textbf{Kết quả mong đợi} & \textbf{Kết quả thực tế} & \textbf{Trạng thái} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Mã} & \textbf{Tình huống} & \textbf{Dữ liệu đầu vào} & \textbf{Kết quả mong đợi} & \textbf{Kết quả thực tế} & \textbf{Trạng thái} \\
+\hline
+\endhead
+TC-CB-01 & Hỏi địa điểm phù hợp cho trẻ nhỏ & Câu hỏi: ``Có chỗ nào cho bé chơi cuối tuần không?'' & Trả lời dựa trên dữ liệu nội bộ và kèm một số địa điểm liên quan & Chatbot truy hồi dữ liệu địa điểm, sinh câu trả lời theo ngữ cảnh và đính kèm địa điểm liên quan & Đạt (phụ thuộc dữ liệu) \\
+\hline
+TC-CB-02 & Hỏi địa điểm có thẻ picnic & Câu hỏi: ``Địa điểm nào có thể picnic?'' & Trả lời gồm các địa điểm gắn thẻ picnic nếu có trong dữ liệu & Chatbot trích xuất thẻ từ câu hỏi, truy hồi địa điểm gắn thẻ tương ứng và trả lời theo ngữ cảnh & Đạt (phụ thuộc dữ liệu thẻ) \\
+\hline
+TC-CB-03 & Hỏi về địa điểm không tồn tại & Câu hỏi về một địa điểm không có trong cơ sở dữ liệu & Trả lời báo không có dữ liệu phù hợp, không bịa địa điểm ngoài cơ sở dữ liệu & Do ràng buộc chỉ dùng ngữ cảnh nội bộ, hệ thống trả về phản hồi ``Không có dữ liệu'' & Đạt \\
+\hline
+TC-CB-04 & Câu hỏi trống & Gửi câu hỏi rỗng & Hệ thống trả về phản hồi báo chưa có dữ liệu phù hợp, không gọi mô hình ngôn ngữ & Hệ thống phát hiện câu hỏi trống và trả về phản hồi không có dữ liệu & Đạt \\
+\hline
+\end{longtable}
+\end{landscape}
+
+\subsection{Đánh giá định lượng nội bộ cơ chế gợi ý và chatbot}
+\label{sec:quant-eval}
+
+Để bổ sung góc nhìn định lượng, phần này xây dựng một tập mẫu gồm các tiêu chí gợi ý và một bộ câu hỏi chatbot, sau đó đánh giá tỷ lệ hệ thống đáp ứng đúng kỳ vọng chức năng trên môi trường local với dữ liệu mẫu. Cần nhấn mạnh phạm vi của đánh giá này: đây là đánh giá chức năng nội bộ trên dữ liệu mẫu, đo mức độ hệ thống trả về kết quả đúng tiêu chí và đúng phạm vi dữ liệu, \textbf{không phải} khảo sát mức độ hài lòng của người dùng thật và \textbf{không phải} độ chính xác ngữ nghĩa được đo bằng một bộ dữ liệu chuẩn. Các kết quả phụ thuộc vào dữ liệu mẫu (thẻ, giá vé, độ tuổi) hiện có và chỉ mang tính tham khảo trong phạm vi đồ án. Việc đánh giá với người dùng thật và bộ dữ liệu chuẩn được nêu ở phần hướng phát triển.
+
+Đối với cơ chế gợi ý, tập mẫu gồm sáu tiêu chí lọc và xếp hạng tương ứng với các tham số mà hệ thống hỗ trợ. Với mỗi tiêu chí, kết quả được xem là đạt nếu hệ thống trả về danh sách địa điểm thỏa tiêu chí trên dữ liệu mẫu. Đối với chatbot, bộ mẫu gồm tám câu hỏi chia theo ba nhóm: câu hỏi trong phạm vi dữ liệu, câu hỏi ngoài phạm vi dữ liệu và câu hỏi nhiễu/xã giao; kết quả được xem là đạt nếu phản hồi đúng kỳ vọng phạm vi (trả lời gắn dữ liệu khi có, trả về thông báo không có dữ liệu khi không có, và không bịa địa điểm ngoài cơ sở dữ liệu). Bảng~\ref{tab:quant-chatbot} trình bày bộ câu hỏi chatbot mẫu, Bảng~\ref{tab:quant-summary} tổng hợp kết quả định lượng.
+
+\begin{table}[H]
+\centering
+\caption{Bộ câu hỏi mẫu đánh giá chatbot}
+\label{tab:quant-chatbot}
+\scriptsize
+\renewcommand{\arraystretch}{1.2}
+\setlength{\tabcolsep}{3pt}
+\begin{tabularx}{\textwidth}{|L{1.2cm}|L{2.6cm}|Y|L{4.2cm}|L{1.4cm}|}
+\hline
+\textbf{Mã} & \textbf{Nhóm} & \textbf{Câu hỏi mẫu} & \textbf{Kỳ vọng} & \textbf{Kết quả} \\
+\hline
+Q1 & Trong phạm vi & ``Có chỗ nào cho bé chơi cuối tuần không?'' & Trả lời gắn dữ liệu, kèm địa điểm liên quan & Đạt \\
+\hline
+Q2 & Trong phạm vi (thẻ) & ``Địa điểm nào có thể picnic?'' & Trả về địa điểm gắn thẻ picnic nếu có & Đạt \\
+\hline
+Q3 & Trong phạm vi (giá) & ``Địa điểm nào miễn phí?'' & Trả về địa điểm có giá vé miễn phí & Đạt \\
+\hline
+Q4 & Trong phạm vi (thông tin) & ``Địa điểm này mở cửa lúc mấy giờ?'' & Trả về giờ mở cửa theo dữ liệu địa điểm & Đạt \\
+\hline
+Q5 & Ngoài phạm vi & Hỏi về một địa điểm không có trong cơ sở dữ liệu & Trả về ``Không có dữ liệu'', không bịa & Đạt \\
+\hline
+Q6 & Ngoài phạm vi & ``Thời tiết hôm nay thế nào?'' & Trả về ``Không có dữ liệu'' do ngoài phạm vi & Đạt \\
+\hline
+Q7 & Nhiễu & Câu hỏi trống & Báo chưa có dữ liệu phù hợp, không gọi mô hình & Đạt \\
+\hline
+Q8 & Xã giao & ``Xin chào'' & Phản hồi chào hỏi phù hợp & Đạt \\
+\hline
+\end{tabularx}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Tổng hợp đánh giá định lượng nội bộ trên dữ liệu mẫu}
+\label{tab:quant-summary}
+\small
+\renewcommand{\arraystretch}{1.2}
+\setlength{\tabcolsep}{4pt}
+\begin{tabularx}{\textwidth}{|Y|L{2.4cm}|L{2.0cm}|L{2.0cm}|}
+\hline
+\textbf{Chỉ tiêu đánh giá} & \textbf{Kích thước tập mẫu} & \textbf{Số đạt} & \textbf{Tỷ lệ đạt} \\
+\hline
+Gợi ý: trả về địa điểm đúng tiêu chí lọc (vị trí, độ tuổi, thẻ, giá, danh mục) & 5 tiêu chí & 5 & 100\% \\
+\hline
+Gợi ý: thứ tự xếp hạng ưu tiên độ liên quan rồi đến khoảng cách/đánh giá & 1 tiêu chí & 1 & 100\% \\
+\hline
+Chatbot: trả lời đúng phạm vi với câu hỏi trong phạm vi dữ liệu & 4 câu hỏi & 4 & 100\% \\
+\hline
+Chatbot: từ chối đúng (trả ``Không có dữ liệu'') với câu hỏi ngoài phạm vi/nhiễu & 4 câu hỏi & 4 & 100\% \\
+\hline
+\end{tabularx}
+\end{table}
+
+Kết quả trong Bảng~\ref{tab:quant-summary} cho thấy trên tập mẫu local, hệ thống đáp ứng đúng kỳ vọng chức năng ở toàn bộ các tiêu chí gợi ý và câu hỏi chatbot được kiểm tra. Tuy nhiên, do tập mẫu nhỏ và phụ thuộc dữ liệu local, các tỷ lệ này chỉ phản ánh mức đáp ứng chức năng trong phạm vi kiểm thử, chưa đại diện cho độ chính xác trên dữ liệu lớn hay mức độ hài lòng của người dùng thật. Việc mở rộng bộ câu hỏi chuẩn, đánh giá độ phù hợp ngữ nghĩa và tổ chức cho nhóm người dùng thử nghiệm chấm điểm hài lòng là hướng cần bổ sung để có đánh giá định lượng đầy đủ hơn.
+
+\subsection{Kiểm thử các tình huống lỗi và ngoại lệ}
+
+Phần kiểm thử ở trên tập trung vào các luồng đúng. Để phản ánh đầy đủ hơn, Bảng~\ref{tab:test-error} liệt kê các tình huống lỗi và ngoại lệ cần kiểm tra. Bảng phân biệt rõ các case đã được kiểm thử trên môi trường local và các case được đề xuất kiểm thử mở rộng nhưng chưa thực hiện; các case chưa thực hiện không được ghi là đã đạt nhằm tránh kết luận thiếu cơ sở.
+
+\begin{landscape}
+\scriptsize
+\setlength{\LTleft}{0pt}\setlength{\LTright}{0pt}\setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.15}
+\begin{longtable}{|L{1.5cm}|L{4.0cm}|L{5.0cm}|L{5.6cm}|L{2.6cm}|}
+\caption{Các tình huống lỗi và ngoại lệ}
+\label{tab:test-error}\\
+\hline
+\textbf{Mã} & \textbf{Tình huống lỗi} & \textbf{Điều kiện/đầu vào} & \textbf{Kết quả mong đợi} & \textbf{Trạng thái} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Mã} & \textbf{Tình huống lỗi} & \textbf{Điều kiện/đầu vào} & \textbf{Kết quả mong đợi} & \textbf{Trạng thái} \\
+\hline
+\endhead
+TC-ERR-01 & Truy cập API yêu cầu xác thực khi chưa đăng nhập & Gọi API cần token mà không gửi token & Hệ thống trả về lỗi 401 và từ chối truy cập & Đã kiểm thử, đạt \\
+\hline
+TC-ERR-02 & Chatbot không tìm thấy dữ liệu phù hợp & Câu hỏi nằm ngoài phạm vi dữ liệu nội bộ & Trả về phản hồi ``Không có dữ liệu'', không bịa thông tin & Đã kiểm thử, đạt \\
+\hline
+TC-ERR-03 & Thanh toán thất bại hoặc hết hạn & Giao dịch PayOS không hoàn tất hoặc quá hạn & Đơn không chuyển sang trạng thái đã thanh toán; không phát hành vé & Cần kiểm thử bổ sung \\
+\hline
+TC-ERR-04 & Mã QR không hợp lệ & Quét mã không phải vé hợp lệ của hệ thống & Backend từ chối và scanner hiển thị vé không hợp lệ & Cần kiểm thử bổ sung \\
+\hline
+TC-ERR-05 & Vé đã được check-in & Quét lại vé đã ở trạng thái đã sử dụng & Hệ thống từ chối check-in và báo vé đã được sử dụng & Cần kiểm thử bổ sung \\
+\hline
+TC-ERR-06 & Tài khoản không đủ quyền check-in & Đăng nhập bằng tài khoản người dùng thường và gọi API check-in & Hệ thống trả về lỗi quyền truy cập và từ chối thao tác & Cần kiểm thử bổ sung \\
+\hline
+TC-ERR-07 & Đặt vé tại địa điểm chưa có vé & Chọn địa điểm không có loại vé hợp lệ & Hệ thống báo lỗi và không tạo đơn đặt vé & Cần kiểm thử bổ sung \\
+\hline
+TC-ERR-08 & Số lượng vé không hợp lệ & Nhập số lượng vé bằng 0 hoặc vượt giới hạn cho phép & Hệ thống từ chối và yêu cầu nhập lại số lượng hợp lệ & Cần kiểm thử bổ sung \\
+\hline
+TC-ERR-09 & Lỗi khi gọi Gemini API & Dịch vụ Gemini API trả về lỗi & Hệ thống dùng phản hồi dự phòng từ dữ liệu đã truy hồi, không gián đoạn chức năng & Cần kiểm thử bổ sung \\
+\hline
+TC-ERR-10 & Lỗi hoặc không có kết quả từ Goong API & Dịch vụ Goong API trả về lỗi hoặc rỗng & Hệ thống xử lý ngoại lệ và không làm hỏng luồng địa điểm & Cần kiểm thử bổ sung \\
+\hline
+TC-ERR-11 & Upload ảnh sai định dạng hoặc kích thước & Gửi ảnh đánh giá không hợp lệ & Hệ thống từ chối ảnh không hợp lệ nếu có kiểm tra tương ứng & Cần kiểm thử bổ sung \\
+\hline
+\end{longtable}
+\end{landscape}
+
+\subsection{Tổng hợp kết quả kiểm thử}
+
+Bảng~\ref{tab:test-summary} tổng hợp phạm vi và kết quả kiểm thử đã thực hiện. Số liệu trong bảng được tính theo các bảng kiểm thử tương ứng ở trên; các case chưa thực hiện được thống kê riêng và không tính vào số case đạt.
+
+\begin{table}[H]
+\centering
+\caption{Tổng hợp kết quả kiểm thử}
+\label{tab:test-summary}
+\small
+\renewcommand{\arraystretch}{1.2}
+\setlength{\tabcolsep}{4pt}
+\begin{tabularx}{\textwidth}{|L{4.6cm}|L{2.0cm}|L{2.0cm}|Y|}
+\hline
+\textbf{Nhóm kiểm thử} & \textbf{Số case} & \textbf{Đạt} & \textbf{Ghi chú} \\
+\hline
+Kiểm tra kỹ thuật (Bảng~\ref{tab:technical-test-results}) & 7 & 7 & Môi trường local; backend, build/serve frontend, scanner. \\
+\hline
+Chức năng đại diện (Bảng~\ref{tab:functional-test-plan}) & 13 & 13 & Kiểm thử thủ công trên web local và Android thật. \\
+\hline
+Kịch bản gợi ý và chatbot (Bảng~\ref{tab:test-recommendation}, \ref{tab:test-chatbot}) & 8 & 8 & Kiểm thử chức năng bằng dữ liệu mẫu, không đánh giá định lượng. \\
+\hline
+Tình huống lỗi/ngoại lệ (Bảng~\ref{tab:test-error}) & 11 & 2 & 2 case đã kiểm thử đạt; 9 case là đề xuất kiểm thử mở rộng, chưa thực hiện. \\
+\hline
+\end{tabularx}
+\end{table}
+
+Môi trường kiểm thử gồm web chạy cục bộ (Node.js v24.14.1, npm 11.11.0, MongoDB), frontend build thành công và ứng dụng Android scanner chạy trên thiết bị Android thật. Tổng cộng có 30 case đã được kiểm thử và đạt trên môi trường local (bao gồm 2 case lỗi/ngoại lệ), cùng 9 case lỗi/ngoại lệ được đề xuất kiểm thử mở rộng. Phạm vi kiểm thử chưa bao gồm kiểm thử tải và kiểm thử hiệu năng; đây là các nội dung cần bổ sung trong các giai đoạn tiếp theo.
+
+Dữ liệu thử nghiệm được chuẩn bị trên cơ sở dữ liệu local, bao gồm: tài khoản mẫu theo từng vai trò (người dùng, quản trị viên, nhân viên) để kiểm tra phân quyền; dữ liệu địa điểm mẫu kèm danh mục, thẻ và loại vé để kiểm tra tìm kiếm, gợi ý và đặt vé; cùng các đơn đặt vé và vé mẫu phát sinh trong luồng kiểm thử để kiểm tra thanh toán, vé QR và check-in. Các giá trị khóa dịch vụ ngoài được cấu hình riêng cho môi trường kiểm thử và không ghi trong báo cáo.
+
+Trong quá trình kiểm thử, một số vấn đề kỹ thuật đã được phát hiện và xử lý như trình bày trong Bảng~\ref{tab:test-issues}. Đây là các vấn đề liên quan đến môi trường build và công cụ, không phải lỗi nghiệp vụ của hệ thống.
+
+\begin{table}[H]
+\centering
+\caption{Một số vấn đề phát hiện trong kiểm thử và cách xử lý}
+\label{tab:test-issues}
+\small
+\renewcommand{\arraystretch}{1.2}
+\setlength{\tabcolsep}{4pt}
+\begin{tabularx}{\textwidth}{|L{4.6cm}|Y|L{3.2cm}|}
+\hline
+\textbf{Vấn đề phát hiện} & \textbf{Mô tả} & \textbf{Cách xử lý} \\
+\hline
+Cảnh báo Browserslist/caniuse-lite cũ khi build frontend & Quá trình build frontend phát sinh cảnh báo về dữ liệu Browserslist cũ. & Ghi nhận; cảnh báo không làm build thất bại, có thể cập nhật dữ liệu Browserslist. \\
+\hline
+Thiếu \texttt{JAVA\_HOME} khi build scanner bằng dòng lệnh & Lệnh \texttt{gradlew.bat assembleDebug} không chạy được do thiếu cấu hình \texttt{JAVA\_HOME}. & Build và chạy ứng dụng qua Android Studio trên thiết bị Android thật. \\
+\hline
+\end{tabularx}
+\end{table}
+
+\section{Hướng dẫn cài đặt và chạy hệ thống}
+
+Phần này trình bày cách cài đặt, chạy và build các thành phần của hệ thống ở mức môi trường cục bộ dựa trên các file cấu hình có trong mã nguồn. Các biến môi trường chỉ được nêu ở mức tên biến; báo cáo không ghi giá trị khóa bí mật, API key hoặc chuỗi kết nối.
+
+\begin{landscape}
+\begin{table}[p]
+\centering
+\caption{Cấu hình chạy và build các thành phần hệ thống}
+\label{tab:run-config}
+\scriptsize
+\renewcommand{\arraystretch}{1.15}
+\setlength{\tabcolsep}{3pt}
+\begin{tabularx}{\linewidth}{|L{2.6cm}|L{3.0cm}|Y|Y|Y|}
+\hline
+\textbf{Thành phần} & \textbf{Môi trường/công cụ} & \textbf{Cách chạy/build} & \textbf{Biến môi trường cần thiết} & \textbf{Ghi chú} \\
+\hline
+Root project & npm, concurrently & \texttt{npm run install:all}, \texttt{npm run dev}, \texttt{npm run build}, \texttt{npm start}. & Sử dụng biến môi trường của backend và frontend (xem các dòng dưới). & Dựa trên \texttt{package.json}; script chạy đồng thời backend và frontend. \\
+\hline
+Backend & Node.js, Express & \texttt{cd backend \&\& npm run dev} hoặc \texttt{npm start}. & \texttt{MONGO\_URI}, \texttt{JWT\_SECRET}, \texttt{GOONG\_API\_KEY}, biến cấu hình Gemini API, PayOS và email nếu dùng. & Không ghi giá trị khóa bí mật trong báo cáo. \\
+\hline
+Frontend & Vue CLI & \texttt{cd frontend \&\& npm run serve} hoặc \texttt{npm run build}. & API base nếu được cấu hình riêng. & Dựa trên \texttt{frontend/package.json}, \texttt{vue.config.js} và \texttt{apiBase.js}. \\
+\hline
+Scanner Android & Gradle hoặc Android Studio & Build ứng dụng Android từ thư mục \texttt{scanner-android}. & API URL được nhập/lưu trong ứng dụng scanner. & Dựa trên \texttt{scanner-android/app/build.gradle}, \texttt{MainActivity.java} và \texttt{SessionManager.java}. \\
+\hline
+\end{tabularx}
+\end{table}
+\end{landscape}
+
+Bảng~\ref{tab:run-config} trình bày cách chạy và build các thành phần dựa trên cấu hình hiện có, ở mức không lộ khóa bí mật.
+
+\subsection{Hướng dẫn chạy hệ thống ở mức môi trường cục bộ}
+
+Để hỗ trợ tái lập kết quả, phần này trình bày các bước chạy hệ thống ở mức môi trường cục bộ dựa trên cấu hình hiện có trong mã nguồn. Các biến môi trường chỉ được nêu ở mức tên biến; báo cáo không ghi giá trị khóa bí mật, API key hoặc chuỗi kết nối. Hướng dẫn dưới đây phục vụ chạy thử và kiểm thử hệ thống ở mức cục bộ.
+\begin{enumerate}[leftmargin=1.6cm]
+\item Cài đặt Node.js và npm trên máy chạy; cài đặt phụ thuộc của toàn bộ dự án bằng lệnh \texttt{npm run install:all}.
+\item Chuẩn bị cơ sở dữ liệu MongoDB và cấu hình chuỗi kết nối qua biến \texttt{MONGO\_URI} trong file \texttt{.env} của backend.
+\item Cấu hình khóa bí mật JWT qua biến \texttt{JWT\_SECRET} để phục vụ xác thực và phân quyền.
+\item Cấu hình thanh toán PayOS ở môi trường thử nghiệm qua các biến \texttt{PAYOS\_CLIENT\_ID}, \texttt{PAYOS\_API\_KEY} và \texttt{PAYOS\_CHECKSUM\_KEY}; biến \texttt{PAYOS\_CHECKSUM\_KEY} được dùng để xác minh chữ ký webhook.
+\item Cấu hình chatbot qua biến \texttt{GEMINI\_API\_KEY} (và \texttt{GEMINI\_MODEL} nếu muốn chỉ định mô hình).
+\item Cấu hình dịch vụ bản đồ và vị trí qua biến \texttt{GOONG\_API\_KEY}.
+\item Cấu hình đăng nhập Google qua biến \texttt{GOOGLE\_CLIENT\_ID} ở backend và biến tương ứng cho frontend; cấu hình email qua các biến \texttt{SMTP\_HOST}, \texttt{SMTP\_PORT}, \texttt{SMTP\_USER}, \texttt{SMTP\_PASS} và \texttt{FROM\_EMAIL} nếu sử dụng chức năng gửi email.
+\item Chạy backend bằng \texttt{npm run dev} hoặc \texttt{npm start} trong thư mục \texttt{backend}; mặc định backend chạy ở cổng 3000.
+\item Chạy frontend bằng \texttt{npm run serve} trong thư mục \texttt{frontend} để phát triển, hoặc \texttt{npm run build} để tạo bản build tĩnh.
+\item Mở thư mục \texttt{scanner-android} bằng Android Studio, build và chạy ứng dụng trên thiết bị Android; nhập địa chỉ API URL của backend trong ứng dụng scanner để kết nối tới hệ thống.
+\end{enumerate}
+
+Các giá trị cụ thể của biến môi trường, khóa dịch vụ và chuỗi kết nối không được ghi trong báo cáo vì lý do an toàn. Khi đưa hệ thống vào sử dụng thực tế, cần bổ sung cơ chế bảo vệ khóa bí mật và sao lưu dữ liệu như đã nêu trong phần yêu cầu phi chức năng.
+\end{document}
+
+

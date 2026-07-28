@@ -1,0 +1,50 @@
+@startuml
+title Sơ đồ tổ chức gói chính của hệ thống
+
+skinparam defaultFontName Arial
+skinparam componentStyle rectangle
+skinparam shadowing false
+skinparam wrapWidth 180
+
+rectangle "frontend" {
+  component "pages" as FE_pages
+  component "components" as FE_components
+  component "api" as FE_api
+  component "router" as FE_router
+  component "utils" as FE_utils
+}
+
+rectangle "backend" {
+  component "routes" as BE_routes
+  component "models" as BE_models
+  component "services" as BE_services
+  component "middleware" as BE_middleware
+  component "uploads" as BE_uploads
+}
+
+rectangle "scanner-android" {
+  component "MainActivity" as MainActivity
+  component "ApiClient" as ApiClient
+  component "SessionManager" as SessionManager
+  component "ScannerCaptureActivity" as ScannerCapture
+  component "resources" as AndroidRes
+}
+
+FE_pages --> FE_components
+FE_pages --> FE_api
+FE_router --> FE_pages
+FE_api --> BE_routes : REST API
+
+BE_routes --> BE_middleware : xác thực/phân quyền
+BE_routes --> BE_services
+BE_routes --> BE_models
+BE_services --> BE_models
+BE_routes --> BE_uploads : upload ảnh
+
+MainActivity --> ApiClient
+MainActivity --> SessionManager
+MainActivity --> ScannerCapture
+MainActivity --> AndroidRes
+ApiClient --> BE_routes : REST API
+
+@enduml

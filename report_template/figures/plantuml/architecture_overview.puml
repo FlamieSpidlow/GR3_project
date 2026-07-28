@@ -1,0 +1,59 @@
+@startuml
+title Sơ đồ kiến trúc tổng thể hệ thống TheWeekend
+
+skinparam defaultFontName Arial
+skinparam componentStyle rectangle
+skinparam shadowing false
+skinparam wrapWidth 180
+
+actor "Khách" as Guest
+actor "Người dùng" as User
+actor "Quản trị viên" as Admin
+actor "Nhân viên" as Staff
+
+node "Web Client\nVue 3" as WebClient {
+  component "Trang người dùng" as UserPages
+  component "Trang quản trị" as AdminPages
+}
+
+node "Android Scanner\nNative Java" as Scanner {
+  component "Quét QR" as QRScan
+  component "API Client" as ScannerApi
+}
+
+node "Backend REST API\nNode.js + Express" as Backend {
+  component "Auth Middleware" as Auth
+  component "Routes" as Routes
+  component "Services" as Services
+  component "Models" as Models
+}
+
+database "MongoDB" as MongoDB
+
+cloud "Goong API" as Goong
+cloud "Gemini API" as Gemini
+cloud "PayOS" as PayOS
+cloud "Email/Notification" as Notify
+
+Guest --> WebClient
+User --> WebClient
+Admin --> WebClient
+Staff --> WebClient
+Staff --> Scanner
+Admin --> Scanner
+
+WebClient --> Backend : HTTPS/REST API
+Scanner --> Backend : HTTPS/REST API
+
+Backend --> MongoDB : Mongoose
+Backend --> Goong : tìm kiếm/vị trí
+Backend --> Gemini : hỏi đáp chatbot
+Backend --> PayOS : thanh toán vé
+Backend --> Notify : email/thông báo
+
+Routes --> Auth
+Routes --> Services
+Services --> Models
+Models --> MongoDB
+
+@enduml

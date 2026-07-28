@@ -1,0 +1,362 @@
+% $ biblatex auxiliary file $
+% $ biblatex bbl format version 3.3 $
+% Do not modify the above lines!
+%
+% This is an auxiliary file used by the 'biblatex' package.
+% This file may safely be deleted. It will be recreated as
+% required.
+%
+\begingroup
+\makeatletter
+\@ifundefined{ver@biblatex.sty}
+  {\@latex@error
+     {Missing 'biblatex' package}
+     {The bibliography requires the 'biblatex' package.}
+      \aftergroup\endinput}
+  {}
+\endgroup
+
+\datalist[entry]{none/global//global/global/global}
+  \entry{vue_docs}{misc}{}{}
+    \name{author}{1}{}{%
+      {{hash=V}{%
+         family={{Vue.js}},
+         familyi={V\bibinitperiod},
+      }}%
+    }
+    \strng{namehash}{V2}
+    \strng{fullhash}{V2}
+    \field{labelnamesource}{author}
+    \field{labeltitlesource}{title}
+    \field{title}{Vue.js Documentation}
+    \verb{url}
+    \verb https://vuejs.org/guide/introduction.html
+    \endverb
+    \field{urlday}{24}
+    \field{urlmonth}{06}
+    \field{urlyear}{2026}
+  \endentry
+
+  \entry{vue_router_docs}{misc}{}{}
+    \name{author}{1}{}{%
+      {{hash=V}{%
+         family={{Vue Router}},
+         familyi={V\bibinitperiod},
+      }}%
+    }
+    \strng{namehash}{V1}
+    \strng{fullhash}{V1}
+    \field{labelnamesource}{author}
+    \field{labeltitlesource}{title}
+    \field{title}{Vue Router Documentation}
+    \verb{url}
+    \verb https://router.vuejs.org/
+    \endverb
+    \field{urlday}{24}
+    \field{urlmonth}{06}
+    \field{urlyear}{2026}
+  \endentry
+
+  \entry{axios_docs}{misc}{}{}
+    \name{author}{1}{}{%
+      {{hash=A}{%
+         family={{Axios}},
+         familyi={A\bibinitperiod},
+      }}%
+    }
+    \strng{namehash}{A2}
+    \strng{fullhash}{A2}
+    \field{labelnamesource}{author}
+    \field{labeltitlesource}{title}
+    \field{title}{Axios Documentation}
+    \verb{url}
+    \verb https://axios-http.com/docs/intro
+    \endverb
+    \field{urlday}{24}
+    \field{urlmonth}{06}
+    \field{urlyear}{2026}
+  \endentry
+
+  \entry{mdn_fetch_api}{misc}{}{}
+    \name{author}{1}{}{%
+      {{hash=M}{%
+         family={{Mozilla Developer Network}},
+         familyi={M\bibinitperiod},
+      }}%
+    }
+    \strng{namehash}{M3}
+    \strng{fullhash}{M3}
+    \field{labelnamesource}{author}
+    \field{labeltitlesource}{title}
+    \field{title}{Fetch API}
+    \verb{url}
+    \verb https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API
+    \endverb
+    \field{urlday}{24}
+    \field{urlmonth}{06}
+    \field{urlyear}{2026}
+  \endentry
+
+  \entry{nodejs_docs}{misc}{}{}
+    \name{author}{1}{}{%
+      {{hash=N}{%
+         family={{Node.js}},
+         familyi={N\bibinitperiod},
+      }}%
+    }
+    \strng{namehash}{N1}
+    \strng{fullhash}{N1}
+    \field{labelnamesource}{author}
+    \field{labeltitlesource}{title}
+    \field{title}{Node.js Documentation}
+    \verb{url}
+    \verb https://nodejs.org/docs/latest/api/
+    \endverb
+    \field{urlday}{24}
+    \field{urlmonth}{06}
+    \field{urlyear}{2026}
+  \endentry
+
+  \entry{express_docs}{misc}{}{}
+    \name{author}{1}{}{%
+      {{hash=E}{%
+         family={{Express}},
+         familyi={E\bibinitperiod},
+      }}%
+    }
+    \strng{namehash}{E1}
+    \strng{fullhash}{E1}
+    \field{labelnamesource}{author}
+    \field{labeltitlesource}{title}
+    \field{title}{Express Documentation}
+    \verb{url}
+    \verb https://expressjs.com/
+    \endverb
+    \field{urlday}{24}
+    \field{urlmonth}{06}
+    \field{urlyear}{2026}
+  \endentry
+
+  \entry{mongodb_docs}{misc}{}{}
+    \name{author}{1}{}{%
+      {{hash=M}{%
+         family={{MongoDB}},
+         familyi={M\bibinitperiod},
+      }}%
+    }
+    \strng{namehash}{M1}
+    \strng{fullhash}{M1}
+    \field{labelnamesource}{author}
+    \field{labeltitlesource}{title}
+    \field{title}{MongoDB Manual}
+    \verb{url}
+    \verb https://www.mongodb.com/docs/manual/
+    \endverb
+    \field{urlday}{24}
+    \field{urlmonth}{06}
+    \field{urlyear}{2026}
+  \endentry
+
+  \entry{mongoose_docs}{misc}{}{}
+    \name{author}{1}{}{%
+      {{hash=M}{%
+         family={{Mongoose}},
+         familyi={M\bibinitperiod},
+      }}%
+    }
+    \strng{namehash}{M2}
+    \strng{fullhash}{M2}
+    \field{labelnamesource}{author}
+    \field{labeltitlesource}{title}
+    \field{title}{Mongoose Documentation}
+    \verb{url}
+    \verb https://mongoosejs.com/docs/
+    \endverb
+    \field{urlday}{24}
+    \field{urlmonth}{06}
+    \field{urlyear}{2026}
+  \endentry
+
+  \entry{jwt_rfc7519}{report}{}{}
+    \name{author}{3}{}{%
+      {{hash=JM}{%
+         family={Jones},
+         familyi={J\bibinitperiod},
+         given={Michael},
+         giveni={M\bibinitperiod},
+      }}%
+      {{hash=BJ}{%
+         family={Bradley},
+         familyi={B\bibinitperiod},
+         given={John},
+         giveni={J\bibinitperiod},
+      }}%
+      {{hash=SN}{%
+         family={Sakimura},
+         familyi={S\bibinitperiod},
+         given={Nat},
+         giveni={N\bibinitperiod},
+      }}%
+    }
+    \strng{namehash}{JM+1}
+    \strng{fullhash}{JMBJSN1}
+    \field{labelnamesource}{author}
+    \field{labeltitlesource}{title}
+    \field{number}{RFC 7519}
+    \field{title}{JSON Web Token (JWT)}
+    \verb{url}
+    \verb https://www.rfc-editor.org/rfc/rfc7519
+    \endverb
+    \list{institution}{1}{%
+      {Internet Engineering Task Force}%
+    }
+    \field{type}{techreport}
+    \field{year}{2015}
+  \endentry
+
+  \entry{bcrypt_paper}{inproceedings}{}{}
+    \name{author}{2}{}{%
+      {{hash=PN}{%
+         family={Provos},
+         familyi={P\bibinitperiod},
+         given={Niels},
+         giveni={N\bibinitperiod},
+      }}%
+      {{hash=MD}{%
+         family={Mazieres},
+         familyi={M\bibinitperiod},
+         given={David},
+         giveni={D\bibinitperiod},
+      }}%
+    }
+    \strng{namehash}{PNMD1}
+    \strng{fullhash}{PNMD1}
+    \field{labelnamesource}{author}
+    \field{labeltitlesource}{title}
+    \field{booktitle}{Proceedings of the 1999 USENIX Annual Technical
+  Conference}
+    \field{title}{A Future-Adaptable Password Scheme}
+    \field{year}{1999}
+  \endentry
+
+  \entry{goong_api_docs}{misc}{}{}
+    \name{author}{1}{}{%
+      {{hash=G}{%
+         family={{Goong}},
+         familyi={G\bibinitperiod},
+      }}%
+    }
+    \strng{namehash}{G2}
+    \strng{fullhash}{G2}
+    \field{labelnamesource}{author}
+    \field{labeltitlesource}{title}
+    \field{title}{Goong API Documentation}
+    \verb{url}
+    \verb https://docs.goong.io/rest/
+    \endverb
+    \field{urlday}{25}
+    \field{urlmonth}{06}
+    \field{urlyear}{2026}
+  \endentry
+
+  \entry{gemini_api_docs}{misc}{}{}
+    \name{author}{1}{}{%
+      {{hash=G}{%
+         family={{Google AI for Developers}},
+         familyi={G\bibinitperiod},
+      }}%
+    }
+    \strng{namehash}{G1}
+    \strng{fullhash}{G1}
+    \field{labelnamesource}{author}
+    \field{labeltitlesource}{title}
+    \field{title}{Gemini API Documentation}
+    \verb{url}
+    \verb https://ai.google.dev/gemini-api/docs
+    \endverb
+    \field{urlday}{24}
+    \field{urlmonth}{06}
+    \field{urlyear}{2026}
+  \endentry
+
+  \entry{payos_docs}{misc}{}{}
+    \name{author}{1}{}{%
+      {{hash=P}{%
+         family={{PayOS}},
+         familyi={P\bibinitperiod},
+      }}%
+    }
+    \strng{namehash}{P1}
+    \strng{fullhash}{P1}
+    \field{labelnamesource}{author}
+    \field{labeltitlesource}{title}
+    \field{title}{PayOS Documentation}
+    \verb{url}
+    \verb https://payos.vn/docs/
+    \endverb
+    \field{urlday}{25}
+    \field{urlmonth}{06}
+    \field{urlyear}{2026}
+  \endentry
+
+  \entry{android_docs}{misc}{}{}
+    \name{author}{1}{}{%
+      {{hash=A}{%
+         family={{Android Developers}},
+         familyi={A\bibinitperiod},
+      }}%
+    }
+    \strng{namehash}{A1}
+    \strng{fullhash}{A1}
+    \field{labelnamesource}{author}
+    \field{labeltitlesource}{title}
+    \field{title}{Android Developers Documentation}
+    \verb{url}
+    \verb https://developer.android.com/docs
+    \endverb
+    \field{urlday}{24}
+    \field{urlmonth}{06}
+    \field{urlyear}{2026}
+  \endentry
+
+  \entry{zxing_repo}{misc}{}{}
+    \name{author}{1}{}{%
+      {{hash=Z}{%
+         family={{ZXing Project}},
+         familyi={Z\bibinitperiod},
+      }}%
+    }
+    \strng{namehash}{Z1}
+    \strng{fullhash}{Z1}
+    \field{labelnamesource}{author}
+    \field{labeltitlesource}{title}
+    \field{title}{ZXing}
+    \verb{url}
+    \verb https://github.com/zxing/zxing
+    \endverb
+    \field{urlday}{24}
+    \field{urlmonth}{06}
+    \field{urlyear}{2026}
+  \endentry
+
+  \entry{okhttp_docs}{misc}{}{}
+    \name{author}{1}{}{%
+      {{hash=S}{%
+         family={{Square}},
+         familyi={S\bibinitperiod},
+      }}%
+    }
+    \strng{namehash}{S1}
+    \strng{fullhash}{S1}
+    \field{labelnamesource}{author}
+    \field{labeltitlesource}{title}
+    \field{title}{OkHttp Documentation}
+    \verb{url}
+    \verb https://square.github.io/okhttp/
+    \endverb
+    \field{urlday}{24}
+    \field{urlmonth}{06}
+    \field{urlyear}{2026}
+  \endentry
+\enddatalist
+\endinput

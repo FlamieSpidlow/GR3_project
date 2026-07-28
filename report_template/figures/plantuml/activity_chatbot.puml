@@ -1,0 +1,26 @@
+@startuml
+skinparam defaultFontName Arial
+start
+:Người dùng nhập câu hỏi;
+:Gửi câu hỏi tới API chatbot;
+
+if (Câu hỏi hợp lệ?) then (Có)
+  :Xác định phiên hội thoại;
+  :Truy hồi dữ liệu nội bộ liên quan;
+  if (Có dữ liệu phù hợp?) then (Có)
+    :Tạo ngữ cảnh trả lời;
+    :Gửi ngữ cảnh và câu hỏi tới Gemini API;
+    if (Sinh câu trả lời thành công?) then (Có)
+      :Trả câu trả lời cho người dùng;
+    else (Không)
+      :Trả phản hồi dự phòng từ dữ liệu truy hồi;
+    endif
+  else (Không)
+    :Trả thông báo không có dữ liệu;
+  endif
+else (Không)
+  :Trả thông báo không có dữ liệu;
+endif
+
+stop
+@enduml

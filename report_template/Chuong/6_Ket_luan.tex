@@ -1,0 +1,54 @@
+\documentclass[../DoAn.tex]{subfiles}
+\begin{document}
+\chapter{Kết luận và hướng phát triển}
+
+\section{Kết quả đạt được}
+
+Đồ án đã thiết kế và xây dựng TheWeekend, một hệ thống web hỗ trợ gợi ý địa điểm vui chơi cuối tuần cho trẻ em và gia đình có trẻ em. Hệ thống được xây dựng theo kiến trúc client-server, bao gồm frontend web, backend REST API, cơ sở dữ liệu MongoDB và ứng dụng Android scanner phục vụ nghiệp vụ check-in vé.
+
+Về nhóm chức năng tài khoản, hệ thống hỗ trợ đăng ký, đăng nhập, đăng nhập Google, quên mật khẩu, đặt lại mật khẩu, cập nhật hồ sơ, đổi mật khẩu và phân quyền theo vai trò người dùng, quản trị viên và nhân viên. Cơ chế phân quyền được sử dụng để kiểm soát truy cập tới các chức năng người dùng, quản trị và check-in.
+
+Về nhóm chức năng địa điểm, hệ thống hỗ trợ tìm kiếm địa điểm, xem danh sách, xem chi tiết địa điểm, lưu hoặc bỏ lưu địa điểm yêu thích và nhận gợi ý địa điểm. Dữ liệu địa điểm được tổ chức cùng danh mục, tag, thông tin tiện ích, hình ảnh và đánh giá để hỗ trợ người dùng trong quá trình tra cứu.
+
+Về nhóm chức năng tương tác và phản hồi, hệ thống hỗ trợ đánh giá địa điểm, gửi ảnh đánh giá, phản ứng với đánh giá và quản trị viên xử lý ảnh đánh giá. Ngoài ra, hệ thống có chatbot kết hợp Gemini API với dữ liệu nội bộ được truy hồi từ MongoDB để hỗ trợ hỏi đáp trong phạm vi dữ liệu của TheWeekend.
+
+Về nhóm chức năng vé và thanh toán, hệ thống hỗ trợ tạo đơn đặt vé, tích hợp thanh toán PayOS, ghi nhận thông tin giao dịch, phát hành vé QR và cho phép người dùng xem các vé đã đặt. Quản trị viên và nhân viên có thể theo dõi các thông tin liên quan đến đơn vé, thanh toán và vé theo quyền được cấp.
+
+Về vận hành check-in, đồ án đã xây dựng ứng dụng Android scanner bằng Java native, sử dụng ZXing để quét mã QR và OkHttp để gọi API backend. Ứng dụng cho phép nhân viên hoặc quản trị viên đăng nhập, quét mã vé, xác minh vé và ghi nhận check-in. Hệ thống cũng có model và API liên quan đến thông báo người dùng.
+
+\section{Hạn chế}
+
+Mặc dù hệ thống đã xây dựng được các chức năng chính theo phạm vi đồ án, báo cáo chưa có dữ liệu khảo sát người dùng chính thức. Vì vậy, chưa thể đưa ra kết luận về nhu cầu thực tế, mức độ hài lòng hoặc mức độ phù hợp của hệ thống đối với nhóm người dùng mục tiêu dựa trên dữ liệu khảo sát.
+
+Các chức năng đã được xây dựng và đã được kiểm thử thủ công trên môi trường local cho các luồng chính. Tuy nhiên, đồ án chưa có kiểm thử định lượng, kiểm thử tải hoặc kiểm thử tự động đầy đủ. Vì vậy, báo cáo chưa đủ cơ sở để kết luận về độ ổn định dài hạn, hiệu năng hoặc khả năng đáp ứng khi có nhiều người dùng đồng thời.
+
+Đối với nghiệp vụ vé, hệ thống có các model và trạng thái liên quan đến booking, payment và ticket. Tuy nhiên, chưa đủ dữ liệu để kết luận chính sách hủy vé, hoàn tiền, hết hạn thanh toán và vòng đời đầy đủ của vé. Các chính sách này cần được xác nhận thêm trước khi đưa vào báo cáo như một quy trình nghiệp vụ chính thức.
+
+Đối với gợi ý địa điểm và chatbot, hệ thống đã có chức năng tương ứng, nhưng chưa có dữ liệu đánh giá chất lượng kết quả gợi ý hoặc độ chính xác của câu trả lời. Vì vậy, các chức năng này vẫn còn khả năng cải thiện nếu có thêm dữ liệu hành vi người dùng, bộ tiêu chí đánh giá và phương pháp đo lường phù hợp.
+
+\section{Hướng phát triển}
+
+Trong hướng phát triển tiếp theo, hệ thống nên được bổ sung khảo sát và đánh giá người dùng để có cơ sở khách quan hơn khi xác định nhu cầu, đánh giá trải nghiệm và điều chỉnh chức năng. Dữ liệu khảo sát có thể hỗ trợ việc cải thiện giao diện, luồng tìm kiếm địa điểm, cách hiển thị gợi ý và mức độ hữu ích của chatbot.
+
+Hệ thống cũng cần tiếp tục mở rộng bộ test case cho các nghiệp vụ chính như đăng ký, đăng nhập, tìm kiếm địa điểm, gợi ý, chatbot, đánh giá, đặt vé, thanh toán, phát hành vé QR, check-in và quản trị. Các kiểm thử thủ công hiện tại đã xác nhận các luồng chính trong môi trường local; các giai đoạn tiếp theo nên bổ sung kiểm thử API tự động, kiểm thử giao diện, kiểm thử tải và kiểm thử trên các môi trường sử dụng khác nhau.
+
+Đối với nghiệp vụ vé, hướng phát triển cần làm rõ chính sách hủy vé, hoàn tiền, hết hạn thanh toán và vòng đời booking/payment/ticket. Khi chính sách được xác nhận, hệ thống có thể bổ sung giao diện và API tương ứng, đồng thời cập nhật tài liệu nghiệp vụ và test case liên quan.
+
+Đối với chức năng gợi ý, hệ thống có thể cải thiện bằng cách khai thác thêm hành vi người dùng như lịch sử tìm kiếm, địa điểm yêu thích, đánh giá và vị trí. Việc cải thiện cần đi kèm với bộ tiêu chí đánh giá để xác định mức độ phù hợp của kết quả gợi ý.
+
+Đối với chatbot, hệ thống có thể tiếp tục cải thiện dữ liệu ngữ cảnh, chuẩn hóa dữ liệu địa điểm và xây dựng cơ chế đánh giá chất lượng câu trả lời. Khi có dữ liệu đánh giá, có thể điều chỉnh cách truy hồi dữ liệu nội bộ và cách tạo ngữ cảnh đầu vào để câu trả lời phù hợp hơn với phạm vi của hệ thống.
+
+Về cá nhân hóa gợi ý, hệ thống hiện đã lưu trường lịch sử tìm kiếm của người dùng nhưng chưa khai thác trong xếp hạng. Hướng phát triển là sử dụng lịch sử tìm kiếm, danh sách yêu thích và lịch sử đặt vé để điều chỉnh thứ hạng gợi ý theo từng người dùng, đồng thời bổ sung bộ tiêu chí đánh giá mức độ phù hợp của kết quả.
+
+Về tối ưu tìm kiếm theo khoảng cách, hệ thống hiện tính khoảng cách bằng công thức Haversine trong tầng ứng dụng và chưa có chỉ mục tìm kiếm cho địa điểm. Hướng phát triển là bổ sung chỉ mục không gian địa lý (ví dụ chỉ mục 2dsphere của MongoDB) để truy vấn theo vị trí hiệu quả hơn, cùng với các chỉ mục cho tên, địa chỉ, thẻ và danh mục nhằm tăng tốc tìm kiếm khi dữ liệu địa điểm lớn dần.
+
+Về trải nghiệm bản đồ, hệ thống có thể tích hợp bản đồ trực quan hơn và chức năng chỉ đường tới địa điểm, giúp người dùng hình dung vị trí và lộ trình thuận tiện hơn so với cách hiển thị thông tin vị trí hiện tại.
+
+Về ứng dụng Android scanner, hướng phát triển là cải thiện khả năng hoạt động khi mạng không ổn định, ví dụ bổ sung cơ chế thử lại yêu cầu, thông báo trạng thái kết nối rõ ràng hơn và cân nhắc hàng đợi check-in có kiểm soát; tuy nhiên, mọi quyết định ghi nhận vé vẫn cần được backend xác nhận để bảo đảm tính nhất quán và chống dùng lại vé.
+
+Ngoài ra, hệ thống có thể bổ sung các báo cáo vận hành cho quản trị viên nếu phù hợp với nhu cầu sử dụng. Các báo cáo có thể tập trung vào số lượng địa điểm, đánh giá, đơn vé, giao dịch, vé đã check-in và các thông tin phục vụ quản lý. Nội dung này cần được thiết kế dựa trên yêu cầu nghiệp vụ cụ thể và dữ liệu vận hành thực tế.
+
+\section{Tổng kết}
+
+Đồ án đã hoàn thành việc thiết kế và xây dựng một hệ thống web hỗ trợ gợi ý địa điểm vui chơi cuối tuần cho trẻ em và gia đình có trẻ em, kết hợp các chức năng tra cứu địa điểm, gợi ý, chatbot, đánh giá, yêu thích, đặt vé, thanh toán, vé QR, quản trị và check-in bằng ứng dụng Android scanner. Hệ thống đáp ứng phạm vi chức năng đã xác định và đã được kiểm thử thủ công trên môi trường local cho các luồng chính, đồng thời còn một số hạn chế liên quan đến khảo sát, kiểm thử định lượng và chính sách nghiệp vụ cần được tiếp tục hoàn thiện trong các giai đoạn phát triển sau.
+\end{document}

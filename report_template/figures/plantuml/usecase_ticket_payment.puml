@@ -1,0 +1,22 @@
+@startuml
+skinparam defaultFontName Arial
+left to right direction
+
+actor "Người dùng" as User
+actor "Quản trị viên" as Admin
+
+rectangle "Đặt vé và thanh toán" {
+  usecase "Chọn vé" as SelectTicket
+  usecase "Tạo đơn đặt vé" as CreateBooking
+  usecase "Thanh toán PayOS" as Pay
+  usecase "Xem vé QR" as ViewQR
+  usecase "Quản lý vé/thanh toán" as ManagePayment
+}
+
+User --> SelectTicket
+User --> CreateBooking
+User --> Pay
+User --> ViewQR
+
+Admin --> ManagePayment
+@enduml

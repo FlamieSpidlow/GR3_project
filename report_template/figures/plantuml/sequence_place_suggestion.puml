@@ -1,0 +1,30 @@
+@startuml
+title Sequence diagram quy trình gợi ý địa điểm
+
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam sequenceMessageAlign center
+skinparam wrapWidth 180
+
+actor "Người dùng" as User
+participant "Frontend" as FE
+participant "Backend API" as BE
+database "MongoDB" as DB
+
+User -> FE : Mở trang gợi ý địa điểm
+FE -> BE : Gửi yêu cầu lấy gợi ý
+BE -> DB : Lấy thông tin người dùng và vị trí nếu có
+DB --> BE : Hồ sơ/vị trí người dùng
+BE -> DB : Lấy dữ liệu Place, Tag, Review
+DB --> BE : Dữ liệu địa điểm liên quan
+BE -> BE : Xử lý cơ chế gợi ý dựa trên dữ liệu nội bộ
+
+alt Có địa điểm phù hợp
+  BE --> FE : Trả danh sách địa điểm gợi ý
+  FE --> User : Hiển thị danh sách gợi ý
+else Không có dữ liệu phù hợp
+  BE --> FE : Trả thông báo không có dữ liệu phù hợp
+  FE --> User : Hiển thị thông báo
+end
+
+@enduml

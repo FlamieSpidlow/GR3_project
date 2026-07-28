@@ -188,7 +188,6 @@ router.get('/search', async (req, res) => {
       'giải trí': 'Giải trí', 'giai tri': 'Giải trí', 'vui chơi': 'Giải trí',
       // Gia đình
       'gia đình': 'Gia đình', 'gia dinh': 'Gia đình', 'family': 'Gia đình',
-      // Trẻ em (đã bỏ tag "Trẻ em" theo yêu cầu)
       // Cuối tuần
       'cuối tuần': 'Cuối tuần', 'cuoi tuan': 'Cuối tuần', 'weekend': 'Cuối tuần',
       // Sinh thái
@@ -483,35 +482,6 @@ router.get('/search', async (req, res) => {
     )
     console.log(`Database search for "${rawQuery}" (age=${ageFilter ?? 'n/a'}, tags=${matchedTags.join(', ') || 'n/a'}): found ${dbPlaces.length} places`)
 
-    const calculateScore = (place, ctx) => {
-      // +5 nếu match tag
-      // +3 nếu name match query
-      // * điểm khoảng cách (nếu có lat/lng)  -> dùng factor nhẹ để không "đè" relevance
-      // * log(viewCount + 1)
-      // * rating * 2
-      const placeNameNorm = normalizeText(place.name)
-      const placeTagsNorm = (place.tags || []).map(t => normalizeText(t))
-
-      let score = 1
-      const tagMatched = matchedTagsNorm.length > 0 && matchedTagsNorm.some(t => placeTagsNorm.includes(t))
-      if (tagMatched) score += 5
-      if (ctx.normalizedQuery && placeNameNorm.includes(ctx.normalizedQuery)) score += 3
-
-      // distance factor: 1..~2 (nearer => higher)
-      if (ctx.userLat != null && ctx.userLng != null && place.lat != null && place.lng != null) {
-        const d = calculateDistance(ctx.userLat, ctx.userLng, place.lat, place.lng)
-        const km = d / 1000
-        score *= (1 + (1 / (1 + km)))
-      }
-
-      const vc = Math.max(0, Number(place.viewCount || 0))
-      score *= (Math.log(vc + 1) + 1) // +1 để tránh nhân 0 khi viewCount=0
-
-      const rating = Math.max(0, Number(place.rating || 0))
-      score *= (rating * 2 + 1) // +1 để tránh nhân 0 khi rating=0
-
-      return score
-    }
 
     // Map + compute distance + score
     const ctx = { normalizedQuery, userLat: Number.isFinite(userLat) ? userLat : null, userLng: Number.isFinite(userLng) ? userLng : null }
@@ -521,8 +491,6 @@ router.get('/search', async (req, res) => {
       if (ctx.userLat != null && ctx.userLng != null && place.lat != null && place.lng != null) {
         distance = calculateDistance(ctx.userLat, ctx.userLng, place.lat, place.lng)
       }
-
-      const score = calculateScore(place, ctx)
 
       return {
         id: place._id.toString(),
@@ -547,16 +515,20 @@ router.get('/search', async (req, res) => {
         tags: place.tags || [],
         source: 'database',
         hasImage: (place.images && place.images.length > 0) || !!place.image,
-        distance,
-        _score: score
+        distance
       }
     })
 
-    // Sort DUY NHẤT 1 LẦN theo score (desc)
-    scored.sort((a, b) => (b._score || 0) - (a._score || 0))
+    // Sắp xếp CHỈ theo khoảng cách từ gần đến xa
+    scored.sort((a, b) => {
+      if (a.distance == null && b.distance == null) return 0
+      if (a.distance == null) return 1
+      if (b.distance == null) return -1
+      return a.distance - b.distance
+    })
 
     // Limit kết quả
-    const finalResults = scored.slice(0, limitNum).map(({ _score, ...rest }) => rest)
+    const finalResults = scored.slice(0, limitNum)
 
     res.json({ success: true, data: finalResults })
   } catch (err) {

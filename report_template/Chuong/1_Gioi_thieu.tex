@@ -1,0 +1,36 @@
+\documentclass[../DoAn.tex]{subfiles}
+\begin{document}
+
+\chapter{Giới thiệu đề tài}
+
+\section{Đặt vấn đề}
+
+Việc lựa chọn địa điểm vui chơi cuối tuần cho trẻ em và gia đình có trẻ em thường phụ thuộc vào nhiều yếu tố khác nhau như vị trí, độ tuổi phù hợp, giá vé, giờ mở cửa, tiện ích, chất lượng dịch vụ và đánh giá từ người dùng khác. Các thông tin này có thể xuất hiện ở nhiều nguồn riêng biệt, dẫn đến việc người dùng phải tự tổng hợp, so sánh và đánh giá trước khi đưa ra quyết định. Đối với nhóm người dùng là phụ huynh hoặc người chăm sóc trẻ, quá trình này còn cần cân nhắc thêm các yếu tố đặc thù như mức độ phù hợp với trẻ nhỏ, khả năng di chuyển, không gian vui chơi và các tiện ích đi kèm.
+
+Các hình thức tìm kiếm địa điểm thông thường chủ yếu dựa trên từ khóa hoặc danh sách kết quả tổng quát. Cách tiếp cận này chưa luôn phản ánh đầy đủ ngữ cảnh nhu cầu của người dùng, chẳng hạn như mong muốn tìm địa điểm phù hợp cho một độ tuổi nhất định, gần vị trí hiện tại, có mức giá phù hợp hoặc có hoạt động cụ thể. Bên cạnh đó, người dùng cũng cần các thông tin bổ trợ như đánh giá, hình ảnh, trạng thái yêu thích và khả năng hỏi đáp nhanh về địa điểm để rút ngắn quá trình tra cứu.
+
+Đối với các địa điểm có bán vé, quy trình đặt vé, thanh toán, phát hành vé và kiểm tra vé tại điểm đến cũng là một phần quan trọng trong trải nghiệm sử dụng dịch vụ. Nếu các bước này được xử lý rời rạc, người dùng và nhân viên vận hành có thể gặp khó khăn trong việc theo dõi trạng thái đặt vé, xác nhận thanh toán và kiểm tra tính hợp lệ của vé. Từ các vấn đề trên, đề tài ``Thiết kế và xây dựng ứng dụng web gợi ý địa điểm vui chơi cuối tuần cho trẻ em'' được thực hiện nhằm phân tích và xây dựng một hệ thống hỗ trợ tập trung cho quá trình tìm kiếm, tham khảo, đặt vé và quản lý thông tin địa điểm vui chơi cho trẻ em và gia đình.
+
+\section{Mục tiêu và phạm vi đề tài}
+
+Mục tiêu của đồ án là thiết kế và xây dựng TheWeekend, một hệ thống web hỗ trợ gợi ý địa điểm vui chơi cuối tuần cho trẻ em và gia đình có trẻ em. Hệ thống hướng tới việc cung cấp một nền tảng tập trung để người dùng có thể tìm kiếm địa điểm, xem thông tin chi tiết, tham khảo đánh giá, lưu địa điểm quan tâm và nhận gợi ý phù hợp dựa trên dữ liệu địa điểm được quản lý trong hệ thống.
+
+Trong phạm vi dành cho người dùng, TheWeekend bao gồm các chức năng đăng ký, đăng nhập, quản lý thông tin cá nhân, tìm kiếm địa điểm, xem chi tiết địa điểm, nhận gợi ý địa điểm, hỏi đáp với chatbot dựa trên dữ liệu nội bộ, đánh giá địa điểm, gửi ảnh đánh giá và lưu hoặc bỏ lưu địa điểm yêu thích. Ngoài ra, hệ thống hỗ trợ nghiệp vụ đặt vé đối với các địa điểm có bán vé, thanh toán qua PayOS, phát hành vé QR và cho phép người dùng theo dõi các vé đã đặt.
+
+Trong phạm vi dành cho quản trị và vận hành, hệ thống bao gồm các chức năng quản trị địa điểm, quản trị người dùng, quản lý đánh giá và duyệt ảnh đánh giá, quản lý vé, đơn đặt vé và thanh toán. Đồ án cũng bao gồm ứng dụng Android scanner dành cho nhân viên hoặc quản trị viên để quét mã QR, xác minh vé và ghi nhận check-in tại địa điểm. Phạm vi của đồ án tập trung vào các chức năng đã được xác định trong phạm vi triển khai của đồ án.
+
+Các nền tảng tra cứu địa điểm tổng quát có thể cung cấp lượng thông tin lớn, tuy nhiên chưa luôn tập trung vào nhu cầu lựa chọn địa điểm vui chơi cuối tuần cho trẻ em và gia đình. Vì vậy, trong phạm vi đồ án, hệ thống được định hướng theo hướng tổ chức dữ liệu địa điểm, đánh giá, gợi ý, đặt vé và check-in trong cùng một luồng sử dụng thống nhất.
+
+\section{Định hướng giải pháp}
+
+TheWeekend được định hướng xây dựng theo mô hình ứng dụng full-stack, trong đó frontend cung cấp giao diện tương tác cho người dùng, quản trị viên và nhân viên vận hành, còn backend cung cấp các API xử lý nghiệp vụ và kết nối với cơ sở dữ liệu. Dữ liệu của hệ thống được tổ chức trong MongoDB, bao gồm thông tin người dùng, địa điểm, danh mục, thẻ, đánh giá, vé, đơn đặt vé, thanh toán và thông báo.
+
+Ở mức tổng quan, hệ thống sử dụng frontend web để phục vụ các luồng tra cứu, gợi ý, đánh giá, đặt vé và quản trị. Backend đảm nhiệm việc xác thực người dùng, phân quyền, xử lý dữ liệu địa điểm, quản lý đánh giá, tạo đơn đặt vé, tích hợp thanh toán và cung cấp dữ liệu cho các giao diện liên quan. Các dịch vụ bên ngoài được sử dụng nhằm hỗ trợ những nghiệp vụ cụ thể, trong đó Goong API hỗ trợ xử lý thông tin địa điểm và vị trí, Gemini API hỗ trợ chatbot dựa trên dữ liệu nội bộ, PayOS hỗ trợ thanh toán, và ứng dụng Android scanner hỗ trợ nhân viên hoặc quản trị viên kiểm tra vé QR tại điểm đến.
+
+Định hướng này giúp hệ thống tách biệt rõ giữa giao diện, xử lý nghiệp vụ và lưu trữ dữ liệu, đồng thời bảo đảm các luồng sử dụng chính như tìm kiếm địa điểm, hỏi đáp, đặt vé, thanh toán và check-in vé được kết nối trong cùng một hệ thống thống nhất.
+
+\section{Bố cục đồ án}
+
+Phần còn lại của đồ án được tổ chức thành các chương theo cấu trúc của báo cáo. Chương 2 trình bày khảo sát hiện trạng và phân tích yêu cầu của hệ thống TheWeekend, bao gồm các nhóm người dùng, các chức năng chính, các quy trình nghiệp vụ và yêu cầu phi chức năng. Chương 3 trình bày nền tảng lý thuyết và các công nghệ sử dụng trong quá trình xây dựng hệ thống. Chương 4 mô tả quá trình phân tích thiết kế, triển khai và đánh giá hệ thống, tập trung vào kiến trúc tổng thể, thiết kế dữ liệu, thiết kế chức năng và kết quả xây dựng các phân hệ chính. Chương 5 trình bày các giải pháp và đóng góp chính của đồ án. Chương 6 tổng kết kết quả đạt được, nêu các hạn chế còn tồn tại và đề xuất hướng phát triển tiếp theo cho hệ thống.
+
+\end{document}

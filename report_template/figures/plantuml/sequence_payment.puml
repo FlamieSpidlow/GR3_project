@@ -1,0 +1,42 @@
+@startuml
+title Sequence diagram quy trình đặt vé và thanh toán PayOS
+
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam sequenceMessageAlign center
+skinparam wrapWidth 180
+
+actor "Người dùng" as User
+participant "Frontend" as FE
+participant "Backend API" as BE
+database "MongoDB" as DB
+participant "PayOS" as PayOS
+participant "Notification/Email" as Notify
+
+User -> FE : Chọn địa điểm, loại vé,\nngày tham quan và số lượng
+FE -> BE : Gửi yêu cầu tạo booking
+BE -> DB : Kiểm tra địa điểm,\nloại vé và tạo Booking
+DB --> BE : Booking đã tạo
+
+BE -> DB : Tạo Payment trạng thái pending
+DB --> BE : Payment đã tạo
+BE -> PayOS : Tạo yêu cầu thanh toán
+PayOS --> BE : Trả checkout URL/QR thanh toán
+BE --> FE : Trả thông tin booking/payment
+FE --> User : Hiển thị trang thanh toán
+
+PayOS -> BE : Gửi webhook/xác nhận thanh toán
+BE -> DB : Ghi PaymentLog và cập nhật Payment
+BE -> DB : Cập nhật Booking đã thanh toán
+BE -> DB : Sinh Ticket và QR payload
+DB --> BE : Vé đã phát hành
+BE -> Notify : Gửi email/thông báo nếu cấu hình
+
+User -> FE : Kiểm tra trạng thái thanh toán
+FE -> BE : Gọi API trạng thái payment
+BE -> DB : Truy vấn Booking/Payment/Ticket
+DB --> BE : Trạng thái hiện tại
+BE --> FE : Trả kết quả
+FE --> User : Hiển thị vé hoặc trạng thái giao dịch
+
+@enduml

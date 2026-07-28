@@ -1,0 +1,168 @@
+﻿\documentclass[a4paper,13pt,3p,oneside]{report}
+\usepackage{scrextend}
+\changefontsizes{13pt}
+\usepackage[utf8]{vietnam}
+\usepackage[top=2cm, bottom=2cm, left=3cm, right=3cm, asymmetric]{geometry}
+\usepackage{graphicx}
+\usepackage{fancybox}
+\usepackage{indentfirst}
+\usepackage{amsthm}
+\usepackage{latexsym}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsbsy}
+\usepackage{times}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{tabularx}
+\usepackage{enumitem}
+\usepackage{subfiles}
+\usepackage{titlesec}
+\usepackage{titletoc}
+\usepackage{chngcntr}
+\usepackage{pdflscape}
+\usepackage{afterpage}
+\usepackage[ruled,vlined]{algorithm2e}
+\usepackage{capt-of}
+\usepackage{multirow}
+\usepackage{fancyhdr}
+\usepackage{appendix}
+\usepackage[font=small,labelfont=bf]{caption}
+\usepackage{listings}
+\usepackage{float}
+\usepackage{subcaption}
+\usepackage{xurl}
+\usepackage{ragged2e}
+\usepackage{makecell}
+\usepackage{adjustbox}
+\usepackage[nonumberlist, nopostdot, nogroupskip, acronym]{glossaries}
+\usepackage{glossary-superragged}
+\setglossarystyle{superraggedheaderborder}
+\usepackage{setspace}
+\usepackage{parskip}
+\usepackage{tocbasic}
+\usepackage[backend=bibtex,style=ieee]{biblatex}
+\usepackage{hyperref}
+\usepackage[all]{hypcap}
+
+\renewcommand{\bibname}{TÀI LIỆU THAM KHẢO}
+\renewcommand\appendixname{PHỤ LỤC}
+\renewcommand\appendixpagename{PHỤ LỤC}
+\renewcommand\appendixtocname{PHỤ LỤC}
+\addbibresource{Danh_sach_tai_lieu_tham_khao.bib}
+\input{lstlisting}
+% \input{Tu_viet_tat}
+
+\newcolumntype{Y}{>{\RaggedRight\arraybackslash}X}
+\newcolumntype{L}[1]{>{\RaggedRight\arraybackslash}p{#1}}
+\renewcommand\theadfont{\bfseries}
+
+\fancypagestyle{plain}{%
+\fancyhf{}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}}
+\fancypagestyle{fancy}{%
+\fancyhf{}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}}
+\pagestyle{plain}
+\setlength{\headheight}{10pt}
+
+\def \TITLE{ĐỒ ÁN TỐT NGHIỆP}
+\def \AUTHOR{Trần Hoàng Hiền}
+
+\titleformat{\chapter}[hang]{\centering\bfseries}{CHƯƠNG \thechapter.\ }{0pt}{}[]
+\titlespacing*{\chapter}{0pt}{-20pt}{20pt}
+\titleformat{\section}[hang]{\bfseries}{\thechapter.\arabic{section}\ \ \ \ }{0pt}{}[]
+\titlespacing{\section}{0pt}{\parskip}{0.5\parskip}
+\titleformat{\subsection}[hang]{\bfseries}{\thechapter.\arabic{section}.\arabic{subsection}\ \ \ \ }{0pt}{}[]
+\titlespacing{\subsection}{30pt}{\parskip}{0.5\parskip}
+\renewcommand\thesubsubsection{\alph{subsubsection}}
+\titleformat{\subsubsection}[hang]{\bfseries}{\alph{subsubsection},\ }{0pt}{}[]
+\titlespacing{\subsubsection}{50pt}{\parskip}{0.5\parskip}
+
+\hypersetup{pdfborder = {0 0 0}, pdftitle={\TITLE}, pdfauthor={\AUTHOR}}
+\graphicspath{{figures/}{../figures/}}
+\counterwithin{figure}{chapter}
+\title{\bf \TITLE}
+\author{\AUTHOR}
+\setcounter{secnumdepth}{3}
+\theoremstyle{definition}
+\newtheorem{example}{Ví dụ}[chapter]
+\onehalfspacing
+\setlength{\parskip}{6pt}
+\setlength{\parindent}{15pt}
+\raggedbottom
+\clubpenalty=10000
+\widowpenalty=10000
+\displaywidowpenalty=10000
+
+\begin{document}
+\subfile{Bia}
+\subfile{Bia_lot}
+
+\newpage
+\pagenumbering{gobble}
+\subfile{Chuong/0_2_Loi_cam_on.tex}
+\newpage
+\pagenumbering{gobble}
+\subfile{Chuong/0_3_Tom_tat_noi_dung.tex}
+\newpage
+\pagenumbering{gobble}
+\subfile{Chuong/0_4_Tom_tat_noi_dung_English.tex}
+
+\newpage
+\pagenumbering{roman}
+\renewcommand*\contentsname{MỤC LỤC}
+\titlecontents{chapter}[0.0cm]{\bfseries\vspace{0.3cm}}{{\bfseries{\scshape} CHƯƠNG \thecontentslabel.\ }}{}{\titlerule*[0.3pc]{.}\contentspage}
+\titlecontents{section}[0.0cm]{\vspace{0.3cm}}{\thecontentslabel\ }{}{\titlerule*[0.3pc]{.}\contentspage}
+\titlecontents{subsection}[1.0cm]{\vspace{0.3cm}}{\thecontentslabel\ }{}{\titlerule*[0.3pc]{.}\contentspage}
+\addtocontents{toc}{\protect\thispagestyle{empty}}
+\tableofcontents
+\thispagestyle{empty}
+\clearpage
+
+\renewcommand{\listfigurename}{DANH MỤC HÌNH VẼ}
+{\let\oldnumberline\numberline\renewcommand{\numberline}{Hình~\oldnumberline}\listoffigures}
+\newpage
+\renewcommand{\listtablename}{DANH MỤC BẢNG BIỂU}
+{\let\oldnumberline\numberline\renewcommand{\numberline}{Bảng~\oldnumberline}\listoftables}
+
+\subfile{Chuong/0_5_Danh_muc_viet_tat.tex}
+\clearpage
+\pagenumbering{arabic}
+\subfile{Chuong/1_Gioi_thieu.tex}
+\newpage
+\subfile{Chuong/2_Khao_sat.tex}
+\newpage
+\subfile{Chuong/3_Cong_nghe.tex}
+\newpage
+\subfile{Chuong/4_Ket_qua_thuc_nghiem.tex}
+\newpage
+\subfile{Chuong/5_Giai_phap_dong_gop.tex}
+\newpage
+\subfile{Chuong/6_Ket_luan.tex}
+
+\newpage
+\phantomsection
+\addcontentsline{toc}{chapter}{TÀI LIỆU THAM KHẢO}
+\printbibliography
+
+% Phụ lục hiện chỉ dùng làm nháp nội bộ. Khi có nội dung phụ lục hoàn chỉnh
+% như PlantUML đầy đủ, test case chi tiết hoặc hướng dẫn chạy local đã rà soát,
+% có thể mở lại khối dưới đây.
+% \appendix
+% \renewcommand{\chaptername}{PHỤ LỤC}
+% \titleformat{\chapter}[hang]{\centering\bfseries}{CHƯƠNG \thechapter.\ }{0pt}{}[]
+% \chapter*{DANH MỤC SƠ ĐỒ PLANTUML}
+% \addcontentsline{toc}{chapter}{TÀI LIỆU THAM KHẢO}
+% \subfile{Chuong/Phu_luc_A.tex}
+% \newpage
+% \chapter*{BỔ SUNG TEST CASE VÀ HƯỚNG DẪN CHẠY LOCAL}
+% \addcontentsline{toc}{chapter}{TÀI LIỆU THAM KHẢO}
+% \subfile{Chuong/Phu_luc_B.tex}
+
+\end{document}
+

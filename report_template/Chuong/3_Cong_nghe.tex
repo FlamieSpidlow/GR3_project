@@ -1,0 +1,96 @@
+\documentclass[../DoAn.tex]{subfiles}
+\begin{document}
+\chapter{Nền tảng lý thuyết và công nghệ sử dụng}
+
+\section{Tổng quan công nghệ sử dụng}
+
+TheWeekend được xây dựng theo mô hình ứng dụng web kết hợp với một ứng dụng Android phục vụ quy trình quét vé tại điểm check-in. Hệ thống sử dụng các nhóm công nghệ chính cho giao diện người dùng, backend API, cơ sở dữ liệu, xác thực và phân quyền, bản đồ và vị trí, chatbot, thanh toán trực tuyến, vé điện tử và ứng dụng scanner. Các công nghệ được lựa chọn nhằm đáp ứng các yêu cầu đã phân tích ở Chương 2, bao gồm tìm kiếm và xem chi tiết địa điểm, gợi ý địa điểm, hỏi đáp với chatbot, đánh giá, yêu thích, đặt vé, thanh toán, phát hành vé QR và check-in vé.
+
+Ở phía giao diện web, hệ thống sử dụng Vue 3, Vue Router và các cơ chế gọi API như Axios và Fetch API. Ở phía backend, hệ thống sử dụng Node.js, Express và REST API để tổ chức các nghiệp vụ. Dữ liệu được lưu trữ trong MongoDB và được thao tác thông qua Mongoose. Việc xác thực và phân quyền sử dụng JWT, bcrypt và cơ chế phân quyền theo vai trò người dùng. Ngoài ra, hệ thống tích hợp Goong API cho nhóm chức năng bản đồ và vị trí, Gemini API cho chatbot, PayOS cho thanh toán, cùng ứng dụng Android native Java sử dụng ZXing và OkHttp cho nghiệp vụ quét QR và xác minh vé.
+
+\section{Công nghệ phía giao diện người dùng}
+
+Vue 3 là framework JavaScript dùng để xây dựng giao diện người dùng theo mô hình component. Cách tổ chức giao diện thành các component giúp tách nhỏ các phần hiển thị và tương tác, phù hợp với các màn hình có nhiều nghiệp vụ khác nhau như danh sách địa điểm, chi tiết địa điểm, gợi ý, chatbot, đánh giá, đặt vé, xem vé và quản trị \cite{vue_docs}. Trong phạm vi TheWeekend, Vue 3 được sử dụng để xây dựng giao diện web cho người dùng cuối, quản trị viên và nhân viên.
+
+Vue Router là thư viện định tuyến chính thức trong hệ sinh thái Vue. Công nghệ này hỗ trợ tổ chức các màn hình của ứng dụng theo từng route, đồng thời phù hợp với yêu cầu phân chia các khu vực chức năng như trang công khai, trang người dùng đã đăng nhập, khu vực quản trị và khu vực dành cho nhân viên \cite{vue_router_docs}. Với TheWeekend, Vue Router giúp điều hướng giữa các màn hình tìm kiếm địa điểm, xem chi tiết địa điểm, đặt vé, quản lý tài khoản và các trang quản trị.
+
+Axios là thư viện HTTP client được sử dụng để gửi yêu cầu từ frontend tới backend API \cite{axios_docs}. Bên cạnh Axios, Fetch API cũng là một cơ chế chuẩn của trình duyệt dùng để thực hiện các yêu cầu HTTP \cite{mdn_fetch_api}. Trong phạm vi triển khai của TheWeekend, các cơ chế gọi API này phục vụ việc trao đổi dữ liệu giữa giao diện web và backend, chẳng hạn lấy danh sách địa điểm, gửi đánh giá, thao tác yêu thích, tạo đơn đặt vé, lấy thông tin thanh toán và truy vấn dữ liệu quản trị.
+
+Một số lựa chọn thay thế cho Vue 3 có thể kể đến Angular hoặc Svelte. Tuy nhiên, Vue 3 phù hợp với phạm vi đồ án do hỗ trợ xây dựng giao diện theo component, có hệ sinh thái định tuyến rõ ràng và có thể đáp ứng các màn hình nghiệp vụ của hệ thống web. Việc sử dụng Axios và Fetch API cũng phù hợp với mô hình frontend giao tiếp với backend thông qua REST API.
+
+\section{Công nghệ phía backend}
+
+Node.js là môi trường thực thi JavaScript phía server, cho phép xây dựng các dịch vụ backend bằng cùng ngôn ngữ với phía frontend \cite{nodejs_docs}. Trong TheWeekend, Node.js được sử dụng làm nền tảng để triển khai backend xử lý các nghiệp vụ chính như tài khoản, địa điểm, đánh giá, yêu thích, chatbot, đặt vé, thanh toán, quản trị và check-in.
+
+Express là framework web cho Node.js, cung cấp các cơ chế định nghĩa route, middleware và xử lý request/response \cite{express_docs}. Express phù hợp với mô hình REST API, trong đó frontend và ứng dụng scanner gửi yêu cầu tới backend để thực hiện các thao tác nghiệp vụ. Cách tổ chức API theo tài nguyên giúp hệ thống dễ phân tách các nhóm nghiệp vụ như người dùng, địa điểm, đánh giá, vé và thanh toán.
+
+REST API là phong cách thiết kế giao tiếp giữa client và server dựa trên các tài nguyên và phương thức HTTP. Trong phạm vi TheWeekend, REST API giúp tách biệt giao diện web, ứng dụng Android scanner và backend. Nhờ đó, giao diện web có thể tập trung vào trải nghiệm người dùng, trong khi backend đảm nhiệm xử lý nghiệp vụ, kiểm tra quyền truy cập, thao tác cơ sở dữ liệu và tích hợp dịch vụ ngoài.
+
+Một số lựa chọn thay thế cho Node.js và Express có thể là Spring Boot, Django hoặc NestJS. Tuy nhiên, Node.js và Express phù hợp với phạm vi đồ án nhờ cách triển khai gọn, dễ tích hợp với hệ sinh thái JavaScript và đáp ứng được mô hình API phục vụ nhiều loại client.
+
+\section{Cơ sở dữ liệu và mô hình dữ liệu}
+
+MongoDB là hệ quản trị cơ sở dữ liệu NoSQL hướng document, lưu trữ dữ liệu dưới dạng các tài liệu có cấu trúc linh hoạt \cite{mongodb_docs}. Đối với TheWeekend, cách lưu trữ dạng document phù hợp với các thực thể có nhiều nhóm thuộc tính khác nhau như địa điểm, đánh giá, vé, thanh toán và thông báo. Việc sử dụng MongoDB giúp hệ thống có thể biểu diễn các dữ liệu nghiệp vụ có cấu trúc thay đổi theo từng loại đối tượng mà không cần thiết kế theo mô hình bảng quan hệ cố định ngay từ đầu.
+
+Mongoose là thư viện ODM cho MongoDB trong môi trường Node.js \cite{mongoose_docs}. Mongoose hỗ trợ định nghĩa schema, ràng buộc kiểu dữ liệu và thao tác với các collection thông qua các model. Trong phạm vi TheWeekend, Mongoose được sử dụng để biểu diễn và thao tác với các nhóm dữ liệu chính như User, Place, Review, Category, Tag, Booking, Payment, Ticket và Notification.
+
+Các lựa chọn thay thế cho MongoDB có thể là PostgreSQL hoặc MySQL nếu hệ thống ưu tiên mô hình dữ liệu quan hệ chặt chẽ. Tuy nhiên, MongoDB phù hợp với phạm vi TheWeekend do dữ liệu địa điểm, tiện ích, tag, đánh giá và các trường mô tả có tính linh hoạt. Việc kết hợp MongoDB với Mongoose giúp backend vừa giữ được sự linh hoạt của document database, vừa có cơ chế schema ở tầng ứng dụng để kiểm soát dữ liệu.
+
+\section{Xác thực và phân quyền}
+
+JWT là chuẩn biểu diễn token dùng để truyền thông tin xác thực giữa các bên dưới dạng JSON đã được ký \cite{jwt_rfc7519}. Trong TheWeekend, JWT phù hợp với mô hình API stateless, trong đó backend có thể kiểm tra thông tin định danh và vai trò của người dùng dựa trên token gửi kèm trong request. Cách tiếp cận này phù hợp với ứng dụng web và ứng dụng scanner cùng truy cập các API được bảo vệ.
+
+bcrypt là thuật toán băm mật khẩu được thiết kế để tăng chi phí tính toán khi kiểm tra mật khẩu, qua đó hỗ trợ giảm rủi ro khi dữ liệu mật khẩu băm bị lộ \cite{bcrypt_paper}. Trong phạm vi TheWeekend, bcrypt được dùng cho nghiệp vụ đăng ký và đăng nhập, giúp hệ thống không lưu mật khẩu gốc của người dùng.
+
+Cơ chế phân quyền của hệ thống dựa trên vai trò, gồm người dùng, quản trị viên và nhân viên. Người dùng đã đăng nhập được sử dụng các chức năng cá nhân như yêu thích, đánh giá và đặt vé. Quản trị viên được truy cập các chức năng quản lý hệ thống. Nhân viên được cấp quyền cho nghiệp vụ quét QR và check-in vé. Cách phân quyền theo vai trò phù hợp với yêu cầu bảo mật và kiểm soát quyền thao tác đã nêu ở Chương 2.
+
+Một lựa chọn thay thế cho JWT là quản lý phiên đăng nhập phía server. Tuy nhiên, trong phạm vi TheWeekend, JWT phù hợp hơn với mô hình REST API phục vụ nhiều client, bao gồm frontend web và ứng dụng Android scanner.
+
+\section{Dịch vụ bản đồ và vị trí}
+
+Goong API là dịch vụ cung cấp các chức năng liên quan đến bản đồ và vị trí \cite{goong_api_docs}. Trong phạm vi TheWeekend, Goong API được sử dụng cho các nghiệp vụ liên quan đến tìm kiếm vị trí, xử lý thông tin địa điểm và hỗ trợ dữ liệu vị trí trong quá trình quản lý địa điểm. Công nghệ này giúp hệ thống không phải tự xây dựng toàn bộ hạ tầng bản đồ, mà có thể tích hợp các API sẵn có phục vụ truy vấn địa điểm và tọa độ.
+
+Nhóm chức năng bản đồ và vị trí liên quan trực tiếp tới yêu cầu tìm kiếm địa điểm, xem chi tiết địa điểm và quản trị địa điểm. Khi địa điểm có thông tin vị trí rõ ràng, người dùng có thể xem thông tin địa điểm đầy đủ hơn, còn quản trị viên có thêm dữ liệu phục vụ quá trình nhập và quản lý địa điểm.
+
+Bên cạnh dữ liệu vị trí lấy từ Goong API, hệ thống cần tính khoảng cách giữa người dùng và các địa điểm để phục vụ tìm kiếm gần vị trí và xếp hạng gợi ý. Khoảng cách giữa hai điểm trên bề mặt Trái Đất theo tọa độ kinh độ và vĩ độ có thể được tính bằng công thức Haversine, trong đó khoảng cách được ước lượng dựa trên bán kính Trái Đất và hiệu của vĩ độ, kinh độ giữa hai điểm. Cách tính này phù hợp với phạm vi dữ liệu của đồ án vì chỉ cần tọa độ của địa điểm và vị trí người dùng, không phụ thuộc thêm vào dịch vụ tính đường đi bên ngoài. Việc áp dụng công thức này trong chức năng tìm gần vị trí và gợi ý sẽ được trình bày ở Chương 4.
+
+Các lựa chọn thay thế có thể là những dịch vụ bản đồ khác hoặc giải pháp tự quản lý dữ liệu địa lý. Tuy nhiên, trong phạm vi đồ án, việc tích hợp Goong API giúp giảm khối lượng triển khai hạ tầng bản đồ và tập trung vào nghiệp vụ chính của hệ thống.
+
+\section{Chatbot và xử lý hỏi đáp}
+
+Gemini API là dịch vụ cung cấp mô hình ngôn ngữ do Google phát triển, cho phép ứng dụng gửi yêu cầu và nhận phản hồi sinh ngôn ngữ tự nhiên \cite{gemini_api_docs}. Trong TheWeekend, Gemini API được sử dụng để xây dựng chức năng chatbot hỗ trợ hỏi đáp cho người dùng. Chức năng này liên quan trực tiếp tới yêu cầu hỏi đáp với chatbot đã phân tích ở Chương 2.
+
+Cách tiếp cận của hệ thống là kết hợp Gemini API với dữ liệu nội bộ được truy hồi từ MongoDB. Khi người dùng đặt câu hỏi, hệ thống có thể sử dụng dữ liệu hiện có về địa điểm, đánh giá hoặc tag để tạo ngữ cảnh đầu vào cho chatbot. Sau đó, Gemini API sinh phản hồi dựa trên câu hỏi và ngữ cảnh được cung cấp. Cách mô tả này chỉ phản ánh mức tổng quan của giải pháp; phần tổ chức dữ liệu, luồng xử lý và API cụ thể sẽ được trình bày trong Chương 4.
+
+Về mặt nguyên lý, cách kết hợp giữa truy hồi dữ liệu và sinh ngôn ngữ tự nhiên thuộc hướng tiếp cận truy hồi tăng cường sinh (Retrieval-Augmented Generation, RAG). Trong hướng tiếp cận này, thay vì để mô hình ngôn ngữ trả lời hoàn toàn dựa trên tri thức đã huấn luyện, hệ thống truy hồi các đoạn dữ liệu liên quan từ nguồn dữ liệu riêng và đưa vào ngữ cảnh của lời nhắc (prompt). Mô hình ngôn ngữ được yêu cầu trả lời dựa trên ngữ cảnh được cung cấp, nhờ đó câu trả lời bám sát dữ liệu của hệ thống và giảm khả năng đưa ra thông tin không có trong cơ sở dữ liệu. Đối với TheWeekend, hướng tiếp cận này phù hợp vì dữ liệu địa điểm thường xuyên thay đổi và mang tính đặc thù của hệ thống, không nằm trong tri thức tổng quát của mô hình ngôn ngữ. Việc giới hạn phạm vi trả lời theo dữ liệu nội bộ cũng là một biện pháp kiểm soát chất lượng và độ tin cậy của chatbot ở mức thiết kế.
+
+Một lựa chọn thay thế là xây dựng chatbot theo kịch bản cố định hoặc chỉ tìm kiếm theo từ khóa. Tuy nhiên, Gemini API phù hợp với mục tiêu hỗ trợ hỏi đáp bằng ngôn ngữ tự nhiên, trong khi việc truy hồi dữ liệu nội bộ giúp phản hồi gắn với dữ liệu của hệ thống TheWeekend.
+
+\section{Thanh toán và vé điện tử}
+
+PayOS là dịch vụ thanh toán được tích hợp trong TheWeekend để phục vụ quy trình đặt vé và thanh toán trực tuyến \cite{payos_docs}. Trong phạm vi hệ thống, PayOS liên quan trực tiếp tới nghiệp vụ tạo yêu cầu thanh toán, ghi nhận trạng thái giao dịch và hoàn tất quá trình phát hành vé sau khi thanh toán hợp lệ.
+
+Một nguyên tắc quan trọng khi tích hợp cổng thanh toán là backend không nên tin tưởng trạng thái thanh toán do phía client gửi lên, vì client có thể bị can thiệp. Thay vào đó, trạng thái đã thanh toán cần được xác nhận từ phía nhà cung cấp dịch vụ thông qua cơ chế webhook và xác minh chữ ký. Webhook là cơ chế trong đó nhà cung cấp dịch vụ chủ động gửi thông báo sự kiện tới một địa chỉ do hệ thống đăng ký khi giao dịch thay đổi trạng thái. Để bảo đảm thông báo thực sự đến từ nhà cung cấp và chưa bị sửa đổi, dữ liệu webhook thường kèm theo chữ ký được tạo bằng hàm băm có khóa (HMAC); hệ thống tính lại chữ ký từ dữ liệu nhận được và khóa bí mật, sau đó đối chiếu với chữ ký gửi kèm. Cách tiếp cận này là cơ sở lý thuyết cho phần xác minh thanh toán phía backend được trình bày ở Chương 4.
+
+Vé điện tử trong TheWeekend được biểu diễn bằng mã QR để phục vụ quá trình check-in. Sau khi người dùng hoàn tất quy trình đặt vé và thanh toán, hệ thống phát hành vé có thông tin định danh để nhân viên hoặc quản trị viên có thể quét và xác minh. Cách sử dụng vé QR phù hợp với yêu cầu số hóa quy trình nhận vé và kiểm tra vé tại địa điểm.
+
+Một lựa chọn thay thế là xử lý thanh toán thủ công hoặc phát hành vé dưới dạng mã văn bản. Tuy nhiên, trong phạm vi TheWeekend, việc tích hợp PayOS và vé QR giúp thống nhất quy trình từ đặt vé, thanh toán, phát hành vé đến check-in. Phần kiểm tra trạng thái giao dịch, sinh vé và cập nhật trạng thái check-in sẽ được trình bày chi tiết hơn ở Chương 4.
+
+\section{Ứng dụng Android scanner}
+
+Ứng dụng scanner của TheWeekend được xây dựng bằng Android native Java. Android native Java là cách phát triển ứng dụng trực tiếp trên nền tảng Android, phù hợp với các chức năng cần truy cập camera, xử lý kết quả quét mã và giao tiếp với backend API \cite{android_docs}. Trong phạm vi TheWeekend, ứng dụng scanner được sử dụng bởi nhân viên hoặc quản trị viên để quét vé QR và thực hiện check-in.
+
+ZXing là thư viện mã nguồn mở hỗ trợ xử lý mã vạch và mã QR \cite{zxing_repo}. Trong ứng dụng scanner, ZXing được sử dụng để nhận diện và đọc nội dung mã QR từ vé điện tử. OkHttp là HTTP client cho Java và Kotlin, được sử dụng để gửi yêu cầu từ ứng dụng Android tới backend API \cite{okhttp_docs}. Nhờ đó, sau khi quét mã QR, ứng dụng có thể gửi thông tin vé về backend để xác minh và cập nhật trạng thái check-in.
+
+Một lựa chọn thay thế là xây dựng chức năng quét vé ngay trên giao diện web. Tuy nhiên, ứng dụng Android native phù hợp với bối cảnh nhân viên cần thao tác trên thiết bị di động tại điểm check-in. Việc sử dụng ZXing và OkHttp giúp ứng dụng scanner tập trung vào hai nhu cầu chính: đọc mã QR và giao tiếp với backend để xác minh vé.
+
+\section{Phân tích lựa chọn công nghệ theo yêu cầu hệ thống}
+
+Việc lựa chọn các công nghệ trên không tách rời các yêu cầu đã phân tích ở Chương 2 mà gắn với từng nhóm yêu cầu cụ thể. Về tổ chức mã nguồn và khả năng bảo trì, mô hình Node.js kết hợp Express cho phép tách backend thành các tầng route, service, middleware và model; tầng service tập trung xử lý nghiệp vụ và tích hợp dịch vụ ngoài, tầng middleware đảm nhiệm xác thực và phân quyền, nhờ đó logic nghiệp vụ được tách khỏi định tuyến và dễ mở rộng. Về bảo mật và kiểm soát truy cập, sự kết hợp giữa JWT và phân quyền theo vai trò cho phép cùng một lớp API phục vụ nhiều loại client (web và ứng dụng Android scanner) trong khi vẫn kiểm soát được quyền thao tác ở phía backend; bcrypt bảo đảm mật khẩu không được lưu ở dạng gốc.
+
+Về toàn vẹn nghiệp vụ vé và an toàn thanh toán, việc tích hợp PayOS theo cơ chế webhook và xác minh chữ ký giúp trạng thái thanh toán được xác nhận từ phía dịch vụ thay vì tin tưởng client; đây là cơ sở để phát hành vé QR một cách tin cậy. Về khả năng mở rộng dữ liệu, mô hình document của MongoDB kết hợp Mongoose phù hợp với dữ liệu địa điểm có cấu trúc linh hoạt, đồng thời cho phép định nghĩa chỉ mục ở tầng schema để phục vụ truy vấn theo nghiệp vụ. Về hiệu năng tra cứu theo vị trí, công thức Haversine đáp ứng nhu cầu tính khoảng cách trong phạm vi dữ liệu đồ án, trong khi việc nâng cấp lên chỉ mục không gian địa lý là hướng tối ưu khi dữ liệu lớn dần. Cách phân tích này cho thấy các lựa chọn công nghệ được cân nhắc theo yêu cầu chức năng và phi chức năng, thay vì chỉ dựa trên mức độ phổ biến của công nghệ.
+
+\section{Tổng kết chương}
+
+Chương này đã trình bày các nền tảng lý thuyết và công nghệ chính được sử dụng trong TheWeekend, bao gồm công nghệ frontend, backend, cơ sở dữ liệu, xác thực và phân quyền, bản đồ và vị trí, chatbot, thanh toán, vé điện tử và ứng dụng Android scanner. Các công nghệ này là cơ sở để triển khai các yêu cầu chức năng và phi chức năng đã phân tích ở Chương 2. Chương 4 sẽ trình bày cách các công nghệ trên được tổ chức thành kiến trúc hệ thống, mô hình dữ liệu, API, giao diện và các phân hệ triển khai cụ thể.
+\end{document}

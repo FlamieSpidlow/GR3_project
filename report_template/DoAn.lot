@@ -1,0 +1,37 @@
+\contentsline {table}{\numberline {1}{\ignorespaces Danh mục thuật ngữ và từ viết tắt}}{vi}{table.0.1}%
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {2.1}{\ignorespaces So sánh nhóm tiêu chí tra cứu và đánh giá}}{5}{table.caption.10}%
+\contentsline {table}{\numberline {2.2}{\ignorespaces So sánh nhóm tiêu chí gợi ý, đặt vé và quản trị}}{5}{table.caption.11}%
+\contentsline {table}{\numberline {2.3}{\ignorespaces Actor và nhóm chức năng chính trong hệ thống TheWeekend}}{6}{table.caption.12}%
+\contentsline {table}{\numberline {2.4}{\ignorespaces Đặc tả use case tìm kiếm và xem chi tiết địa điểm}}{18}{table.caption.21}%
+\contentsline {table}{\numberline {2.5}{\ignorespaces Đặc tả use case nhận gợi ý địa điểm}}{18}{table.caption.22}%
+\contentsline {table}{\numberline {2.6}{\ignorespaces Đặc tả use case hỏi đáp với chatbot}}{19}{table.caption.23}%
+\contentsline {table}{\numberline {2.7}{\ignorespaces Đặc tả use case đặt vé và thanh toán}}{19}{table.caption.24}%
+\contentsline {table}{\numberline {2.8}{\ignorespaces Đặc tả use case quét QR và check-in vé}}{20}{table.caption.25}%
+\contentsline {table}{\numberline {2.9}{\ignorespaces Yêu cầu phi chức năng của hệ thống}}{20}{table.2.9}%
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {4.1}{\ignorespaces Các phân hệ chính của TheWeekend}}{32}{table.caption.28}%
+\contentsline {table}{\numberline {4.2}{\ignorespaces Các gói và module chính trong mã nguồn}}{34}{table.caption.30}%
+\contentsline {table}{\numberline {4.3}{\ignorespaces Các màn hình chính của hệ thống}}{35}{table.caption.31}%
+\contentsline {table}{\numberline {4.4}{\ignorespaces Các model chính của hệ thống}}{36}{table.caption.33}%
+\contentsline {table}{\numberline {4.5}{\ignorespaces Các collection chính trong cơ sở dữ liệu}}{37}{table.caption.34}%
+\contentsline {table}{\numberline {4.6}{\ignorespaces Các chỉ mục chính theo collection}}{38}{table.4.6}%
+\contentsline {table}{\numberline {4.7}{\ignorespaces Thư viện và công cụ sử dụng trong triển khai}}{39}{table.caption.35}%
+\contentsline {table}{\numberline {4.8}{\ignorespaces Thống kê tổng quan thành phần triển khai}}{40}{table.caption.36}%
+\contentsline {table}{\numberline {4.9}{\ignorespaces Đối chiếu yêu cầu chức năng và thành phần đã xây dựng}}{41}{table.caption.37}%
+\contentsline {table}{\numberline {4.10}{\ignorespaces Kết quả kiểm tra kỹ thuật đã thực hiện}}{56}{table.caption.53}%
+\contentsline {table}{\numberline {4.11}{\ignorespaces Kết quả kiểm thử chức năng đại diện}}{58}{table.4.11}%
+\contentsline {table}{\numberline {4.12}{\ignorespaces Kịch bản kiểm thử chức năng gợi ý địa điểm (dữ liệu mẫu, local)}}{62}{table.4.12}%
+\contentsline {table}{\numberline {4.13}{\ignorespaces Kịch bản kiểm thử chức năng chatbot (dữ liệu mẫu, local)}}{62}{table.4.13}%
+\contentsline {table}{\numberline {4.14}{\ignorespaces Bộ câu hỏi mẫu đánh giá chatbot}}{64}{table.caption.54}%
+\contentsline {table}{\numberline {4.15}{\ignorespaces Tổng hợp đánh giá định lượng nội bộ trên dữ liệu mẫu}}{65}{table.caption.55}%
+\contentsline {table}{\numberline {4.16}{\ignorespaces Các tình huống lỗi và ngoại lệ}}{66}{table.4.16}%
+\contentsline {table}{\numberline {4.17}{\ignorespaces Tổng hợp kết quả kiểm thử}}{67}{table.caption.56}%
+\contentsline {table}{\numberline {4.18}{\ignorespaces Một số vấn đề phát hiện trong kiểm thử và cách xử lý}}{68}{table.caption.57}%
+\contentsline {table}{\numberline {4.19}{\ignorespaces Cấu hình chạy và build các thành phần hệ thống}}{69}{table.caption.58}%
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsfinish 
+\contentsfinish 

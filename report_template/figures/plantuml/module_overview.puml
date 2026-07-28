@@ -1,0 +1,35 @@
+@startuml
+title Sơ đồ phân hệ tổng quan của TheWeekend
+
+skinparam defaultFontName Arial
+skinparam componentStyle rectangle
+skinparam shadowing false
+skinparam wrapWidth 180
+
+package "TheWeekend" {
+  component "Tài khoản\nvà xác thực" as Auth
+  component "Địa điểm" as Place
+  component "Gợi ý\nvà chatbot" as SuggestChat
+  component "Đánh giá\nvà ảnh đánh giá" as Review
+  component "Yêu thích" as Favorite
+  component "Vé\nvà thanh toán" as TicketPayment
+  component "Vé QR\nvà check-in" as Checkin
+  component "Quản trị" as Admin
+  component "Thông báo" as Notification
+}
+
+Auth --> Place : hồ sơ/vị trí
+Auth --> Favorite : người dùng
+Auth --> Review : người dùng
+Place --> SuggestChat : dữ liệu địa điểm
+Place --> Review : đánh giá theo địa điểm
+Place --> TicketPayment : địa điểm có vé
+TicketPayment --> Checkin : phát hành vé QR
+Admin --> Place : quản lý
+Admin --> Review : duyệt ảnh
+Admin --> TicketPayment : quản lý đơn/giao dịch
+Admin --> Checkin : xác minh vé
+Notification --> Auth : thông báo theo người dùng
+TicketPayment --> Notification : thông báo vé/giao dịch
+
+@enduml
