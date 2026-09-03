@@ -7,8 +7,7 @@ const ReviewImageSubmission = require('../models/ReviewImageSubmission')
 const { authenticate, verifyAuthToken } = require('../middleware/auth')
 const { createUserNotification } = require('../services/notificationService')
 const multer = require('multer')
-const path = require('path')
-const fs = require('fs')
+const { uploadBuffer } = require('../services/cloudinaryService')
 
 async function getOptionalUser(req) {
   try {
@@ -21,23 +20,9 @@ async function getOptionalUser(req) {
   }
 }
 
-// Cấu hình multer cho upload ảnh review
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    try {
-      fs.mkdirSync('uploads/reviews/', { recursive: true })
-    } catch (e) {
-      // ignore
-    }
-    cb(null, 'uploads/reviews/')
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
-    cb(null, uniqueSuffix + path.extname(file.originalname))
-  }
-})
-const upload = multer({ 
-  storage,
+// Cấu hình multer cho upload ảnh review (lưu tạm trong bộ nhớ rồi đẩy lên Cloudinary)
+const upload = multer({
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
   fileFilter: (req, file, cb) => {
     if (file.mimetype.startsWith('image/')) {
@@ -170,12 +155,16 @@ router.post('/', authenticate, upload.array('images', 3), async (req, res) => {
 
     // Tạo submissions cho ảnh review (chờ admin duyệt)
     if (req.files && req.files.length > 0) {
-      const submissions = req.files.map(f => ({
+      const uploaded = await Promise.all(
+        req.files.map(f => uploadBuffer(f.buffer, 'theweekend/reviews'))
+      )
+      const submissions = uploaded.map((result, i) => ({
         review: review._id,
         place: placeId,
         submittedBy: userId,
-        imageUrl: `/uploads/reviews/${f.filename}`,
-        originalName: f.originalname || ''
+        imageUrl: result.secure_url,
+        publicId: result.public_id,
+        originalName: req.files[i].originalname || ''
       }))
       await ReviewImageSubmission.insertMany(submissions)
     }
@@ -243,7 +232,7 @@ router.put('/:reviewId', authenticate, upload.array('images', 3), async (req, re
       }
       if (!Array.isArray(parsed)) parsed = []
       review.images = parsed
-        .filter(u => typeof u === 'string' && u.startsWith('/uploads/'))
+        .filter(u => typeof u === 'string' && (u.startsWith('/uploads/') || /^https?:\/\//.test(u)))
         .slice(0, 3)
     }
 
@@ -251,13 +240,18 @@ router.put('/:reviewId', authenticate, upload.array('images', 3), async (req, re
     if (req.files && req.files.length > 0) {
       const currentApproved = Array.isArray(review.images) ? review.images.length : 0
       const remaining = Math.max(0, 3 - currentApproved)
-      const submissions = req.files.map(f => ({
+      const filesToUpload = req.files.slice(0, remaining)
+      const uploaded = await Promise.all(
+        filesToUpload.map(f => uploadBuffer(f.buffer, 'theweekend/reviews'))
+      )
+      const submissions = uploaded.map((result, i) => ({
         review: review._id,
         place: review.place,
         submittedBy: review.user,
-        imageUrl: `/uploads/reviews/${f.filename}`,
-        originalName: f.originalname || ''
-      })).slice(0, remaining)
+        imageUrl: result.secure_url,
+        publicId: result.public_id,
+        originalName: filesToUpload[i].originalname || ''
+      }))
       if (submissions.length > 0) await ReviewImageSubmission.insertMany(submissions)
     }
     await review.save()

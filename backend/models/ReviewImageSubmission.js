@@ -5,6 +5,7 @@ const reviewImageSubmissionSchema = new mongoose.Schema({
   place: { type: mongoose.Schema.Types.ObjectId, ref: 'Place', required: true },
   submittedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   imageUrl: { type: String, required: true },
+  publicId: { type: String, default: '' },
   originalName: { type: String, default: '' },
   status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
   rejectionReason: { type: String, default: '' },

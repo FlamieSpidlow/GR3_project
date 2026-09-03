@@ -9,9 +9,9 @@ const ReviewImageSubmission = require('../models/ReviewImageSubmission')
 const bcrypt = require('bcrypt')
 const multer = require('multer')
 const path = require('path')
-const fs = require('fs')
 const { authenticate, requireAdmin } = require('../middleware/auth')
 const { searchPlacesByQuery, getPlaceDetails } = require('../services/goongService')
+const { uploadBuffer, destroyImage } = require('../services/cloudinaryService')
 
 const normalizePriceText = (input) => String(input || '')
   .normalize('NFD')
@@ -66,19 +66,9 @@ const normalizeCategoryId = async (category) => {
   return found ? found._id : null
 }
 
-// Cấu hình multer để upload ảnh
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/')
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
-    cb(null, 'place-' + uniqueSuffix + path.extname(file.originalname))
-  }
-})
-
+// Cấu hình multer để upload ảnh (lưu tạm trong bộ nhớ rồi đẩy lên Cloudinary)
 const upload = multer({
-  storage: storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
   fileFilter: (req, file, cb) => {
     const allowedTypes = /jpeg|jpg|png|gif|webp/
@@ -248,7 +238,10 @@ router.post('/places/upload-image', upload.array('images', 10), async (req, res)
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ success: false, error: 'Không có file được upload' })
     }
-    const imageUrls = req.files.map(file => `/uploads/${file.filename}`)
+    const uploaded = await Promise.all(
+      req.files.map(file => uploadBuffer(file.buffer, 'theweekend/places'))
+    )
+    const imageUrls = uploaded.map(result => result.secure_url)
     res.json({ success: true, data: { imageUrls } })
   } catch (err) {
     console.error('Upload image error:', err)
@@ -450,13 +443,9 @@ router.post('/review-image-submissions/:id/reject', async (req, res) => {
     submission.reviewedAt = new Date()
     await submission.save()
 
-    // Best-effort delete file from disk
+    // Best-effort delete file from Cloudinary
     try {
-      const filename = path.basename(submission.imageUrl || '')
-      if (filename) {
-        const filePath = path.join(__dirname, '..', 'uploads', 'reviews', filename)
-        await fs.promises.unlink(filePath)
-      }
+      await destroyImage(submission.publicId)
     } catch (e) {
       // ignore
     }
