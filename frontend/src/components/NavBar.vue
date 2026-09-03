@@ -380,7 +380,12 @@ export default {
     },
     formatNotificationTime(value) {
       if (!value) return ''
-      return new Date(value).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+      const date = new Date(value)
+      const time = date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+      const isToday = date.toDateString() === new Date().toDateString()
+      if (isToday) return time
+      const day = date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })
+      return `${time} - ${day}`
     },
     resolveConfirm(value) {
       resolveConfirmation(value)
