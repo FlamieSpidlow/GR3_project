@@ -1,59 +1,53 @@
-const nodemailer = require('nodemailer')
+const fetch = require('node-fetch')
+
+const BREVO_API_URL = 'https://api.brevo.com/v3/smtp/email'
 
 const getFromEmail = () => process.env.FROM_EMAIL || process.env.SMTP_USER
+const getFromName = () => process.env.BREVO_SENDER_NAME || 'TheWeekend'
 
-const getSmtpTransportConfig = () => {
-  const host = process.env.SMTP_HOST
-  const port = Number.parseInt(process.env.SMTP_PORT || '587', 10)
-  const user = process.env.SMTP_USER
-  const pass = process.env.SMTP_PASS
-  const from = getFromEmail()
-  if (!host || !user || !pass || !from) return null
-  return {
-    transport: {
-      host,
-      port,
-      secure: port === 465,
-      auth: { user, pass },
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-      socketTimeout: 15000
+const sendWithBrevo = async ({ from, fromName, to, subject, text, html }) => {
+  const apiKey = process.env.BREVO_API_KEY
+  if (!apiKey) return null
+
+  const response = await fetch(BREVO_API_URL, {
+    method: 'POST',
+    headers: {
+      'api-key': apiKey,
+      'Content-Type': 'application/json',
+      accept: 'application/json'
     },
-    from
-  }
-}
-
-const sendWithSmtp = async ({ from, to, subject, text, html, attachments = [] }) => {
-  const config = getSmtpTransportConfig()
-  if (!config) return null
-
-  const transporter = nodemailer.createTransport(config.transport)
-  return transporter.sendMail({
-    from: from || config.from,
-    to,
-    subject,
-    text,
-    html,
-    attachments
+    body: JSON.stringify({
+      sender: { name: fromName, email: from },
+      to: [{ email: to }],
+      subject,
+      textContent: text,
+      htmlContent: html
+    })
   })
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => '')
+    throw new Error(`Brevo API error (${response.status}): ${body}`)
+  }
+
+  return response.json()
 }
 
-async function sendEmail({ from = getFromEmail(), to, subject, text, html, attachments = [] }) {
+async function sendEmail({ from = getFromEmail(), to, subject, text, html }) {
   if (!from) {
     console.warn('Email sender not configured - skip email')
     return false
   }
-
-  const smtpResult = await sendWithSmtp({ from, to, subject, text, html, attachments })
-  if (!smtpResult) {
-    console.warn('SMTP not configured - skip email')
+  if (!process.env.BREVO_API_KEY) {
+    console.warn('BREVO_API_KEY not configured - skip email')
     return false
   }
+
+  await sendWithBrevo({ from, fromName: getFromName(), to, subject, text, html })
   return true
 }
 
 module.exports = {
   getFromEmail,
-  getSmtpTransportConfig,
   sendEmail
 }

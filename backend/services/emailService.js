@@ -46,26 +46,14 @@ const createTicketQrAssets = async ({ booking, tickets }) => {
       margin: 4,
       errorCorrectionLevel: 'H'
     })
-    const base64 = dataUrl.replace(/^data:image\/png;base64,/, '')
-    const cid = `ticket-${ticket.code}@theweekend`
-    assets.push({
-      ticket,
-      index,
-      cid,
-      attachment: {
-        filename: `${ticket.code}.png`,
-        content: Buffer.from(base64, 'base64'),
-        contentType: 'image/png',
-        cid
-      }
-    })
+    assets.push({ ticket, index, dataUrl })
   }
   return assets
 }
 
-const buildTicketCards = (ticketAssets) => ticketAssets.map(({ ticket, index, cid }) => `
+const buildTicketCards = (ticketAssets) => ticketAssets.map(({ ticket, index, dataUrl }) => `
   <div style="display:flex;gap:16px;align-items:center;border:1px solid #e5e7eb;border-radius:10px;padding:14px;margin-bottom:12px;">
-    <img src="cid:${escapeHtml(cid)}" alt="QR ${escapeHtml(ticket.code)}" width="180" height="180" style="width:180px;height:180px;border:1px solid #e5e7eb;border-radius:8px;" />
+    <img src="${dataUrl}" alt="QR ${escapeHtml(ticket.code)}" width="180" height="180" style="width:180px;height:180px;border:1px solid #e5e7eb;border-radius:8px;" />
     <div style="min-width:0;">
       <div style="font-size:13px;color:#64748b;margin-bottom:4px;">Vé ${index + 1}</div>
       <div style="font-size:18px;font-weight:800;color:#0f172a;margin-bottom:6px;">${escapeHtml(ticket.code)}</div>
@@ -142,8 +130,7 @@ async function sendTicketConfirmationEmail(bookingId) {
       to: booking.user.email,
       subject: `Xác nhận vé TheWeekend - ${booking.code}`,
       text: buildTicketConfirmationText({ booking, tickets }),
-      html: buildTicketConfirmationHtml({ booking, tickets, ticketAssets }),
-      attachments: ticketAssets.map(asset => asset.attachment)
+      html: buildTicketConfirmationHtml({ booking, tickets, ticketAssets })
     })
   } catch (err) {
     console.error('Send ticket confirmation email error:', err)
